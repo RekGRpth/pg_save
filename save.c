@@ -10,7 +10,10 @@ static void save_timeout(void) {
 static void save_socket(void *data) {
 }
 
+#define SyncStandbysDefined() (SyncRepStandbyNames != NULL && SyncRepStandbyNames[0] != '\0')
 static void save_check(void) {
+    if (SyncStandbysDefined()) {
+    }
 }
 
 static void save_init(void) {
