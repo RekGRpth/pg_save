@@ -39,9 +39,9 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) return;
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.data", "pg_save table", NULL, &data, "postgres", PGC_POSTMASTER, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.data", "pg_save data", NULL, &data, "postgres", PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.schema", "pg_save schema", NULL, &schema, NULL, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.table", "pg_save table", NULL, &table, "save", PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.user", "pg_save table", NULL, &user, "postgres", PGC_POSTMASTER, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.user", "pg_save user", NULL, &user, "postgres", PGC_POSTMASTER, 0, NULL, NULL, NULL);
     save_work();
 }
