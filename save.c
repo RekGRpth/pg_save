@@ -35,7 +35,7 @@ static void save_timeout(void) {
         if (!command) {
             StringInfoData buf;
             initStringInfo(&buf);
-            appendStringInfo(&buf, "INSERT INTO %1$s (parent, child, state) VALUES (, 'MAIN'::state)", schema_table);
+            appendStringInfo(&buf, "INSERT INTO %1$s (parent, child, state) VALUES ($" SPARENT ", $" SCHILD ", 'MAIN'::state)", schema_table);
             command = buf.data;
         }
         SPI_connect_my(command);
