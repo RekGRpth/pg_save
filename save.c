@@ -84,9 +84,41 @@ static void save_socket(void *data) {
 }
 
 static void save_schema(void) {
+    StringInfoData buf;
+    List *names;
+    const char *schema_quote = quote_identifier(schema);
+    D1("user = %s, data = %s, schema = %s, table = %s", user, data, schema, table);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "CREATE SCHEMA %s", schema_quote);
+    names = stringToQualifiedNameList(schema_quote);
+    SPI_connect_my(buf.data);
+    if (!OidIsValid(get_namespace_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    SPI_commit_my();
+    SPI_finish_my();
+    list_free_deep(names);
+    if (schema_quote != schema) pfree((void *)schema_quote);
+    pfree(buf.data);
 }
 
 static void save_type(void) {
+    StringInfoData buf, name;
+    Oid type = InvalidOid;
+    int32 typmod;
+    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+    D1("user = %s, data = %s, schema = %s, table = %s", user, data, schema ? schema : "(null)", table);
+    initStringInfo(&name);
+    if (schema_quote) appendStringInfo(&name, "%s.", schema_quote);
+    appendStringInfoString(&name, "state");
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "CREATE TYPE %s AS ENUM ('MAIN', 'SYNC', 'ASYNC', 'FAIL')", name.data);
+    SPI_connect_my(buf.data);
+    parseTypeString(name.data, &type, &typmod, true);
+    if (!OidIsValid(type)) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    SPI_commit_my();
+    SPI_finish_my();
+    if (schema && schema_quote && schema != schema_quote) pfree((void *)schema_quote);
+    pfree(name.data);
+    pfree(buf.data);
 }
 
 static void save_table(void) {

@@ -6,7 +6,7 @@
 //#include <access/printtup.h>
 #include <access/xact.h>
 //#include <catalog/heap.h>
-//#include <catalog/namespace.h>
+#include <catalog/namespace.h>
 //#include <catalog/pg_type.h>
 #include <commands/async.h>
 #include <commands/dbcommands.h>
@@ -19,7 +19,7 @@
 #include <miscadmin.h>
 #include <nodes/makefuncs.h>
 //#include <parser/analyze.h>
-//#include <parser/parse_type.h>
+#include <parser/parse_type.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
 #include <replication/slot.h>
