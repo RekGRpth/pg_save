@@ -18,6 +18,17 @@ static void save_init(void) {
     process_session_preload_libraries();
 }
 
+static void save_reload(void) {
+    sighup = false;
+    ProcessConfigFile(PGC_SIGHUP);
+}
+
+static void save_latch(void) {
+    ResetLatch(MyLatch);
+    CHECK_FOR_INTERRUPTS();
+    if (sighup) save_reload();
+}
+
 void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
     TimestampTz stop = GetCurrentTimestamp(), start = stop;
     save_init();
@@ -35,6 +46,7 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
             if (event->events & WL_SOCKET_WRITEABLE) D1("WL_SOCKET_WRITEABLE");
             if (event->events & WL_POSTMASTER_DEATH) D1("WL_POSTMASTER_DEATH");
             if (event->events & WL_EXIT_ON_PM_DEATH) D1("WL_EXIT_ON_PM_DEATH");
+            if (event->events & WL_LATCH_SET) save_latch();
         }
         stop = GetCurrentTimestamp();
         if (timeout > 0 && (TimestampDifferenceExceeds(start, stop, timeout) || !nevents)) {
