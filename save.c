@@ -4,6 +4,9 @@ extern int timeout;
 extern volatile sig_atomic_t sighup;
 extern volatile sig_atomic_t sigterm;
 
+static void save_check(void) {
+}
+
 static void save_init(void) {
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
@@ -21,6 +24,7 @@ static void save_init(void) {
 static void save_reload(void) {
     sighup = false;
     ProcessConfigFile(PGC_SIGHUP);
+    save_check();
 }
 
 static void save_latch(void) {
@@ -32,6 +36,7 @@ static void save_latch(void) {
 void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
     TimestampTz stop = GetCurrentTimestamp(), start = stop;
     save_init();
+    save_check();
     while (!sigterm) {
         int nevents = 2;
         WaitEvent *events = palloc0(nevents * sizeof(*events));
