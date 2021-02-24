@@ -4,6 +4,9 @@ extern int timeout;
 extern volatile sig_atomic_t sighup;
 extern volatile sig_atomic_t sigterm;
 
+static void save_socket(void *data) {
+}
+
 static void save_check(void) {
 }
 
@@ -52,6 +55,7 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
             if (event->events & WL_POSTMASTER_DEATH) D1("WL_POSTMASTER_DEATH");
             if (event->events & WL_EXIT_ON_PM_DEATH) D1("WL_EXIT_ON_PM_DEATH");
             if (event->events & WL_LATCH_SET) save_latch();
+            if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
         stop = GetCurrentTimestamp();
         if (timeout > 0 && (TimestampDifferenceExceeds(start, stop, timeout) || !nevents)) {
