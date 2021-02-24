@@ -5,7 +5,7 @@ extern char *schema;
 extern char *table;
 extern char *user;
 extern int timeout;
-
+static char *schema_table;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -122,17 +122,76 @@ static void save_type(void) {
 }
 
 static void save_table(void) {
-    save_user();
-    save_data();
-    if (schema) save_schema();
-    save_type();
+    StringInfoData buf;
+    List *names;
+    const RangeVar *relation;
+    D1("user = %s, data = %s, schema = %s, table = %s, schema_table = %s", user, data, schema ? schema : "(null)", table, schema_table);
+    initStringInfo(&buf);
+    appendStringInfo(&buf,
+        "CREATE TABLE %1$s (\n"
+        "    id bigserial NOT NULL PRIMARY KEY,\n"
+        "    parent int8 DEFAULT current_setting('pg_task.id', true)::int8 REFERENCES %1$s (id) MATCH SIMPLE ON UPDATE CASCADE ON DELETE SET NULL,\n"
+        "    dt timestamptz NOT NULL DEFAULT current_timestamp,\n"
+        "    start timestamptz,\n"
+        "    stop timestamptz,\n"
+        "    \"group\" text NOT NULL DEFAULT 'group',\n"
+        "    max int4,\n"
+        "    pid int4,\n"
+        "    input text NOT NULL,\n"
+        "    output text,\n"
+        "    error text,\n"
+        "    state state NOT NULL DEFAULT 'PLAN'::state,\n"
+        "    timeout interval,\n"
+        "    delete boolean NOT NULL DEFAULT false,\n"
+        "    repeat interval,\n"
+        "    drift boolean NOT NULL DEFAULT true,\n"
+        "    count int4,\n"
+        "    live interval,\n"
+        "    remote text,\n"
+        "    append boolean NOT NULL DEFAULT false,\n"
+        "    header boolean NOT NULL DEFAULT true,\n"
+        "    string boolean NOT NULL DEFAULT true,\n"
+        "    \"null\" text NOT NULL DEFAULT '\\N',\n"
+        "    delimiter \"char\" NOT NULL DEFAULT '\t',\n"
+        "    quote \"char\",\n"
+        "    escape \"char\"\n"
+        ")", schema_table);
+    names = stringToQualifiedNameList(schema_table);
+    relation = makeRangeVarFromNameList(names);
+    SPI_connect_my(buf.data);
+    if (!OidIsValid(RangeVarGetRelid(relation, NoLock, true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    SPI_commit_my();
+    SPI_finish_my();
+    pfree((void *)relation);
+    list_free_deep(names);
+    pfree(buf.data);
 }
 
 #define SyncStandbysDefined() (SyncRepStandbyNames != NULL && SyncRepStandbyNames[0] != '\0')
 static void save_check(void) {
+    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+    const char *table_quote = quote_identifier(table);
+    StringInfoData buf;
+    MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
+    initStringInfo(&buf);
+    MemoryContextSwitchTo(oldMemoryContext);
+    if (schema) appendStringInfo(&buf, "%s.", schema_quote);
+    appendStringInfoString(&buf, table_quote);
+    schema_table = buf.data;
+    if (schema && schema_quote && schema != schema_quote) pfree((void *)schema_quote);
+    if (table != table_quote) pfree((void *)table_quote);
+    D1("user = %s, data = %s, schema = %s, table = %s, timeout = %i, schema_table = %s", user, data, schema ? schema : "(null)", table, timeout, schema_table);
     if (SyncStandbysDefined()) {
     }
-    if (!StandbyMode) save_table();
+    if (!StandbyMode) {
+        save_user();
+        save_data();
+        if (schema) save_schema();
+        save_type();
+        save_table();
+//        save_index("dt");
+//        save_index("state");
+    }
 }
 
 static void save_init(void) {
@@ -153,7 +212,6 @@ static void save_init(void) {
 static void save_reload(void) {
     sighup = false;
     ProcessConfigFile(PGC_SIGHUP);
-    save_check();
 }
 
 static void save_latch(void) {
