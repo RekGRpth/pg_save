@@ -22,7 +22,7 @@
 //#include <parser/parse_type.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
-//#include <replication/slot.h>
+#include <replication/slot.h>
 //#include <tcop/pquery.h>
 #include <tcop/utility.h>
 //#include <utils/acl.h>
