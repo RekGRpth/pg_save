@@ -200,6 +200,7 @@ static void save_check(void) {
 }
 
 static void save_init(void) {
+    D1("save_init");
     if (!EnableHotStandby) E("!EnableHotStandby");
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = user;
