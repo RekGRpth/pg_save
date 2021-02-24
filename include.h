@@ -8,16 +8,16 @@
 //#include <catalog/heap.h>
 //#include <catalog/namespace.h>
 //#include <catalog/pg_type.h>
-//#include <commands/async.h>
-//#include <commands/dbcommands.h>
+#include <commands/async.h>
+#include <commands/dbcommands.h>
 #include <commands/prepare.h>
-//#include <commands/user.h>
-//#include <executor/spi.h>
+#include <commands/user.h>
+#include <executor/spi.h>
 //#include <jit/jit.h>
 //#include <libpq-fe.h>
 #include <libpq/libpq-be.h>
 #include <miscadmin.h>
-//#include <nodes/makefuncs.h>
+#include <nodes/makefuncs.h>
 //#include <parser/analyze.h>
 //#include <parser/parse_type.h>
 #include <pgstat.h>
@@ -26,15 +26,25 @@
 #include <replication/syncrep.h>
 //#include <tcop/pquery.h>
 #include <tcop/utility.h>
-//#include <utils/acl.h>
-//#include <utils/builtins.h>
+#include <utils/acl.h>
+#include <utils/builtins.h>
 //#include <utils/lsyscache.h>
 //#include <utils/ps_status.h>
-//#include <utils/regproc.h>
+#include <utils/regproc.h>
 //#include <utils/snapmgr.h>
-//#include <utils/timeout.h>
+#include <utils/timeout.h>
 
 typedef struct _SPI_plan SPI_plan;
+
+char *TextDatumGetCStringMy(Datum datum);
+Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
+SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+void SPI_commit_my(void);
+void SPI_connect_my(const char *src);
+void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit);
+void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *values, const char *nulls, int res, bool commit);
+void SPI_finish_my(void);
+void SPI_start_transaction_my(const char *src);
 
 #define Q(name) #name
 #define S(macro) Q(macro)
