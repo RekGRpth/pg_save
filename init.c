@@ -2,11 +2,11 @@
 
 PG_MODULE_MAGIC;
 
-static char *data;
-static char *schema;
-static char *table;
-static char *user;
-static int timeout;
+char *data;
+char *schema;
+char *table;
+char *user;
+int timeout;
 
 static void save_work(void) {
     StringInfoData buf;
