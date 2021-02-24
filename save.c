@@ -22,6 +22,33 @@ static void init_sigterm(SIGNAL_ARGS) {
 }
 
 static void save_timeout(void) {
+    if (!StandbyMode) {
+        #define PARENT 1
+        #define SPARENT S(PARENT)
+        #define CHILD 2
+        #define SCHILD S(CHILD)
+        static Oid argtypes[] = {[PARENT - 1] = TEXTOID, [CHILD - 1] = TEXTOID};
+        Datum values[] = {[PARENT - 1] = CStringGetTextDatum("hostname"), [CHILD - 1] = CStringGetTextDatum("hostname")};
+        static SPI_plan *plan = NULL;
+        static char *command = NULL;
+        StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
+        if (!command) {
+            StringInfoData buf;
+            initStringInfo(&buf);
+            appendStringInfo(&buf, "INSERT INTO %1$s (parent, child, state) VALUES (, 'MAIN'::state)", schema_table);
+            command = buf.data;
+        }
+        SPI_connect_my(command);
+        if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
+        SPI_execute_plan_my(plan, values, NULL, SPI_OK_INSERT, true);
+        SPI_finish_my();
+        pfree((void *)values[PARENT - 1]);
+        #undef PARENT
+        #undef SPARENT
+        pfree((void *)values[CHILD - 1]);
+        #undef CHILD
+        #undef SCHILD
+    }
 }
 
 static void save_socket(void *data) {
