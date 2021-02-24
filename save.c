@@ -3,6 +3,7 @@
 extern char *schema;
 extern char *table;
 extern int timeout;
+static char *hostname;
 static char *schema_table;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
@@ -28,7 +29,7 @@ static void save_timeout(void) {
         #define CHILD 2
         #define SCHILD S(CHILD)
         static Oid argtypes[] = {[PARENT - 1] = TEXTOID, [CHILD - 1] = TEXTOID};
-        Datum values[] = {[PARENT - 1] = CStringGetTextDatum("hostname"), [CHILD - 1] = CStringGetTextDatum("hostname")};
+        Datum values[] = {[PARENT - 1] = CStringGetTextDatum(hostname), [CHILD - 1] = CStringGetTextDatum(hostname)};
         static SPI_plan *plan = NULL;
         static char *command = NULL;
         StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
@@ -147,16 +148,20 @@ static void save_index(const char *index) {
 static void save_check(void) {
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
     const char *table_quote = quote_identifier(table);
+    char name[1024];
     StringInfoData buf;
     MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
     initStringInfo(&buf);
+    name[sizeof(name) - 1] = '\0';
+    if (gethostname(name, sizeof(name) - 1)) E("gethostname");
+    hostname = pstrdup(name);
     MemoryContextSwitchTo(oldMemoryContext);
     if (schema) appendStringInfo(&buf, "%s.", schema_quote);
     appendStringInfoString(&buf, table_quote);
     schema_table = buf.data;
     if (schema && schema_quote && schema != schema_quote) pfree((void *)schema_quote);
     if (table != table_quote) pfree((void *)table_quote);
-    D1("schema = %s, table = %s, timeout = %i, schema_table = %s", schema ? schema : "(null)", table, timeout, schema_table);
+    D1("hostname = %s, schema = %s, table = %s, timeout = %i, schema_table = %s", hostname, schema ? schema : "(null)", table, timeout, schema_table);
     if (SyncStandbysDefined()) {
     }
     if (!StandbyMode) {
