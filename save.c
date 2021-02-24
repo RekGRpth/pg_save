@@ -167,6 +167,32 @@ static void save_table(void) {
     pfree(buf.data);
 }
 
+static void save_index(const char *index) {
+    StringInfoData buf, name;
+    List *names;
+    const RangeVar *relation;
+    const char *name_quote;
+    const char *index_quote = quote_identifier(index);
+    D1("user = %s, data = %s, schema = %s, table = %s, index = %s, schema_table = %s", user, data, schema ? schema : "(null)", table, index, schema_table);
+    initStringInfo(&name);
+    appendStringInfo(&name, "%s_%s_idx", table, index);
+    name_quote = quote_identifier(name.data);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "CREATE INDEX %s ON %s USING btree (%s)", name_quote, schema_table, index_quote);
+    names = stringToQualifiedNameList(name_quote);
+    relation = makeRangeVarFromNameList(names);
+    SPI_connect_my(buf.data);
+    if (!OidIsValid(RangeVarGetRelid(relation, NoLock, true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    SPI_commit_my();
+    SPI_finish_my();
+    pfree((void *)relation);
+    list_free_deep(names);
+    pfree(buf.data);
+    pfree(name.data);
+    if (name_quote != name.data) pfree((void *)name_quote);
+    if (index_quote != index) pfree((void *)index_quote);
+}
+
 #define SyncStandbysDefined() (SyncRepStandbyNames != NULL && SyncRepStandbyNames[0] != '\0')
 static void save_check(void) {
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
@@ -189,8 +215,8 @@ static void save_check(void) {
         if (schema) save_schema();
         save_type();
         save_table();
-//        save_index("dt");
-//        save_index("state");
+        save_index("dt");
+        save_index("state");
     }
 }
 
