@@ -13,7 +13,7 @@ void SPI_connect_my(const char *src) {
 }
 
 void SPI_commit_my(void) {
-    D1("SPI_commit_my")
+    D1("SPI_commit_my");
     disable_timeout(STATEMENT_TIMEOUT, false);
     SPI_commit();
     pgstat_report_stat(false);
