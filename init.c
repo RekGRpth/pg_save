@@ -1,0 +1,53 @@
+#include "include.h"
+
+PG_MODULE_MAGIC;
+
+volatile sig_atomic_t sighup = false;
+volatile sig_atomic_t sigterm = false;
+
+void init_sighup(SIGNAL_ARGS) {
+    int save_errno = errno;
+    sighup = true;
+    SetLatch(MyLatch);
+    errno = save_errno;
+}
+
+void init_sigterm(SIGNAL_ARGS) {
+    int save_errno = errno;
+    sigterm = true;
+    SetLatch(MyLatch);
+    errno = save_errno;
+}
+
+static void save_work(void) {
+    StringInfoData buf;
+    BackgroundWorker worker;
+    MemSet(&worker, 0, sizeof(worker));
+    worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
+    worker.bgw_restart_time = BGW_DEFAULT_RESTART_INTERVAL;
+    worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+    initStringInfo(&buf);
+    appendStringInfoString(&buf, "pg_save");
+    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
+    memcpy(worker.bgw_library_name, buf.data, buf.len);
+    resetStringInfo(&buf);
+    appendStringInfoString(&buf, "save_worker");
+    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
+    memcpy(worker.bgw_function_name, buf.data, buf.len);
+    resetStringInfo(&buf);
+    appendStringInfoString(&buf, "pg_save");
+    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
+    memcpy(worker.bgw_type, buf.data, buf.len);
+    resetStringInfo(&buf);
+    appendStringInfoString(&buf, "postgres postgres pg_save");
+    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
+    memcpy(worker.bgw_name, buf.data, buf.len);
+    pfree(buf.data);
+    RegisterBackgroundWorker(&worker);
+}
+
+void _PG_init(void); void _PG_init(void) {
+    if (IsBinaryUpgrade) return;
+    if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
+    save_work();
+}
