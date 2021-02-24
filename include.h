@@ -10,7 +10,7 @@
 //#include <catalog/pg_type.h>
 //#include <commands/async.h>
 //#include <commands/dbcommands.h>
-//#include <commands/prepare.h>
+#include <commands/prepare.h>
 //#include <commands/user.h>
 //#include <executor/spi.h>
 //#include <jit/jit.h>
@@ -24,7 +24,7 @@
 #include <postmaster/bgworker.h>
 //#include <replication/slot.h>
 //#include <tcop/pquery.h>
-//#include <tcop/utility.h>
+#include <tcop/utility.h>
 //#include <utils/acl.h>
 //#include <utils/builtins.h>
 //#include <utils/lsyscache.h>
