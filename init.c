@@ -7,22 +7,6 @@ static char *schema;
 static char *table;
 static char *user;
 static int timeout;
-volatile sig_atomic_t sighup = false;
-volatile sig_atomic_t sigterm = false;
-
-void init_sighup(SIGNAL_ARGS) {
-    int save_errno = errno;
-    sighup = true;
-    SetLatch(MyLatch);
-    errno = save_errno;
-}
-
-void init_sigterm(SIGNAL_ARGS) {
-    int save_errno = errno;
-    sigterm = true;
-    SetLatch(MyLatch);
-    errno = save_errno;
-}
 
 static void save_work(void) {
     StringInfoData buf;

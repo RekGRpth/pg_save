@@ -36,9 +36,6 @@
 
 typedef struct _SPI_plan SPI_plan;
 
-void init_sighup(SIGNAL_ARGS);
-void init_sigterm(SIGNAL_ARGS);
-
 #define Q(name) #name
 #define S(macro) Q(macro)
 

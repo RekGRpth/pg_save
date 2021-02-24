@@ -5,8 +5,23 @@ extern char *schema;
 extern char *table;
 extern char *user;
 extern int timeout;
-extern volatile sig_atomic_t sighup;
-extern volatile sig_atomic_t sigterm;
+
+volatile sig_atomic_t sighup = false;
+volatile sig_atomic_t sigterm = false;
+
+static void init_sighup(SIGNAL_ARGS) {
+    int save_errno = errno;
+    sighup = true;
+    SetLatch(MyLatch);
+    errno = save_errno;
+}
+
+static void init_sigterm(SIGNAL_ARGS) {
+    int save_errno = errno;
+    sigterm = true;
+    SetLatch(MyLatch);
+    errno = save_errno;
+}
 
 static void save_timeout(void) {
 }
