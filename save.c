@@ -4,6 +4,9 @@ extern int timeout;
 extern volatile sig_atomic_t sighup;
 extern volatile sig_atomic_t sigterm;
 
+static void save_timeout(void) {
+}
+
 static void save_socket(void *data) {
 }
 
@@ -59,6 +62,7 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
         }
         stop = GetCurrentTimestamp();
         if (timeout > 0 && (TimestampDifferenceExceeds(start, stop, timeout) || !nevents)) {
+            save_timeout();
             start = stop;
         }
         FreeWaitEventSet(set);
