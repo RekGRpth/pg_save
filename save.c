@@ -1,9 +1,7 @@
 #include "include.h"
 
-extern char *data;
 extern char *schema;
 extern char *table;
-extern char *user;
 extern int timeout;
 static char *schema_table;
 volatile sig_atomic_t sighup = false;
@@ -23,60 +21,6 @@ static void init_sigterm(SIGNAL_ARGS) {
     errno = save_errno;
 }
 
-static void save_user(void) {
-    StringInfoData buf;
-    const char *user_quote = quote_identifier(user);
-    List *names;
-    D1("user = %s", user);
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "CREATE ROLE %s WITH LOGIN", user_quote);
-    names = stringToQualifiedNameList(user_quote);
-    SPI_start_transaction_my(buf.data);
-    if (!OidIsValid(get_role_oid(strVal(linitial(names)), true))) {
-        CreateRoleStmt *stmt = makeNode(CreateRoleStmt);
-        ParseState *pstate = make_parsestate(NULL);
-        stmt->role = (char *)user;
-        stmt->options = lappend(stmt->options, makeDefElem("canlogin", (Node *)makeInteger(1), -1));
-        pstate->p_sourcetext = buf.data;
-        CreateRole(pstate, stmt);
-        list_free_deep(stmt->options);
-        free_parsestate(pstate);
-        pfree(stmt);
-    }
-    SPI_commit_my();
-    list_free_deep(names);
-    if (user_quote != user) pfree((void *)user_quote);
-    pfree(buf.data);
-}
-
-static void save_data(void) {
-    StringInfoData buf;
-    const char *user_quote = quote_identifier(user);
-    const char *data_quote = quote_identifier(data);
-    List *names;
-    D1("user = %s, data = %s", user, data);
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "CREATE DATABASE %s WITH OWNER = %s", data_quote, user_quote);
-    names = stringToQualifiedNameList(data_quote);
-    SPI_start_transaction_my(buf.data);
-    if (!OidIsValid(get_database_oid(strVal(linitial(names)), true))) {
-        CreatedbStmt *stmt = makeNode(CreatedbStmt);
-        ParseState *pstate = make_parsestate(NULL);
-        stmt->dbname = (char *)data;
-        stmt->options = lappend(stmt->options, makeDefElem("owner", (Node *)makeString((char *)user), -1));
-        pstate->p_sourcetext = buf.data;
-        createdb(pstate, stmt);
-        list_free_deep(stmt->options);
-        free_parsestate(pstate);
-        pfree(stmt);
-    }
-    SPI_commit_my();
-    list_free_deep(names);
-    if (user_quote != user) pfree((void *)user_quote);
-    if (data_quote != data) pfree((void *)data_quote);
-    pfree(buf.data);
-}
-
 static void save_timeout(void) {
 }
 
@@ -87,7 +31,7 @@ static void save_schema(void) {
     StringInfoData buf;
     List *names;
     const char *schema_quote = quote_identifier(schema);
-    D1("user = %s, data = %s, schema = %s, table = %s", user, data, schema, table);
+    D1("schema = %s, table = %s", schema, table);
     initStringInfo(&buf);
     appendStringInfo(&buf, "CREATE SCHEMA %s", schema_quote);
     names = stringToQualifiedNameList(schema_quote);
@@ -105,7 +49,7 @@ static void save_type(void) {
     Oid type = InvalidOid;
     int32 typmod;
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
-    D1("user = %s, data = %s, schema = %s, table = %s", user, data, schema ? schema : "(null)", table);
+    D1("schema = %s, table = %s", schema ? schema : "(null)", table);
     initStringInfo(&name);
     if (schema_quote) appendStringInfo(&name, "%s.", schema_quote);
     appendStringInfoString(&name, "state");
@@ -125,7 +69,7 @@ static void save_table(void) {
     StringInfoData buf;
     List *names;
     const RangeVar *relation;
-    D1("user = %s, data = %s, schema = %s, table = %s, schema_table = %s", user, data, schema ? schema : "(null)", table, schema_table);
+    D1("schema = %s, table = %s, schema_table = %s", schema ? schema : "(null)", table, schema_table);
     initStringInfo(&buf);
     appendStringInfo(&buf,
         "CREATE TABLE %1$s (\n"
@@ -152,7 +96,7 @@ static void save_index(const char *index) {
     const RangeVar *relation;
     const char *name_quote;
     const char *index_quote = quote_identifier(index);
-    D1("user = %s, data = %s, schema = %s, table = %s, index = %s, schema_table = %s", user, data, schema ? schema : "(null)", table, index, schema_table);
+    D1("schema = %s, table = %s, index = %s, schema_table = %s", schema ? schema : "(null)", table, index, schema_table);
     initStringInfo(&name);
     appendStringInfo(&name, "%s_%s_idx", table, index);
     name_quote = quote_identifier(name.data);
@@ -185,12 +129,10 @@ static void save_check(void) {
     schema_table = buf.data;
     if (schema && schema_quote && schema != schema_quote) pfree((void *)schema_quote);
     if (table != table_quote) pfree((void *)table_quote);
-    D1("user = %s, data = %s, schema = %s, table = %s, timeout = %i, schema_table = %s", user, data, schema ? schema : "(null)", table, timeout, schema_table);
+    D1("schema = %s, table = %s, timeout = %i, schema_table = %s", schema ? schema : "(null)", table, timeout, schema_table);
     if (SyncStandbysDefined()) {
     }
     if (!StandbyMode) {
-        save_user();
-        save_data();
         if (schema) save_schema();
         save_type();
         save_table();
@@ -203,14 +145,14 @@ static void save_init(void) {
     D1("save_init");
     if (!EnableHotStandby) E("!EnableHotStandby");
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
-    if (!MyProcPort->user_name) MyProcPort->user_name = user;
-    if (!MyProcPort->database_name) MyProcPort->database_name = data;
+    if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
+    if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, init_sighup);
     pqsignal(SIGTERM, init_sigterm);
     BackgroundWorkerUnblockSignals();
-    BackgroundWorkerInitializeConnection(data, user, 0);
+    BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
 }
