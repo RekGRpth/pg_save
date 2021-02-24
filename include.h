@@ -15,7 +15,7 @@
 //#include <executor/spi.h>
 //#include <jit/jit.h>
 //#include <libpq-fe.h>
-//#include <libpq/libpq-be.h>
+#include <libpq/libpq-be.h>
 #include <miscadmin.h>
 //#include <nodes/makefuncs.h>
 //#include <parser/analyze.h>
