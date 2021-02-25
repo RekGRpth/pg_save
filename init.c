@@ -2,8 +2,6 @@
 
 PG_MODULE_MAGIC;
 
-char *schema;
-char *table;
 int timeout;
 
 static void save_work(void) {
@@ -37,7 +35,5 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) return;
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.schema", "pg_save schema", NULL, &schema, NULL, PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.table", "pg_save table", NULL, &table, "save", PGC_POSTMASTER, 0, NULL, NULL, NULL);
     save_work();
 }
