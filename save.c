@@ -22,8 +22,60 @@ static void init_sigterm(SIGNAL_ARGS) {
     errno = save_errno;
 }
 
+static bytea *pg_save_convert(bytea *string, const char *src_encoding_name, const char *dest_encoding_name) {
+    int src_encoding = pg_char_to_encoding(src_encoding_name);
+    int dest_encoding = pg_char_to_encoding(dest_encoding_name);
+    const char *src_str = VARDATA_ANY(string);
+    char *dest_str;
+    bytea *retval;
+    int len = VARSIZE_ANY_EXHDR(string);
+    if (src_encoding < 0) E("invalid source encoding name \"%s\"", src_encoding_name);
+    if (dest_encoding < 0) E("invalid destination encoding name \"%s\"", dest_encoding_name);
+    pg_verify_mbstr_len(src_encoding, src_str, len, false);
+    dest_str = (char *)pg_do_encoding_conversion((unsigned char *)unconstify(char *, src_str), len, src_encoding, dest_encoding);
+    if (dest_str != src_str) len = strlen(dest_str);
+    retval = (bytea *)palloc(len + VARHDRSZ);
+    SET_VARSIZE(retval, len + VARHDRSZ);
+    memcpy(VARDATA(retval), dest_str, len);
+    if (dest_str != src_str) pfree(dest_str);
+    return retval;
+}
+
+static bytea *pg_save_convert_to(text *string, const char *encoding_name) {
+    const char *src_encoding_name = GetDatabaseEncodingName();
+    const char *dest_encoding_name = encoding_name;
+    return pg_save_convert(string, src_encoding_name, dest_encoding_name);
+}
+
+static text *pg_save_convert_from(bytea *string, const char *encoding_name) {
+    const char *src_encoding_name = encoding_name;
+    const char *dest_encoding_name = GetDatabaseEncodingName();
+    return pg_save_convert(string, src_encoding_name, dest_encoding_name);
+}
+
+static CURLcode pg_save_easy_setopt_char(CURLoption option, const char *parameter) {
+    CURLcode res = CURL_LAST;
+    if ((res = curl_easy_setopt(curl, option, parameter)) != CURLE_OK) E("curl_easy_setopt(%i, %s): %s", option, parameter, curl_easy_strerror(res));
+    return res;
+}
+
+static CURLcode pg_save_easy_setopt_copypostfields(bytea *parameter) {
+    CURLcode res = CURL_LAST;
+    if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, VARSIZE_ANY_EXHDR(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_POSTFIELDSIZE): %s", curl_easy_strerror(res));
+    if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, VARDATA_ANY(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_COPYPOSTFIELDS): %s", curl_easy_strerror(res));
+    PG_RETURN_BOOL(res == CURLE_OK);
+    return res;
+}
+
+static void save_set(const char *state) {
+    text *string = cstring_to_text(state);
+    if (pg_save_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) return;
+    if (pg_save_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) return;
+}
+
 static void save_timeout(void) {
     if (!StandbyMode) {
+        save_set("main");
     }
 }
 
