@@ -97,7 +97,6 @@ static CURLcode pg_save_curl_easy_setopt_copypostfields(bytea *parameter) {
     CURLcode res = CURL_LAST;
     if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, VARSIZE_ANY_EXHDR(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_POSTFIELDSIZE): %s", curl_easy_strerror(res));
     if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, VARDATA_ANY(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_COPYPOSTFIELDS): %s", curl_easy_strerror(res));
-    PG_RETURN_BOOL(res == CURLE_OK);
     return res;
 }
 
