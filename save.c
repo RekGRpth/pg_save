@@ -165,7 +165,7 @@ static void save_set(const char *state) {
     if (pg_save_curl_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) E("pg_save_curl_easy_setopt_copypostfields != CURLE_OK");
     if (pg_save_curl_easy_perform(1, 1000000) != CURLE_OK) E("pg_save_curl_easy_perform != CURLE_OK");
     response = pg_save_convert_from(pg_save_curl_easy_getinfo_response(), "utf-8");
-    W("response = %s", text_to_cstring(response));
+    D1("response = %s", text_to_cstring(response));
 }
 
 static void save_timeout(void) {
