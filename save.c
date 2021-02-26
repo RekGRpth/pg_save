@@ -156,9 +156,8 @@ static bytea *pg_save_curl_easy_getinfo_response(void) {
 static void save_set(const char *state) {
     text *string = cstring_to_text("{\"key\": \"Zm9v\", \"value\": \"YmFy\"}");
     text *response;
-    D1("StandbyMode = %i", StandbyMode);
     pg_save_curl_easy_reset();
-    if (pg_save_curl_easy_setopt_long(CURLOPT_VERBOSE, 1) != CURLE_OK) E("pg_save_curl_easy_setopt_long != CURLE_OK");
+//    if (pg_save_curl_easy_setopt_long(CURLOPT_VERBOSE, 1) != CURLE_OK) E("pg_save_curl_easy_setopt_long != CURLE_OK");
     if (pg_save_curl_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) E("pg_save_curl_easy_setopt_char != CURLE_OK");
     if (pg_save_curl_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) E("pg_save_curl_easy_setopt_copypostfields != CURLE_OK");
     if (pg_save_curl_easy_perform(1, 1000000) != CURLE_OK) E("pg_save_curl_easy_perform != CURLE_OK");
