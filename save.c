@@ -95,7 +95,6 @@ static CURLcode pg_save_curl_easy_setopt_long(CURLoption option, long parameter)
 
 static CURLcode pg_save_curl_easy_setopt_copypostfields(bytea *parameter) {
     CURLcode res = CURL_LAST;
-    pg_save_curl_easy_reset();
     if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, VARSIZE_ANY_EXHDR(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_POSTFIELDSIZE): %s", curl_easy_strerror(res));
     if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, VARDATA_ANY(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_COPYPOSTFIELDS): %s", curl_easy_strerror(res));
     PG_RETURN_BOOL(res == CURLE_OK);
@@ -158,10 +157,12 @@ static bytea *pg_save_curl_easy_getinfo_response(void) {
 static void save_set(const char *state) {
     text *string = cstring_to_text("{\"key\": \"Zm9v\", \"value\": \"YmFy\"}");
     text *response;
-    if (pg_save_curl_easy_setopt_long(CURLOPT_VERBOSE, 1) != CURLE_OK) return;
-    if (pg_save_curl_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) return;
-    if (pg_save_curl_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) return;
-    if (pg_save_curl_easy_perform(1, 1000000) != CURLE_OK) return;
+    D1("StandbyMode = %i", StandbyMode);
+    pg_save_curl_easy_reset();
+    if (pg_save_curl_easy_setopt_long(CURLOPT_VERBOSE, 1) != CURLE_OK) E("pg_save_curl_easy_setopt_long != CURLE_OK");
+    if (pg_save_curl_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) E("pg_save_curl_easy_setopt_char != CURLE_OK");
+    if (pg_save_curl_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) E("pg_save_curl_easy_setopt_copypostfields != CURLE_OK");
+    if (pg_save_curl_easy_perform(1, 1000000) != CURLE_OK) E("pg_save_curl_easy_perform != CURLE_OK");
     response = pg_save_convert_from(pg_save_curl_easy_getinfo_response(), "utf-8");
     W("response = %s", text_to_cstring(response));
 }
