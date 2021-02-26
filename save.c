@@ -63,7 +63,7 @@ static text *pg_save_convert_from(bytea *string, const char *encoding_name) {
     return pg_save_convert(string, src_encoding_name, dest_encoding_name);
 }
 
-static void pg_save_easy_reset(void) {
+static void pg_save_curl_easy_reset(void) {
     curl_easy_reset(curl);
     curl_slist_free_all(header);
     header = NULL;
@@ -81,22 +81,22 @@ static struct curl_slist *pg_save_header_append(const char *name, const char *va
     return temp;
 }
 
-static CURLcode pg_save_easy_setopt_char(CURLoption option, const char *parameter) {
+static CURLcode pg_save_curl_easy_setopt_char(CURLoption option, const char *parameter) {
     CURLcode res = CURL_LAST;
     if ((res = curl_easy_setopt(curl, option, parameter)) != CURLE_OK) E("curl_easy_setopt(%i, %s): %s", option, parameter, curl_easy_strerror(res));
     return res;
 }
 
-static CURLcode pg_save_easy_setopt_copypostfields(bytea *parameter) {
+static CURLcode pg_save_curl_easy_setopt_copypostfields(bytea *parameter) {
     CURLcode res = CURL_LAST;
-    pg_save_easy_reset();
+    pg_save_curl_easy_reset();
     if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, VARSIZE_ANY_EXHDR(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_POSTFIELDSIZE): %s", curl_easy_strerror(res));
     if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, VARDATA_ANY(parameter))) != CURLE_OK) E("curl_easy_setopt(CURLOPT_COPYPOSTFIELDS): %s", curl_easy_strerror(res));
     PG_RETURN_BOOL(res == CURLE_OK);
     return res;
 }
 
-static CURLcode pg_save_easy_perform(int try, long sleep) {
+static CURLcode pg_save_curl_easy_perform(int try, long sleep) {
     CURLcode res = CURL_LAST;
     if (try <= 0) E("try <= 0!");
     if (sleep < 0) E("sleep < 0!");
@@ -139,21 +139,23 @@ static CURLcode pg_save_easy_perform(int try, long sleep) {
     return res;
 }
 
-static text *pg_save_easy_getinfo_headers(void) {
+static text *pg_save_curl_easy_getinfo_headers(void) {
     if (!header_str.data) return NULL;
     return cstring_to_text_with_len(header_str.data, header_str.len);
 }
 
-static bytea *pg_save_easy_getinfo_response(void) {
+static bytea *pg_save_curl_easy_getinfo_response(void) {
     if (!write_str.data) return NULL;
     return cstring_to_text_with_len(write_str.data, write_str.len);
 }
 
 static void save_set(const char *state) {
     text *string = cstring_to_text("{\"key\": \"Zm9v\", \"value\": \"YmFy\"}");
-    if (pg_save_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) return;
-    if (pg_save_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) return;
-    if (pg_save_easy_perform(1, 1000000) != CURLE_OK) return;
+    text *response;
+    if (pg_save_curl_easy_setopt_char(CURLOPT_URL, "http://localhost:2379/v3/kv/put") != CURLE_OK) return;
+    if (pg_save_curl_easy_setopt_copypostfields(pg_save_convert_to(string, "utf-8")) != CURLE_OK) return;
+    if (pg_save_curl_easy_perform(1, 1000000) != CURLE_OK) return;
+    response = pg_save_convert_from(pg_save_curl_easy_getinfo_response(), "utf-8");
 }
 
 static void save_timeout(void) {
