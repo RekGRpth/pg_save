@@ -1,4 +1,3 @@
-#include <grpc/grpc.h>
 #include "include.h"
 #include <unistd.h>
 
@@ -74,7 +73,6 @@ static void save_latch(void) {
 
 void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
     TimestampTz stop = GetCurrentTimestamp(), start = stop;
-    grpc_init();
     save_init();
     save_check();
     while (!sigterm) {
@@ -102,5 +100,4 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
         FreeWaitEventSet(set);
         pfree(events);
     }
-    grpc_shutdown();
 }
