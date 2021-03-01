@@ -52,6 +52,24 @@ static void save_check(void) {
     }
 }*/
 
+static void save_schema(void) {
+    List *names = stringToQualifiedNameList("curl");
+    SPI_connect_my("CREATE SCHEMA curl");
+    if (!OidIsValid(get_namespace_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my("CREATE SCHEMA curl", 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    else D1("schema %s already exists", "curl");
+    SPI_commit_my();
+    SPI_finish_my();
+    list_free_deep(names);
+}
+
+static void save_extension(void) {
+}
+
+static void save_curl(void) {
+    save_schema();
+    save_extension();
+}
+
 static void save_init(void) {
     char name[1024];
     name[sizeof(name) - 1] = '\0';
@@ -70,6 +88,9 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
+    if (!StandbyMode) {
+        save_curl();
+    }
 }
 
 static void save_fini(void) {
