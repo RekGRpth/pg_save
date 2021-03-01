@@ -103,10 +103,10 @@ static void save_curl(void) {
 static void save_init(void) {
     char name[1024];
     name[sizeof(name) - 1] = '\0';
+    if (!EnableHotStandby) E("!EnableHotStandby");
     if (gethostname(name, sizeof(name) - 1)) E("gethostname");
     hostname = pstrdup(name);
     D1("hostname = %s, timeout = %i", hostname, timeout);
-    if (!EnableHotStandby) E("!EnableHotStandby");
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
