@@ -98,6 +98,8 @@ static void save_extension(const char *schema, const char *extension) {
 static void save_curl(void) {
     save_schema("curl");
     save_extension("curl", "pg_curl");
+    save_schema("save");
+    save_extension("save", "pg_save");
 }
 
 static void save_init(void) {
