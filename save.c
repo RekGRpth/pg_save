@@ -70,19 +70,34 @@ static void save_schema(const char *schema) {
     pfree(buf.data);
 }
 
-static void save_extension(void) {
-    List *names = stringToQualifiedNameList("curl.pg_curl");
-    SPI_connect_my("CREATE EXTENSION pg_curl SCHEMA curl");
-    if (!OidIsValid(get_extension_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my("CREATE EXTENSION pg_curl SCHEMA curl", 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
-    else D1("schema %s already exists", "curl.pg_curl");
+static void save_extension(const char *schema, const char *extension) {
+    StringInfoData buf, name;
+    List *names;
+    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+    const char *extension_quote = quote_identifier(extension);
+    D1("schema = %s, extension = %s", schema ? schema : "(null)", extension);
+    initStringInfo(&name);
+    if (schema) appendStringInfo(&name, "%s.", schema_quote);
+    appendStringInfoString(&name, extension_quote);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "CREATE EXTENSION %s", extension_quote);
+    if (schema) appendStringInfo(&buf, " SCHEMA %s", schema_quote);
+    names = stringToQualifiedNameList(name.data);
+    SPI_connect_my(buf.data);
+    if (!OidIsValid(get_extension_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    else D1("extension %s already exists", name.data);
     SPI_commit_my();
     SPI_finish_my();
     list_free_deep(names);
+    if (schema && schema_quote != schema) pfree((void *)schema_quote);
+    if (extension_quote != extension) pfree((void *)extension_quote);
+    pfree(buf.data);
+    pfree(name.data);
 }
 
 static void save_curl(void) {
     save_schema("curl");
-    save_extension();
+    save_extension("curl", "pg_curl");
 }
 
 static void save_init(void) {
