@@ -21,9 +21,6 @@ static void init_sigterm(SIGNAL_ARGS) {
 }
 
 static void save_set(const char *state) {
-    text *string = cstring_to_text("{\"key\": \"Zm9v\", \"value\": \"YmFy\"}");
-    text *response;
-    D1("response = %s", text_to_cstring(response));
 }
 
 static void save_timeout(void) {
