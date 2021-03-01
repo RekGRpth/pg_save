@@ -10,6 +10,7 @@
 //#include <catalog/pg_type.h>
 #include <commands/async.h>
 #include <commands/dbcommands.h>
+#include <commands/extension.h>
 #include <commands/prepare.h>
 #include <commands/user.h>
 #include <executor/spi.h>

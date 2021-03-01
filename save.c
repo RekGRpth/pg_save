@@ -27,7 +27,7 @@ static void save_set(const char *state) {
 }
 
 static void save_timeout(void) {
-    if (!StandbyMode) {
+    if (!RecoveryInProgress()) {
         save_set("main");
     }
 }
@@ -48,7 +48,7 @@ static void save_check(void) {
     D1("hostname = %s, timeout = %i", hostname, timeout);
     if (SyncStandbysDefined()) {
     }
-    if (!StandbyMode) {
+    if (!RecoveryInProgress()) {
     }
 }*/
 
@@ -63,6 +63,13 @@ static void save_schema(void) {
 }
 
 static void save_extension(void) {
+    List *names = stringToQualifiedNameList("curl.pg_curl");
+    SPI_connect_my("CREATE EXTENSION pg_curl SCHEMA curl");
+    if (!OidIsValid(get_extension_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my("CREATE EXTENSION pg_curl SCHEMA curl", 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    else D1("schema %s already exists", "curl.pg_curl");
+    SPI_commit_my();
+    SPI_finish_my();
+    list_free_deep(names);
 }
 
 static void save_curl(void) {
@@ -88,7 +95,7 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    if (!StandbyMode) {
+    if (!RecoveryInProgress()) {
         save_curl();
     }
 }
