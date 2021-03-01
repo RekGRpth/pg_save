@@ -52,14 +52,22 @@ static void save_check(void) {
     }
 }*/
 
-static void save_schema(void) {
-    List *names = stringToQualifiedNameList("curl");
-    SPI_connect_my("CREATE SCHEMA curl");
-    if (!OidIsValid(get_namespace_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my("CREATE SCHEMA curl", 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
-    else D1("schema %s already exists", "curl");
+static void save_schema(const char *schema) {
+    StringInfoData buf;
+    List *names;
+    const char *schema_quote = quote_identifier(schema);
+    D1("schema = %s", schema);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "CREATE SCHEMA %s", schema_quote);
+    names = stringToQualifiedNameList(schema_quote);
+    SPI_connect_my(buf.data);
+    if (!OidIsValid(get_namespace_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    else D1("schema %s already exists", schema_quote);
     SPI_commit_my();
     SPI_finish_my();
     list_free_deep(names);
+    if (schema_quote != schema) pfree((void *)schema_quote);
+    pfree(buf.data);
 }
 
 static void save_extension(void) {
@@ -73,7 +81,7 @@ static void save_extension(void) {
 }
 
 static void save_curl(void) {
-    save_schema();
+    save_schema("curl");
     save_extension();
 }
 
