@@ -1,5 +1,5 @@
 #include "include.h"
-#include <unistd.h>
+#include <sys/utsname.h>
 
 extern int timeout;
 static char *hostname;
@@ -112,11 +112,10 @@ static void save_curl(void) {
 }
 
 static void save_init(void) {
-    char name[1024];
-    name[sizeof(name) - 1] = '\0';
+    struct utsname buf;
     if (!EnableHotStandby) E("!EnableHotStandby");
-    if (gethostname(name, sizeof(name) - 1)) E("gethostname");
-    hostname = pstrdup(name);
+    if (uname(&buf)) E("uname");
+    hostname = pstrdup(buf.nodename);
     D1("hostname = %s, timeout = %i", hostname, timeout);
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
