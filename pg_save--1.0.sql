@@ -42,7 +42,7 @@ create or replace function etcd_kv_put(key text, value text, ttl int default nul
     response json;
 begin
     if etcd_kv_put.ttl is not null then
-        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'ttl', save.etcd_lease_grant(etcd_kv_put.ttl));
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'lease', save.etcd_lease_grant(etcd_kv_put.ttl));
     else
         local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'));
     end if;
