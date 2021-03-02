@@ -38,11 +38,11 @@ create or replace function etcd_kv_put(key text, value text, ttl bigint default 
     request json;
     response json;
 begin
-    if etcd_kv_range.ttl is not null then
-        local.request = json_build_object('key', encode(convert_to(etcd_kv_range.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_range.value, 'utf-8'), 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
+    if etcd_kv_put.ttl is not null then
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_put.ttl));
     else
-        local.request = json_build_object('key', encode(convert_to(etcd_kv_range.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_range.value, 'utf-8'), 'base64'));
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'));
     end if;
     local.response = save.etcd(local.location, local.request);
-    return save.etcd_kv_range(etcd_kv_range.key);
+    return save.etcd_kv_range(etcd_kv_put.key);
 end;$body$;
