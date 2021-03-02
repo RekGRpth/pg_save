@@ -10,7 +10,7 @@ static void save_work(void) {
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = BGW_DEFAULT_RESTART_INTERVAL;
-    worker.bgw_start_time = BgWorkerStart_RecoveryFinished;
+    worker.bgw_start_time = BgWorkerStart_ConsistentState;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "pg_save");
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
