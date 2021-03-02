@@ -23,7 +23,7 @@ begin
     return convert_from(decode(local.response->'kvs'->0->>'value', 'base64'), 'utf-8');
 end;$body$;
 
-create or replace function etcd_lease_grant(ttl bigint) returns text language plpgsql as $body$ <<local>> declare
+create or replace function etcd_lease_grant(ttl int) returns text language plpgsql as $body$ <<local>> declare
     location text default 'lease/grant';
     request json;
     response json;
@@ -33,13 +33,13 @@ begin
     return local.response->>'id';
 end;$body$;
 
-create or replace function etcd_kv_put(key text, value text, ttl bigint default null) returns text language plpgsql as $body$ <<local>> declare
+create or replace function etcd_kv_put(key text, value text, ttl int default null) returns text language plpgsql as $body$ <<local>> declare
     location text default 'kv/put';
     request json;
     response json;
 begin
     if etcd_kv_put.ttl is not null then
-        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_put.ttl));
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'ttl', save.etcd_lease_grant(etcd_kv_put.ttl));
     else
         local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'));
     end if;
