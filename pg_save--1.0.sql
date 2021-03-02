@@ -18,9 +18,9 @@ create or replace function etcd_kv_range(key text) returns text language plpgsql
     request json;
     response json;
 begin
-    local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'));
+    local.request = json_build_object('key', encode(convert_to(etcd_kv_range.key, 'utf-8'), 'base64'));
     local.response = save.etcd(local.location, local.request);
-    return decode(local.response->'kvs'->0->>'value', 'base64');
+    return convert_from(decode(local.response->'kvs'->0->>'value', 'base64'), 'utf-8');
 end;$body$;
 
 create or replace function etcd_lease_grant(ttl bigint) returns text language plpgsql as $body$ <<local>> declare
@@ -39,9 +39,9 @@ create or replace function etcd_kv_range(key text, value text, ttl bigint defaul
     response json;
 begin
     if etcd_kv_range.ttl is not null then
-        local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_range.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_range.value, 'utf-8'), 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
     else
-        local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'));
+        local.request = json_build_object('key', encode(convert_to(etcd_kv_range.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_range.value, 'utf-8'), 'base64'));
     end if;
     local.response = save.etcd(local.location, local.request);
     return save.etcd_kv_range(etcd_kv_range.key);
