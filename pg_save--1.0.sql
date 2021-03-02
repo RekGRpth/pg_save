@@ -33,8 +33,8 @@ begin
     return local.response->>'id';
 end;$body$;
 
-create or replace function etcd_kv_range(key text, value text, ttl bigint default null) returns text language plpgsql as $body$ <<local>> declare
-    location text default 'kv/range';
+create or replace function etcd_kv_put(key text, value text, ttl bigint default null) returns text language plpgsql as $body$ <<local>> declare
+    location text default 'kv/put';
     request json;
     response json;
 begin
