@@ -1,7 +1,7 @@
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
 \echo Use "CREATE EXTENSION pg_save" to load this file. \quit
 
-create or replace function etcd(location text, request jsonb) returns jsonb language plpgsql as $body$ <<local>> declare
+create or replace function etcd(location text, request json) returns json language plpgsql as $body$ <<local>> declare
     url text default 'http://localhost:2379/v3';
 begin
     --perform curl.curl_easy_reset();
@@ -15,32 +15,33 @@ end;$body$;
 
 create or replace function etcd_kv_range(key text) returns text language plpgsql as $body$ <<local>> declare
     location text default 'kv/range';
-    request jsonb;
-    response jsonb;
+    request json;
+    response json;
 begin
-    local.request = jsonb_build_object('key', encode(etcd_kv_range.key, 'base64'));
+    local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'));
     local.response = save.etcd(local.location, local.request);
     return decode(local.response->'kvs'->0->>'value', 'base64');
 end;$body$;
 
 create or replace function etcd_lease_grant(ttl bigint) returns text language plpgsql as $body$ <<local>> declare
     location text default 'lease/grant';
-    request jsonb;
-    response jsonb;
+    request json;
+    response json;
 begin
-    local.request = jsonb_build_object('ttl', etcd_lease_grant.ttl);
+    local.request = json_build_object('ttl', etcd_lease_grant.ttl);
     local.response = save.etcd(local.location, local.request);
     return local.response->>'id';
 end;$body$;
 
 create or replace function etcd_kv_range(key text, value text, ttl bigint default null) returns text language plpgsql as $body$ <<local>> declare
     location text default 'kv/range';
-    request jsonb;
-    response jsonb;
+    request json;
+    response json;
 begin
-    local.request = jsonb_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'));
     if etcd_kv_range.ttl is not null then
-        local.request = local.request || jsonb_build_object('ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
+        local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'), 'ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
+    else
+        local.request = json_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'));
     end if;
     local.response = save.etcd(local.location, local.request);
     return save.etcd_kv_range(etcd_kv_range.key);
