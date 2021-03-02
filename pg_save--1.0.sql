@@ -12,7 +12,7 @@ begin
     perform curl.curl_easy_setopt_copypostfields(convert_to(etcd.request::text, 'utf-8'));
     perform curl.curl_easy_perform(1);
     local.response = convert_from(curl.curl_easy_getinfo_response(), 'utf-8');
-    raise debug 'location=%, request=%, response=%', location, request, response;
+    --raise debug 'location=%, request=%, response=%', location, request, response;
     return local.response;
 end;$body$;
 
