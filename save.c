@@ -104,11 +104,13 @@ static void save_extension(const char *schema, const char *extension) {
 
 static void save_curl(void) {
     Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
+    SPI_connect_my("ALTER SYSTEM RESET synchronous_standby_names");
+    SPI_execute_with_args_my("ALTER SYSTEM RESET synchronous_standby_names", 0, NULL, NULL, NULL, SPI_OK_UTILITY, true);
+    SPI_finish_my();
     save_schema("curl");
     save_extension("curl", "pg_curl");
     save_schema("save");
     save_extension("save", "pg_save");
-    etcd_kv_put_oid = save_get_function_oid("save", "etcd_kv_put", countof(argtypes), argtypes);
 }
 
 static void save_init(void) {
@@ -131,6 +133,7 @@ static void save_init(void) {
     if (!RecoveryInProgress()) {
         save_curl();
     }
+    etcd_kv_put_oid = save_get_function_oid("save", "etcd_kv_put", countof(argtypes), argtypes);
 }
 
 static void save_fini(void) {
