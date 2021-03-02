@@ -3,6 +3,7 @@
 
 extern int timeout;
 static char *hostname;
+static Oid etcd_kv_put_oid;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -20,31 +21,32 @@ static void init_sigterm(SIGNAL_ARGS) {
     errno = save_errno;
 }
 
-static bool save_etcd_kv_put(const char *schema, const char *function, const char *key, const char *value, int ttl) {
+static Oid save_get_function_oid(const char *schema, const char *function, int nargs, const Oid *argtypes) {
+    Oid oid;
+    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+    const char *function_quote = quote_identifier(function);
+    List *funcname;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    if (schema) appendStringInfo(&buf, "%s.", schema_quote);
+    appendStringInfoString(&buf, function_quote);
+    funcname = stringToQualifiedNameList(buf.data);
+    SPI_connect_my(buf.data);
+    oid = LookupFuncName(funcname, nargs, argtypes, false);
+    SPI_commit_my();
+    SPI_finish_my();
+    list_free_deep(funcname);
+    if (schema && schema_quote != schema) pfree((void *)schema_quote);
+    if (function_quote != function) pfree((void *)function_quote);
+    return oid;
+}
+
+static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
     Datum key_datum = CStringGetTextDatum(key);
     Datum value_datum = CStringGetTextDatum(value);
     Datum ok;
-    static Oid oid = InvalidOid;
-    static char *command = NULL;
-    if (!command) {
-        const char *schema_quote = schema ? quote_identifier(schema) : NULL;
-        const char *function_quote = quote_identifier(function);
-        StringInfoData buf;
-        initStringInfo(&buf);
-        if (schema) appendStringInfo(&buf, "%s.", schema_quote);
-        appendStringInfoString(&buf, function_quote);
-        command = buf.data;
-        if (schema && schema_quote != schema) pfree((void *)schema_quote);
-        if (function_quote != function) pfree((void *)function_quote);
-    }
-    SPI_connect_my(command);
-    if (oid == InvalidOid) {
-        List *funcname = stringToQualifiedNameList(command);
-        Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
-        oid = LookupFuncName(funcname, countof(argtypes), argtypes, false);
-        list_free_deep(funcname);
-    }
-    ok = OidFunctionCall3(oid, key_datum, value_datum, Int32GetDatum(ttl));
+    SPI_connect_my("etcd_kv_put");
+    ok = OidFunctionCall3(etcd_kv_put_oid, key_datum, value_datum, Int32GetDatum(ttl));
     SPI_commit_my();
     SPI_finish_my();
     pfree((void *)key_datum);
@@ -52,75 +54,14 @@ static bool save_etcd_kv_put(const char *schema, const char *function, const cha
     return DatumGetBool(ok);
 }
 
-static bool save_etcd_kv_put1(const char *schema, const char *function, const char *key, const char *value, int ttl) {
-    #define KEY 1
-    #define SKEY S(KEY)
-    #define VALUE 2
-    #define SVALUE S(VALUE)
-    #define TTL 3
-    #define STTL S(TTL)
-    bool ok = false;
-    static Oid argtypes[] = {[KEY - 1] = TEXTOID, [VALUE - 1] = TEXTOID, [TTL - 1] = INT4OID};
-    Datum values[] = {[KEY - 1] = CStringGetTextDatum(key), [VALUE - 1] = CStringGetTextDatum(value), [TTL - 1] = Int32GetDatum(ttl)};
-    static SPI_plan *plan = NULL;
-    static char *command = NULL;
-    StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
-    if (!command) {
-        const char *schema_quote = schema ? quote_identifier(schema) : NULL;
-        const char *function_quote = quote_identifier(function);
-        StringInfoData buf, name;
-        initStringInfo(&name);
-        if (schema) appendStringInfo(&name, "%s.", schema_quote);
-        appendStringInfoString(&name, function_quote);
-        initStringInfo(&buf);
-        appendStringInfo(&buf, "SELECT %1$s($" SKEY ", $" SVALUE ", $" STTL ") AS ok", name.data);
-        command = buf.data;
-        if (schema && schema_quote != schema) pfree((void *)schema_quote);
-        if (function_quote != function) pfree((void *)function_quote);
-        pfree(name.data);
-    }
-    SPI_connect_my(command);
-    if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
-    SPI_execute_plan_my(plan, values, NULL, SPI_OK_SELECT, true);
-    if (SPI_processed != 1) E("SPI_processed != 1");
-    ok = DatumGetBool(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "ok", false));
-    SPI_finish_my();
-    pfree((void *)values[KEY - 1]);
-    #undef KEY
-    #undef SKEY
-    pfree((void *)values[VALUE - 1]);
-    #undef VALUE
-    #undef SVALUE
-    #undef TTL
-    #undef STTL
-    return ok;
-}
-
 static void save_timeout(void) {
     if (!RecoveryInProgress()) {
-        if (!save_etcd_kv_put("save", "etcd_kv_put", "main", hostname, 60)) E("!save_etcd_kv_put");
+        if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
     }
 }
 
 static void save_socket(void *data) {
 }
-
-/*#define SyncStandbysDefined() (SyncRepStandbyNames != NULL && SyncRepStandbyNames[0] != '\0')
-static void save_check(void) {
-    char name[1024];
-    StringInfoData buf;
-    MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
-    initStringInfo(&buf);
-    name[sizeof(name) - 1] = '\0';
-    if (gethostname(name, sizeof(name) - 1)) E("gethostname");
-    hostname = pstrdup(name);
-    MemoryContextSwitchTo(oldMemoryContext);
-    D1("hostname = %s, timeout = %i", hostname, timeout);
-    if (SyncStandbysDefined()) {
-    }
-    if (!RecoveryInProgress()) {
-    }
-}*/
 
 static void save_schema(const char *schema) {
     StringInfoData buf;
@@ -162,10 +103,12 @@ static void save_extension(const char *schema, const char *extension) {
 }
 
 static void save_curl(void) {
+    Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
     save_schema("curl");
     save_extension("curl", "pg_curl");
     save_schema("save");
     save_extension("save", "pg_save");
+    etcd_kv_put_oid = save_get_function_oid("save", "etcd_kv_put", countof(argtypes), argtypes);
 }
 
 static void save_init(void) {
