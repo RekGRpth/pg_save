@@ -1,6 +1,7 @@
-MODULE_big = pg_save
+EXTENSION = pg_save
+MODULE_big = $(EXTENSION)
 OBJS = init.o save.o spi.o
 PG_CONFIG = pg_config
-DATA = pg_save--1.0.sql
+DATA = $(EXTENSION)--1.0.sql
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
