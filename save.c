@@ -56,7 +56,7 @@ static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
 
 static void save_timeout(void) {
     if (!RecoveryInProgress()) {
-        if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
+        if (!save_etcd_kv_put("main", hostname, 60)) W("!save_etcd_kv_put");
     }
 }
 
