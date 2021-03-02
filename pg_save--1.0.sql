@@ -3,6 +3,7 @@
 
 create or replace function etcd(location text, request json) returns json language plpgsql as $body$ <<local>> declare
     url text default 'http://localhost:2379/v3';
+    response json;
 begin
     --perform curl.curl_easy_reset();
     --perform curl.curl_easy_setopt_verbose(1);
@@ -10,7 +11,9 @@ begin
     perform curl.curl_easy_setopt_url(concat_ws('/', local.url, etcd.location));
     perform curl.curl_easy_setopt_copypostfields(convert_to(etcd.request::text, 'utf-8'));
     perform curl.curl_easy_perform(1);
-    return convert_from(curl.curl_easy_getinfo_response(), 'utf-8');
+    local.response = convert_from(curl.curl_easy_getinfo_response(), 'utf-8');
+    raise debug 'location=%, request=%, response=%', location, request, response;
+    return local.response;
 end;$body$;
 
 create or replace function etcd_kv_range(key text) returns text language plpgsql as $body$ <<local>> declare
