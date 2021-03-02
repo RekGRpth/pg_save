@@ -68,28 +68,24 @@ static void save_schema(const char *schema) {
 }
 
 static void save_extension(const char *schema, const char *extension) {
-    StringInfoData buf, name;
+    StringInfoData buf;
     List *names;
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
     const char *extension_quote = quote_identifier(extension);
     D1("schema = %s, extension = %s", schema ? schema : "(null)", extension);
-    initStringInfo(&name);
-    if (schema) appendStringInfo(&name, "%s.", schema_quote);
-    appendStringInfoString(&name, extension_quote);
     initStringInfo(&buf);
     appendStringInfo(&buf, "CREATE EXTENSION %s", extension_quote);
     if (schema) appendStringInfo(&buf, " SCHEMA %s", schema_quote);
-    names = stringToQualifiedNameList(name.data);
+    names = stringToQualifiedNameList(extension_quote);
     SPI_connect_my(buf.data);
     if (!OidIsValid(get_extension_oid(strVal(linitial(names)), true))) SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
-    else D1("extension %s already exists", name.data);
+    else D1("extension %s already exists", extension_quote);
     SPI_commit_my();
     SPI_finish_my();
     list_free_deep(names);
     if (schema && schema_quote != schema) pfree((void *)schema_quote);
     if (extension_quote != extension) pfree((void *)extension_quote);
     pfree(buf.data);
-    pfree(name.data);
 }
 
 static void save_curl(void) {
