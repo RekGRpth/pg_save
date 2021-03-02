@@ -30,7 +30,7 @@ create or replace function etcd_lease_grant(ttl int) returns text language plpgs
 begin
     local.request = json_build_object('ttl', etcd_lease_grant.ttl);
     local.response = save.etcd(local.location, local.request);
-    return local.response->>'id';
+    return local.response->>'ID';
 end;$body$;
 
 create or replace function etcd_kv_put(key text, value text, ttl int default null) returns text language plpgsql as $body$ <<local>> declare
