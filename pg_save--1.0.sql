@@ -2,7 +2,7 @@
 \echo Use "CREATE EXTENSION pg_save" to load this file. \quit
 
 create or replace function etcd(location text, request json) returns json language plpgsql as $body$ <<local>> declare
-    url text default 'http://localhost:2379/v3';
+    url text default current_setting('custom.etcd', false);
     response json;
 begin
     --perform curl.curl_easy_reset();
