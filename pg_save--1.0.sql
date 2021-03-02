@@ -36,7 +36,7 @@ begin
     return local.response->>'ID';
 end;$body$;
 
-create or replace function etcd_kv_put(key text, value text, ttl int default null) returns text language plpgsql as $body$ <<local>> declare
+create or replace function etcd_kv_put(key text, value text, ttl int default null) returns boolean language plpgsql as $body$ <<local>> declare
     location text default 'kv/put';
     request json;
     response json;
@@ -47,5 +47,5 @@ begin
         local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'));
     end if;
     local.response = save.etcd(local.location, local.request);
-    return save.etcd_kv_range(etcd_kv_put.key);
+    return save.etcd_kv_range(etcd_kv_put.key) is not distinct from etcd_kv_put.value;
 end;$body$;

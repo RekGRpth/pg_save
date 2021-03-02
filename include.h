@@ -20,6 +20,7 @@
 #include <miscadmin.h>
 #include <nodes/makefuncs.h>
 //#include <parser/analyze.h>
+#include <parser/parse_func.h>
 #include <parser/parse_type.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
