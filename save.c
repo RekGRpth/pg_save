@@ -21,31 +21,35 @@ static void init_sigterm(SIGNAL_ARGS) {
 }
 
 static bool save_etcd_kv_put(const char *schema, const char *function, const char *key, const char *value, int ttl) {
-    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
-    const char *function_quote = quote_identifier(function);
-    static Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
     Datum key_datum = CStringGetTextDatum(key);
     Datum value_datum = CStringGetTextDatum(value);
-    Datum datum;
-    Oid oid;
-    StringInfoData name;
-    List *funcname;
-    initStringInfo(&name);
-    if (schema) appendStringInfo(&name, "%s.", schema_quote);
-    appendStringInfoString(&name, function_quote);
-    funcname = stringToQualifiedNameList(name.data);
-    SPI_connect_my(name.data);
-    oid = LookupFuncName(funcname, countof(argtypes), argtypes, false);
-    datum = OidFunctionCall3(oid, key_datum, value_datum, Int32GetDatum(ttl));
+    Datum ok;
+    static Oid oid = InvalidOid;
+    static char *command = NULL;
+    if (!command) {
+        const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+        const char *function_quote = quote_identifier(function);
+        StringInfoData buf;
+        initStringInfo(&buf);
+        if (schema) appendStringInfo(&buf, "%s.", schema_quote);
+        appendStringInfoString(&buf, function_quote);
+        command = buf.data;
+        if (schema && schema_quote != schema) pfree((void *)schema_quote);
+        if (function_quote != function) pfree((void *)function_quote);
+    }
+    SPI_connect_my(command);
+    if (oid == InvalidOid) {
+        List *funcname = stringToQualifiedNameList(command);
+        Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
+        oid = LookupFuncName(funcname, countof(argtypes), argtypes, false);
+        list_free_deep(funcname);
+    }
+    ok = OidFunctionCall3(oid, key_datum, value_datum, Int32GetDatum(ttl));
     SPI_commit_my();
     SPI_finish_my();
-    list_free_deep(funcname);
     pfree((void *)key_datum);
     pfree((void *)value_datum);
-    if (schema && schema_quote != schema) pfree((void *)schema_quote);
-    if (function_quote != function) pfree((void *)function_quote);
-    pfree(name.data);
-    return DatumGetBool(datum);
+    return DatumGetBool(ok);
 }
 
 static bool save_etcd_kv_put1(const char *schema, const char *function, const char *key, const char *value, int ttl) {
