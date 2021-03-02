@@ -1,10 +1,10 @@
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
 \echo Use "CREATE EXTENSION pg_save" to load this file. \quit
 
-create or replace function etcd(location text, request jsonb) return jsonb language plpgsql as $body$ <<local>> declare
+create or replace function etcd(location text, request jsonb) returns jsonb language plpgsql as $body$ <<local>> declare
     url text default 'http://localhost:2379/v3';
 begin
-    perform curl.curl_easy_reset();
+    --perform curl.curl_easy_reset();
     perform curl.curl_easy_setopt_verbose(1);
     perform curl.curl_easy_setopt_timeout(10);
     perform curl.curl_easy_setopt_url(concat_ws('/', local.url, etcd.location));
@@ -41,7 +41,7 @@ begin
     local.request = jsonb_build_object('key', encode(etcd_kv_range.key, 'base64'), 'value', encode(etcd_kv_range.value, 'base64'));
     if etcd_kv_range.ttl is not null then
         local.request = local.request || jsonb_build_object('ttl', etcd.etcd_lease_grant(etcd_kv_range.ttl));
-    end ifl
+    end if;
     local.response = save.etcd(local.location, local.request);
     return save.etcd_kv_range(etcd_kv_range.key);
 end;$body$;
