@@ -25,7 +25,7 @@ static bool save_etcd_kv_put(const char *schema, const char *function, const cha
     const char *function_quote = quote_identifier(function);
     static Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
     Datum key_datum = CStringGetTextDatum(key);
-    Datum value_datum = CStringGetTextDatum(key);
+    Datum value_datum = CStringGetTextDatum(value);
     Datum datum;
     Oid oid;
     StringInfoData name;
@@ -94,7 +94,7 @@ static bool save_etcd_kv_put1(const char *schema, const char *function, const ch
 
 static void save_timeout(void) {
     if (!RecoveryInProgress()) {
-//        if (!save_etcd_kv_put("save", "etcd_kv_put", "main", hostname, 60)) E("!save_etcd_kv_put");
+        if (!save_etcd_kv_put("save", "etcd_kv_put", "main", hostname, 60)) E("!save_etcd_kv_put");
     }
 }
 
