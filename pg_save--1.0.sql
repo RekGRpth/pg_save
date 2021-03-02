@@ -23,17 +23,17 @@ begin
     return decode(local.response->'kvs'->0->>'value', 'base64');
 end;$body$;
 
-create or replace function etcd_lease_grant(ttl interval) returns text language plpgsql as $body$ <<local>> declare
+create or replace function etcd_lease_grant(ttl bigint) returns text language plpgsql as $body$ <<local>> declare
     location text default 'lease/grant';
     request jsonb;
     response jsonb;
 begin
-    local.request = jsonb_build_object('ttl', EXTRACT(epoch FROM etcd_lease_grant.ttl));
+    local.request = jsonb_build_object('ttl', etcd_lease_grant.ttl);
     local.response = save.etcd(local.location, local.request);
     return local.response->>'id';
 end;$body$;
 
-create or replace function etcd_kv_range(key text, value text, ttl interval default null) returns text language plpgsql as $body$ <<local>> declare
+create or replace function etcd_kv_range(key text, value text, ttl bigint default null) returns text language plpgsql as $body$ <<local>> declare
     location text default 'kv/range';
     request jsonb;
     response jsonb;
