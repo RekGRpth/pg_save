@@ -94,7 +94,7 @@ static bool save_etcd_kv_put1(const char *schema, const char *function, const ch
 
 static void save_timeout(void) {
     if (!RecoveryInProgress()) {
-        if (!save_etcd_kv_put("save", "etcd_kv_put", "main", hostname, 60)) E("!save_etcd_kv_put");
+//        if (!save_etcd_kv_put("save", "etcd_kv_put", "main", hostname, 60)) E("!save_etcd_kv_put");
     }
 }
 
