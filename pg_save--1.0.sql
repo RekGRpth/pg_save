@@ -28,7 +28,7 @@ create or replace function etcd_lease_grant(ttl int) returns text language plpgs
     request json;
     response json;
 begin
-    local.request = json_build_object('ttl', etcd_lease_grant.ttl);
+    local.request = json_build_object('TTL', etcd_lease_grant.ttl);
     local.response = save.etcd(local.location, local.request);
     return local.response->>'ID';
 end;$body$;
