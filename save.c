@@ -3,7 +3,7 @@
 
 extern int timeout;
 static char *hostname;
-static Oid etcd_kv_put_oid;
+static Oid etcd_kv_put_text_text_int;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -46,7 +46,7 @@ static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
     Datum value_datum = CStringGetTextDatum(value);
     Datum ok;
     SPI_connect_my("etcd_kv_put");
-    ok = OidFunctionCall3(etcd_kv_put_oid, key_datum, value_datum, Int32GetDatum(ttl));
+    ok = OidFunctionCall3(etcd_kv_put_text_text_int, key_datum, value_datum, Int32GetDatum(ttl));
     SPI_commit_my();
     SPI_finish_my();
     pfree((void *)key_datum);
@@ -103,7 +103,6 @@ static void save_extension(const char *schema, const char *extension) {
 }
 
 static void save_curl(void) {
-    Oid argtypes[] = {TEXTOID, TEXTOID, INT4OID};
     SPI_connect_my("ALTER SYSTEM RESET synchronous_standby_names");
     SPI_execute_with_args_my("ALTER SYSTEM RESET synchronous_standby_names", 0, NULL, NULL, NULL, SPI_OK_UTILITY, true);
     SPI_finish_my();
@@ -133,7 +132,7 @@ static void save_init(void) {
     if (!RecoveryInProgress()) {
         save_curl();
     }
-    etcd_kv_put_oid = save_get_function_oid("save", "etcd_kv_put", countof(argtypes), argtypes);
+    etcd_kv_put_text_text_int = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
 }
 
 static void save_fini(void) {
