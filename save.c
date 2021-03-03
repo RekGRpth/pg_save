@@ -175,18 +175,6 @@ static void save_standby_init(void) {
 
 static void save_timeout(void) {
     if (RecoveryInProgress()) {
-        queue_each(&save_queue, queue) {
-            Backend *backend = queue_data(queue, Backend, queue);
-            if (PQstatus(backend->conn) == CONNECTION_BAD) {
-                W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
-                save_standby_finish(backend);
-            }
-        }
-        if (PQstatus(conn) == CONNECTION_BAD) {
-            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
-            PQfinish(conn);
-            save_standby_init();
-        }
         save_standby_main();
     } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
