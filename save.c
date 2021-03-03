@@ -144,6 +144,12 @@ static void save_main(Backend *backend) {
     pfree(buf.data);
 }
 
+static void save_finish(Backend *backend) {
+    queue_remove(&backend->queue);
+    PQfinish(backend->conn);
+    pfree(backend);
+}
+
 static void save_timeout(void) {
     if (RecoveryInProgress()) {
         queue_each(&save_queue, queue) {
@@ -151,6 +157,7 @@ static void save_timeout(void) {
             if (backend->state == MAIN) save_main(backend);
             if (PQstatus(backend->conn) == CONNECTION_BAD) {
                 W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
+                save_finish(backend);
             }
         }
     } else {
@@ -242,12 +249,6 @@ static void save_init(void) {
     if (RecoveryInProgress()) save_standby_init();
     else save_primary_init();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
-}
-
-static void save_finish(Backend *backend) {
-    queue_remove(&backend->queue);
-    PQfinish(backend->conn);
-    pfree(backend);
 }
 
 static void save_fini(void) {
