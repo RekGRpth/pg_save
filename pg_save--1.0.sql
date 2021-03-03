@@ -36,12 +36,12 @@ begin
     return local.response->>'ID';
 end;$body$;
 
-create or replace function etcd_kv_put(key text, value text, ttl int default null) returns boolean language plpgsql as $body$ <<local>> declare
+create or replace function etcd_kv_put(key text, value text, ttl int) returns boolean language plpgsql as $body$ <<local>> declare
     location text default 'kv/put';
     request json;
     response json;
 begin
-    if etcd_kv_put.ttl is not null then
+    if etcd_kv_put.ttl is distinct from 0 then
         local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'), 'lease', save.etcd_lease_grant(etcd_kv_put.ttl));
     else
         local.request = json_build_object('key', encode(convert_to(etcd_kv_put.key, 'utf-8'), 'base64'), 'value', encode(convert_to(etcd_kv_put.value, 'utf-8'), 'base64'));
