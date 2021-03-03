@@ -103,9 +103,6 @@ static void save_extension(const char *schema, const char *extension) {
 }
 
 static void save_curl(void) {
-//    SPI_connect_my("ALTER SYSTEM RESET synchronous_standby_names");
-//    SPI_execute_with_args_my("ALTER SYSTEM RESET synchronous_standby_names", 0, NULL, NULL, NULL, SPI_OK_UTILITY, true);
-//    SPI_finish_my();
     save_schema("curl");
     save_extension("curl", "pg_curl");
     save_schema("save");
