@@ -110,7 +110,7 @@ static void save_standby_backend(const char *host, int port, const char *user, c
     queue_insert_tail(&save_queue, &backend->queue);
 }
 
-static void save_main() {
+static void save_standby_main() {
     PGresult *result;
     int nParams = queue_size(&save_queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
@@ -187,7 +187,7 @@ static void save_timeout(void) {
             PQfinish(conn);
             save_standby_init();
         }
-        save_main();
+        save_standby_main();
     } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
     }
