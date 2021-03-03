@@ -1,6 +1,13 @@
 #include "include.h"
 #include <sys/utsname.h>
 
+typedef struct Backend {
+    int events;
+    int fd;
+    PGconn *conn;
+    queue_t queue;
+} Backend;
+
 extern int timeout;
 static char *hostname;
 static Oid etcd_kv_put;
@@ -103,6 +110,51 @@ static void save_extension(const char *schema, const char *extension) {
     pfree(buf.data);
 }
 
+static void save_free(Backend *backend) {
+    pfree(backend);
+}
+
+static void save_finish(Backend *backend) {
+    queue_remove(&backend->queue);
+    PQfinish(backend->conn);
+    save_free(backend);
+}
+
+static void save_error(Backend *backend, const char *msg) {
+    char *err = PQerrorMessage(backend->conn);
+    int len = strlen(err);
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfoString(&buf, msg);
+    if (len) appendStringInfo(&buf, " and %.*s", len - 1, err);
+    E(buf.data); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    pfree(buf.data);
+    save_finish(backend);
+}
+
+static char *int2char(int number) {
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "%i", number);
+    return buf.data;
+}
+
+static void save_backend(const char *host, int port) {
+    char *cport = int2char(port);
+    const char *keywords[] = {"host", "port", "application_name", NULL};
+    const char *values[] = {host, cport, "pg_save", NULL};
+    Backend *backend = palloc0(sizeof(*backend));
+    queue_insert_tail(&queue, &backend->queue);
+    backend->events = WL_SOCKET_WRITEABLE;
+    if (!(backend->conn = PQconnectStartParams(keywords, values, false))) save_error(backend, "!PQconnectStartParams"); else
+    if (PQstatus(backend->conn) == CONNECTION_BAD) save_error(backend, "PQstatus == CONNECTION_BAD"); else
+    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) save_error(backend, "PQsetnonblocking == -1"); else
+    if ((backend->fd = PQsocket(backend->conn)) < 0) save_error(backend, "PQsocket < 0"); else
+//    if (!superuser() && !PQconnectionUsedPassword(backend->conn)) work_error(backend, "!superuser && !PQconnectionUsedPassword"); else
+    if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
+    pfree(cport);
+}
+
 static void save_standby_init(void) {
     bool ready_to_display;
     char sender_host[NI_MAXHOST];
@@ -117,6 +169,7 @@ static void save_standby_init(void) {
     if (!pid) E("!pid");
     if (!ready_to_display) E("!ready_to_display");
     D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
+    save_backend(sender_host, sender_port);
 }
 
 static void save_primary_init(void) {

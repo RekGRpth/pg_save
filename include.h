@@ -41,11 +41,6 @@
 
 typedef struct _SPI_plan SPI_plan;
 
-typedef struct Backend {
-    PGconn *conn;
-    queue_t queue;
-} Backend;
-
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
