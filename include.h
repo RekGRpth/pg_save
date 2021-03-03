@@ -36,6 +36,8 @@
 //#include <utils/snapmgr.h>
 #include <utils/timeout.h>
 
+#include "queue.h"
+
 typedef struct _SPI_plan SPI_plan;
 
 char *TextDatumGetCStringMy(Datum datum);
