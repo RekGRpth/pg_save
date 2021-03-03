@@ -2,8 +2,10 @@
 #include <sys/utsname.h>
 
 typedef struct Backend {
+    bool connected;
     int events;
     int fd;
+    int pid;
     PGconn *conn;
     queue_t queue;
 } Backend;
@@ -11,7 +13,7 @@ typedef struct Backend {
 extern int timeout;
 static char *hostname;
 static Oid etcd_kv_put;
-static queue_t queue;
+static queue_t save_queue;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -68,7 +70,109 @@ static void save_timeout(void) {
     }
 }
 
-static void save_socket(void *data) {
+static void save_free(Backend *backend) {
+    pfree(backend);
+}
+
+static void save_finish(Backend *backend) {
+    queue_remove(&backend->queue);
+    PQfinish(backend->conn);
+    save_free(backend);
+}
+
+static void save_error(Backend *backend, const char *msg) {
+    char *err = PQerrorMessage(backend->conn);
+    int len = strlen(err);
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfoString(&buf, msg);
+    if (len) appendStringInfo(&buf, " and %.*s", len - 1, err);
+    W(buf.data);
+    pfree(buf.data);
+    save_finish(backend);
+}
+
+static void save_query(Backend *backend) {
+/*    StringInfoData buf;
+    List *list;
+    if (task_work(task)) { work_finish(task); return; }
+    D1("id = %li, timeout = %i, input = %s, count = %i", task->id, task->timeout, task->input, task->count);
+    PG_TRY();
+        list = pg_parse_query(task->input);
+        task->length = list_length(list);
+        list_free_deep(list);
+    PG_CATCH();
+        FlushErrorState();
+    PG_END_TRY();
+    initStringInfo(&buf);
+    task->skip = 0;
+    appendStringInfo(&buf, "SET \"pg_task.id\" = %li;\n", task->id);
+    task->skip++;
+    if (task->timeout) {
+        appendStringInfo(&buf, "SET \"statement_timeout\" = %i;\n", task->timeout);
+        task->skip++;
+    }
+    if (task->append) {
+        appendStringInfoString(&buf, "SET \"config.append_type_to_column_name\" = true;\n");
+        task->skip++;
+    }
+    appendStringInfoString(&buf, task->input);
+    pfree(task->input);
+    task->input = buf.data;
+    if (!PQsendQuery(task->conn, task->input)) work_error(task, "!PQsendQuery"); else {
+        pfree(task->input);
+        task->input = NULL;
+        task->events = WL_SOCKET_WRITEABLE;
+    }*/
+}
+
+static void save_result(Backend *backend) {
+    if (!PQconsumeInput(backend->conn)) save_error(backend, "!PQconsumeInput"); else
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
+        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+//            case PGRES_COMMAND_OK: save_command(backend, result); break;
+//            case PGRES_FATAL_ERROR: save_fail(backend, result); break;
+//            case PGRES_TUPLES_OK: save_success(backend, result); break;
+            default: D1(PQresStatus(PQresultStatus(result))); break;
+        }
+//        save_repeat(backend);
+    }
+}
+
+static void save_connect(Backend *backend) {
+    switch (PQstatus(backend->conn)) {
+        case CONNECTION_AUTH_OK: D1("PQstatus == CONNECTION_AUTH_OK"); break;
+        case CONNECTION_AWAITING_RESPONSE: D1("PQstatus == CONNECTION_AWAITING_RESPONSE"); break;
+        case CONNECTION_BAD: D1("PQstatus == CONNECTION_BAD"); save_error(backend, "PQstatus == CONNECTION_BAD"); return;
+#if (PG_VERSION_NUM >= 130000)
+        case CONNECTION_CHECK_TARGET: D1("PQstatus == CONNECTION_CHECK_TARGET"); break;
+#endif
+        case CONNECTION_CHECK_WRITABLE: D1("PQstatus == CONNECTION_CHECK_WRITABLE"); break;
+        case CONNECTION_CONSUME: D1("PQstatus == CONNECTION_CONSUME"); break;
+        case CONNECTION_GSS_STARTUP: D1("PQstatus == CONNECTION_GSS_STARTUP"); break;
+        case CONNECTION_MADE: D1("PQstatus == CONNECTION_MADE"); break;
+        case CONNECTION_NEEDED: D1("PQstatus == CONNECTION_NEEDED"); break;
+        case CONNECTION_OK: D1("PQstatus == CONNECTION_OK"); backend->connected = true; break;
+        case CONNECTION_SETENV: D1("PQstatus == CONNECTION_SETENV"); break;
+        case CONNECTION_SSL_STARTUP: D1("PQstatus == CONNECTION_SSL_STARTUP"); break;
+        case CONNECTION_STARTED: D1("PQstatus == CONNECTION_STARTED"); break;
+    }
+    switch (PQconnectPoll(backend->conn)) {
+        case PGRES_POLLING_ACTIVE: D1("PQconnectPoll == PGRES_POLLING_ACTIVE"); break;
+        case PGRES_POLLING_FAILED: D1("PQconnectPoll == PGRES_POLLING_FAILED"); save_error(backend, "PQconnectPoll == PGRES_POLLING_FAILED"); return;
+        case PGRES_POLLING_OK: D1("PQconnectPoll == PGRES_POLLING_OK"); backend->connected = true; break;
+        case PGRES_POLLING_READING: D1("PQconnectPoll == PGRES_POLLING_READING"); backend->events = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("PQconnectPoll == PGRES_POLLING_WRITING"); backend->events = WL_SOCKET_WRITEABLE; break;
+    }
+    if ((backend->fd = PQsocket(backend->conn)) < 0) save_error(backend, "PQsocket < 0");
+    if (backend->connected) {
+        if (!(backend->pid = PQbackendPID(backend->conn))) save_error(backend, "!PQbackendPID"); else save_query(backend);
+    }
+}
+
+static void save_socket(Backend *backend) {
+    D1("connected = %s", backend->connected ? "true" : "false");
+    if (backend->connected) save_result(backend); else save_connect(backend);
 }
 
 static void save_schema(const char *schema) {
@@ -110,28 +214,6 @@ static void save_extension(const char *schema, const char *extension) {
     pfree(buf.data);
 }
 
-static void save_free(Backend *backend) {
-    pfree(backend);
-}
-
-static void save_finish(Backend *backend) {
-    queue_remove(&backend->queue);
-    PQfinish(backend->conn);
-    save_free(backend);
-}
-
-static void save_error(Backend *backend, const char *msg) {
-    char *err = PQerrorMessage(backend->conn);
-    int len = strlen(err);
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfoString(&buf, msg);
-    if (len) appendStringInfo(&buf, " and %.*s", len - 1, err);
-    E(buf.data); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    pfree(buf.data);
-    save_finish(backend);
-}
-
 static char *int2char(int number) {
     StringInfoData buf;
     initStringInfo(&buf);
@@ -144,13 +226,12 @@ static void save_backend(const char *host, int port) {
     const char *keywords[] = {"host", "port", "application_name", NULL};
     const char *values[] = {host, cport, "pg_save", NULL};
     Backend *backend = palloc0(sizeof(*backend));
-    queue_insert_tail(&queue, &backend->queue);
+    queue_insert_tail(&save_queue, &backend->queue);
     backend->events = WL_SOCKET_WRITEABLE;
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) save_error(backend, "!PQconnectStartParams"); else
     if (PQstatus(backend->conn) == CONNECTION_BAD) save_error(backend, "PQstatus == CONNECTION_BAD"); else
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) save_error(backend, "PQsetnonblocking == -1"); else
     if ((backend->fd = PQsocket(backend->conn)) < 0) save_error(backend, "PQsocket < 0"); else
-//    if (!superuser() && !PQconnectionUsedPassword(backend->conn)) work_error(backend, "!superuser && !PQconnectionUsedPassword"); else
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     pfree(cport);
 }
@@ -189,7 +270,7 @@ static void save_init(void) {
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
-    queue_init(&queue);
+    queue_init(&save_queue);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, init_sighup);
     pqsignal(SIGTERM, init_sigterm);
@@ -220,11 +301,20 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
     TimestampTz stop = GetCurrentTimestamp(), start = stop;
     save_init();
     while (!sigterm) {
-        int nevents = 2;
+        int nevents = queue_size(&save_queue) + 2;
         WaitEvent *events = palloc0(nevents * sizeof(*events));
         WaitEventSet *set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
+        queue_each(&save_queue, queue) {
+            Backend *backend = queue_data(queue, Backend, queue);
+            if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
+                case 0: /*D1("PQflush = 0");*/ break;
+                case 1: D1("PQflush = 1"); break;
+                default: D1("PQflush = default"); break;
+            }
+            AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, backend->fd, NULL, backend);
+        }
         nevents = WaitEventSetWait(set, timeout, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
