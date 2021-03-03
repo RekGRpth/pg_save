@@ -149,6 +149,9 @@ static void save_timeout(void) {
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             if (backend->state == MAIN) save_main(backend);
+            if (PQstatus(backend->conn) == CONNECTION_BAD) {
+                W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
+            }
         }
     } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
@@ -241,13 +244,16 @@ static void save_init(void) {
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
 }
 
+static void save_finish(Backend *backend) {
+    queue_remove(&backend->queue);
+    PQfinish(backend->conn);
+    pfree(backend);
+}
+
 static void save_fini(void) {
-    while (!queue_empty(&save_queue)) {
-        queue_t *queue = queue_head(&save_queue);
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        queue_remove(&backend->queue);
-        PQfinish(backend->conn);
-        pfree(backend);
+        save_finish(backend);
     }
 }
 
