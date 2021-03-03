@@ -64,7 +64,8 @@ static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
 }
 
 static void save_timeout(void) {
-    if (!RecoveryInProgress()) {
+    if (RecoveryInProgress()) {
+    } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
     }
 }
@@ -115,7 +116,7 @@ static char *int2char(int number) {
     return buf.data;
 }
 
-static void save_main(Backend *backend) {
+static void save_main_init(Backend *backend) {
     char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
@@ -131,6 +132,7 @@ static void save_main(Backend *backend) {
     if (!(result = PQexec(backend->conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
+//    if (!(result = PQexec(backend->conn, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
 }
 
 static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
@@ -145,7 +147,7 @@ static void save_backend(const char *host, int port, const char *user, const cha
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    if (state == MAIN) save_main(backend);
+    if (state == MAIN) save_main_init(backend);
 }
 
 static void save_standby_init(void) {
@@ -196,10 +198,11 @@ static void save_init(void) {
 }
 
 static void save_fini(void) {
-    queue_each(&save_queue, queue) {
+    while (!queue_empty(&save_queue)) {
+        queue_t *queue = queue_head(&save_queue);
         Backend *backend = queue_data(queue, Backend, queue);
-        PQfinish(backend->conn);
         queue_remove(&backend->queue);
+        PQfinish(backend->conn);
         pfree(backend);
     }
 }
