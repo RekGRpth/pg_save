@@ -71,7 +71,7 @@ static char *int2char(int number) {
     return buf.data;
 }
 
-static void save_main_init2(void) {
+static void save_standby_main_init2(void) {
     char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
@@ -89,7 +89,7 @@ static void save_main_init2(void) {
     PQclear(result);
 }
 
-static void save_main_init(const char *host, int port, const char *user, const char *dbname) {
+static void save_standby_main_init(const char *host, int port, const char *user, const char *dbname) {
     char *cport = int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
@@ -98,7 +98,7 @@ static void save_main_init(const char *host, int port, const char *user, const c
     pfree(cport);
     if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
     if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
-    save_main_init2();
+    save_standby_main_init2();
 }
 
 static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
@@ -155,7 +155,7 @@ static void save_main() {
     pfree(buf.data);
 }
 
-static void save_finish(Backend *backend) {
+static void save_standby_finish(Backend *backend) {
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
     pfree(backend);
@@ -175,7 +175,7 @@ static void save_standby_init(void) {
     if (!pid) E("!pid");
     if (!ready_to_display) E("!ready_to_display");
     D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
-    save_main_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    save_standby_main_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
 static void save_timeout(void) {
@@ -184,7 +184,7 @@ static void save_timeout(void) {
             Backend *backend = queue_data(queue, Backend, queue);
             if (PQstatus(backend->conn) == CONNECTION_BAD) {
                 W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
-                save_finish(backend);
+                save_standby_finish(backend);
             }
         }
         if (PQstatus(conn) == CONNECTION_BAD) {
@@ -198,7 +198,7 @@ static void save_timeout(void) {
     }
 }
 
-static void save_schema(const char *schema) {
+static void save_primary_schema(const char *schema) {
     StringInfoData buf;
     List *names;
     const char *schema_quote = quote_identifier(schema);
@@ -216,7 +216,7 @@ static void save_schema(const char *schema) {
     pfree(buf.data);
 }
 
-static void save_extension(const char *schema, const char *extension) {
+static void save_primary_extension(const char *schema, const char *extension) {
     StringInfoData buf;
     List *names;
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
@@ -238,10 +238,10 @@ static void save_extension(const char *schema, const char *extension) {
 }
 
 static void save_primary_init(void) {
-    save_schema("curl");
-    save_extension("curl", "pg_curl");
-    save_schema("save");
-    save_extension("save", "pg_save");
+    save_primary_schema("curl");
+    save_primary_extension("curl", "pg_curl");
+    save_primary_schema("save");
+    save_primary_extension("save", "pg_save");
 }
 
 static void save_init(void) {
@@ -268,9 +268,10 @@ static void save_init(void) {
 }
 
 static void save_fini(void) {
+    PQfinish(conn);
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        save_finish(backend);
+        save_standby_finish(backend);
     }
 }
 
