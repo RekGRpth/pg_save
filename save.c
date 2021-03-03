@@ -93,6 +93,8 @@ static void save_main(Backend *backend) {
         D1("client_addr = %s, client_hostname = %s, sync_state = %s", client_addr, client_hostname_isnull ? "(null)" : client_hostname, sync_state);
     }
     PQclear(result);
+    if (paramTypes) pfree(paramTypes);
+    if (paramValues) pfree(paramValues);
     pfree(buf.data);
 }
 
