@@ -4,6 +4,8 @@
 typedef enum STATE {MAIN, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
 typedef struct Backend {
+    char *addr;
+    char *hostname;
     PGconn *conn;
     queue_t queue;
     STATE state;
@@ -164,6 +166,8 @@ static void save_backend(const char *host, int port, const char *user, const cha
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
+    backend->hostname = PQhost(backend->conn);
+    backend->addr = PQhostaddr(backend->conn);
     if (state == MAIN) save_main_init(backend);
 }
 
