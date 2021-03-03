@@ -4,6 +4,7 @@
 extern int timeout;
 static char *hostname;
 static Oid etcd_kv_put;
+//static queue_t queue;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
