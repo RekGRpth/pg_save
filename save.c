@@ -1,7 +1,7 @@
 #include "include.h"
 #include <sys/utsname.h>
 
-typedef enum STATE {MAIN, SYNC, ASYNC} STATE;
+typedef enum STATE {MAIN, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
 typedef struct Backend {
     PGconn *conn;
@@ -63,8 +63,26 @@ static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
     return DatumGetBool(ok);
 }
 
+static void save_main(Backend *backend) {
+    PGresult *result;
+    if (!(result = PQexec(backend->conn, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
+    if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
+    for (int row = 0; row < PQntuples(result); row++) {
+        bool client_hostname_isnull = PQgetisnull(result, row, PQfnumber(result, "client_hostname"));
+        const char *client_addr = PQgetvalue(result, row, PQfnumber(result, "client_addr"));
+        const char *client_hostname = PQgetvalue(result, row, PQfnumber(result, "client_hostname"));
+        const char *sync_state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
+        D1("client_addr = %s, client_hostname = %s, sync_state = %s", client_addr, client_hostname_isnull ? "(null)" : client_hostname, sync_state);
+    }
+    PQclear(result);
+}
+
 static void save_timeout(void) {
     if (RecoveryInProgress()) {
+        queue_each(&save_queue, queue) {
+            Backend *backend = queue_data(queue, Backend, queue);
+            if (backend->state == MAIN) save_main(backend);
+        }
     } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
     }
@@ -132,7 +150,6 @@ static void save_main_init(Backend *backend) {
     if (!(result = PQexec(backend->conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
-//    if (!(result = PQexec(backend->conn, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
 }
 
 static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
