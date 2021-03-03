@@ -262,7 +262,8 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    if (!RecoveryInProgress()) save_primary_init();
+    if (RecoveryInProgress()) save_standby_init();
+    else save_primary_init();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
 }
 
