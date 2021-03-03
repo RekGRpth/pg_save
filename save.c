@@ -104,9 +104,19 @@ static void save_extension(const char *schema, const char *extension) {
 }
 
 static void save_standby_init(void) {
-    SPI_connect_my("SELECT sender_host FROM pg_stat_wal_receiver");
-    SPI_execute_with_args_my("SELECT sender_host FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
-    SPI_finish_my();
+    bool ready_to_display;
+    char sender_host[NI_MAXHOST];
+    int pid;
+    int sender_port = 0;
+    SpinLockAcquire(&WalRcv->mutex);
+    pid = (int)WalRcv->pid;
+    ready_to_display = WalRcv->ready_to_display;
+    sender_port = WalRcv->sender_port;
+    strlcpy(sender_host, (char *)WalRcv->sender_host, sizeof(sender_host));
+    SpinLockRelease(&WalRcv->mutex);
+    if (!pid) E("!pid");
+    if (!ready_to_display) E("!ready_to_display");
+    D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
 }
 
 static void save_primary_init(void) {

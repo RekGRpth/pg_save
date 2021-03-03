@@ -26,6 +26,7 @@
 #include <postmaster/bgworker.h>
 #include <replication/slot.h>
 //#include <replication/syncrep.h>
+#include <replication/walreceiver.h>
 //#include <tcop/pquery.h>
 #include <tcop/utility.h>
 //#include <utils/acl.h>
