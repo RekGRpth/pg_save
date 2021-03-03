@@ -1,7 +1,7 @@
 #include "include.h"
 #include <sys/utsname.h>
 
-typedef enum STATE {MAIN, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
+typedef enum STATE {ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
 typedef struct Backend {
     PGconn *conn;
@@ -12,6 +12,7 @@ typedef struct Backend {
 extern int timeout;
 static char *hostname;
 static Oid etcd_kv_put;
+static PGconn *conn = NULL;
 static queue_t save_queue;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
@@ -70,7 +71,7 @@ static char *int2char(int number) {
     return buf.data;
 }
 
-static void save_main_init(Backend *backend) {
+static void save_main_init2(void) {
     char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
@@ -79,13 +80,25 @@ static void save_main_init(Backend *backend) {
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
     pfree(cluster_name);
-    if (!(result = PQexec(backend->conn, buf.data))) E("!PQexec and %s", PQerrorMessage(backend->conn));
+    if (!(result = PQexec(conn, buf.data))) E("!PQexec and %s", PQerrorMessage(conn));
     pfree(buf.data);
     if (PQresultStatus(result) != PGRES_COMMAND_OK) E("%s != PGRES_COMMAND_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
-    if (!(result = PQexec(backend->conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
+    if (!(result = PQexec(conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
+}
+
+static void save_main_init(const char *host, int port, const char *user, const char *dbname) {
+    char *cport = int2char(port);
+    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
+    const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
+    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    if (!(conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(conn));
+    pfree(cport);
+    if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
+    if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
+    save_main_init2();
 }
 
 static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
@@ -100,10 +113,9 @@ static void save_backend(const char *host, int port, const char *user, const cha
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    if (state == MAIN) save_main_init(backend);
 }
 
-static void save_main(Backend *backend) {
+static void save_main() {
     PGresult *result;
     int nParams = queue_size(&save_queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
@@ -114,7 +126,6 @@ static void save_main(Backend *backend) {
     nParams = 0;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == MAIN) continue;
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " AND client_addr NOT IN (");
         paramTypes[nParams] = INETOID;
@@ -123,7 +134,7 @@ static void save_main(Backend *backend) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!(result = PQexecParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(backend->conn));
+    if (!(result = PQexecParams(conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     for (int row = 0; row < PQntuples(result); row++) {
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
@@ -150,16 +161,38 @@ static void save_finish(Backend *backend) {
     pfree(backend);
 }
 
+static void save_standby_init(void) {
+    bool ready_to_display;
+    char sender_host[NI_MAXHOST];
+    int pid;
+    int sender_port = 0;
+    SpinLockAcquire(&WalRcv->mutex);
+    pid = (int)WalRcv->pid;
+    ready_to_display = WalRcv->ready_to_display;
+    sender_port = WalRcv->sender_port;
+    strlcpy(sender_host, (char *)WalRcv->sender_host, sizeof(sender_host));
+    SpinLockRelease(&WalRcv->mutex);
+    if (!pid) E("!pid");
+    if (!ready_to_display) E("!ready_to_display");
+    D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
+    save_main_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+}
+
 static void save_timeout(void) {
     if (RecoveryInProgress()) {
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
-            if (backend->state == MAIN) save_main(backend);
             if (PQstatus(backend->conn) == CONNECTION_BAD) {
                 W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
                 save_finish(backend);
             }
         }
+        if (PQstatus(conn) == CONNECTION_BAD) {
+            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
+            PQfinish(conn);
+            save_standby_init();
+        }
+        save_main();
     } else {
         if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
     }
@@ -204,23 +237,6 @@ static void save_extension(const char *schema, const char *extension) {
     pfree(buf.data);
 }
 
-static void save_standby_init(void) {
-    bool ready_to_display;
-    char sender_host[NI_MAXHOST];
-    int pid;
-    int sender_port = 0;
-    SpinLockAcquire(&WalRcv->mutex);
-    pid = (int)WalRcv->pid;
-    ready_to_display = WalRcv->ready_to_display;
-    sender_port = WalRcv->sender_port;
-    strlcpy(sender_host, (char *)WalRcv->sender_host, sizeof(sender_host));
-    SpinLockRelease(&WalRcv->mutex);
-    if (!pid) E("!pid");
-    if (!ready_to_display) E("!ready_to_display");
-    D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
-    save_backend(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name, MAIN);
-}
-
 static void save_primary_init(void) {
     save_schema("curl");
     save_extension("curl", "pg_curl");
@@ -246,8 +262,7 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    if (RecoveryInProgress()) save_standby_init();
-    else save_primary_init();
+    if (!RecoveryInProgress()) save_primary_init();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
 }
 
