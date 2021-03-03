@@ -4,8 +4,6 @@
 typedef enum STATE {MAIN, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
 typedef struct Backend {
-    char *addr;
-    char *hostname;
     PGconn *conn;
     queue_t queue;
     STATE state;
@@ -67,7 +65,25 @@ static bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
 
 static void save_main(Backend *backend) {
     PGresult *result;
-    if (!(result = PQexec(backend->conn, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())"))) E("!PQexec and %s", PQerrorMessage(backend->conn));
+    int nParams = queue_size(&save_queue);
+    Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
+    char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfoString(&buf, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
+    nParams = 0;
+    queue_each(&save_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state == MAIN) continue;
+        if (nParams) appendStringInfoString(&buf, ", ");
+        else appendStringInfoString(&buf, " AND client_addr NOT IN (");
+        paramTypes[nParams] = TEXTOID;
+        paramValues[nParams] = PQhostaddr(backend->conn);
+        nParams++;
+        appendStringInfo(&buf, "$%i", nParams);
+    }
+    if (nParams) appendStringInfoString(&buf, ")");
+    if (!(result = PQexecParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(backend->conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     for (int row = 0; row < PQntuples(result); row++) {
         bool client_hostname_isnull = PQgetisnull(result, row, PQfnumber(result, "client_hostname"));
@@ -77,6 +93,7 @@ static void save_main(Backend *backend) {
         D1("client_addr = %s, client_hostname = %s, sync_state = %s", client_addr, client_hostname_isnull ? "(null)" : client_hostname, sync_state);
     }
     PQclear(result);
+    pfree(buf.data);
 }
 
 static void save_timeout(void) {
@@ -166,8 +183,6 @@ static void save_backend(const char *host, int port, const char *user, const cha
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    backend->hostname = PQhost(backend->conn);
-    backend->addr = PQhostaddr(backend->conn);
     if (state == MAIN) save_main_init(backend);
 }
 
