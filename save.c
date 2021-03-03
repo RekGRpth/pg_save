@@ -71,19 +71,25 @@ static char *int2char(int number) {
     return buf.data;
 }
 
-static void save_standby_main_init(const char *host, int port, const char *user, const char *dbname) {
-    char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
-    const char *cluster_name_quote = quote_identifier(cluster_name);
-    PGresult *result;
-    StringInfoData buf;
+static PGconn *save_standby_connect(const char *host, int port, const char *user, const char *dbname) {
     char *cport = int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
+    PGconn *conn;
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     if (!(conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(conn));
     pfree(cport);
     if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
     if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
+    return conn;
+}
+
+static void save_standby_main_init(const char *host, int port, const char *user, const char *dbname) {
+    char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
+    const char *cluster_name_quote = quote_identifier(cluster_name);
+    PGresult *result;
+    StringInfoData buf;
+    conn = save_standby_connect(host, port, user, dbname);
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
@@ -98,17 +104,10 @@ static void save_standby_main_init(const char *host, int port, const char *user,
 }
 
 static void save_standby_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
-    char *cport = int2char(port);
-    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
     Backend *backend = palloc0(sizeof(*backend));
     backend->state = state;
-    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    backend->conn = save_standby_connect(host, port, user, dbname);
     queue_insert_tail(&save_queue, &backend->queue);
-    if (!(backend->conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(backend->conn));
-    pfree(cport);
-    if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
-    if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
 }
 
 static void save_main() {
