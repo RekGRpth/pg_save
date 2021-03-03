@@ -17,14 +17,14 @@ static queue_t save_queue;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
-static void init_sighup(SIGNAL_ARGS) {
+static void save_sighup(SIGNAL_ARGS) {
     int save_errno = errno;
     sighup = true;
     SetLatch(MyLatch);
     errno = save_errno;
 }
 
-static void init_sigterm(SIGNAL_ARGS) {
+static void save_sigterm(SIGNAL_ARGS) {
     int save_errno = errno;
     sigterm = true;
     SetLatch(MyLatch);
@@ -71,11 +71,19 @@ static char *int2char(int number) {
     return buf.data;
 }
 
-static void save_standby_main_init2(void) {
+static void save_standby_main_init(const char *host, int port, const char *user, const char *dbname) {
     char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
     StringInfoData buf;
+    char *cport = int2char(port);
+    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
+    const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
+    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    if (!(conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(conn));
+    pfree(cport);
+    if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
+    if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
@@ -89,19 +97,7 @@ static void save_standby_main_init2(void) {
     PQclear(result);
 }
 
-static void save_standby_main_init(const char *host, int port, const char *user, const char *dbname) {
-    char *cport = int2char(port);
-    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
-    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    if (!(conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(conn));
-    pfree(cport);
-    if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
-    if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
-    save_standby_main_init2();
-}
-
-static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
+static void save_standby_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
     char *cport = int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
@@ -147,7 +143,7 @@ static void save_main() {
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
-        save_backend(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
+        save_standby_backend(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
     }
     PQclear(result);
     if (paramTypes) pfree(paramTypes);
@@ -256,8 +252,8 @@ static void save_init(void) {
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     queue_init(&save_queue);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
-    pqsignal(SIGHUP, init_sighup);
-    pqsignal(SIGTERM, init_sigterm);
+    pqsignal(SIGHUP, save_sighup);
+    pqsignal(SIGTERM, save_sigterm);
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
