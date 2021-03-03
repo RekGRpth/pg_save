@@ -116,17 +116,28 @@ static char *int2char(int number) {
 }
 
 static void save_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
+    PGresult *result;
+    StringInfoData buf;
     char *cport = int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
+    char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
+    const char *cluster_name_quote = quote_identifier(cluster_name);
     Backend *backend = palloc0(sizeof(*backend));
     backend->state = state;
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     queue_insert_tail(&save_queue, &backend->queue);
     if (!(backend->conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(backend->conn));
+    pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    pfree(cport);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
+    if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
+    pfree(cluster_name);
+    if (!(result = PQexec(backend->conn, buf.data))) E("!PQexec and %s", PQerrorMessage(backend->conn));
+    pfree(buf.data);
+    if (PQresultStatus(result) != PGRES_COMMAND_OK) E("%s != PGRES_COMMAND_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
 }
 
 static void save_standby_init(void) {
