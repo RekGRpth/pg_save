@@ -70,7 +70,7 @@ static void save_main(Backend *backend) {
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT * FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
+    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
     nParams = 0;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -86,11 +86,11 @@ static void save_main(Backend *backend) {
     if (!(result = PQexecParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(backend->conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     for (int row = 0; row < PQntuples(result); row++) {
-        bool client_hostname_isnull = PQgetisnull(result, row, PQfnumber(result, "client_hostname"));
-        const char *client_addr = PQgetvalue(result, row, PQfnumber(result, "client_addr"));
-        const char *client_hostname = PQgetvalue(result, row, PQfnumber(result, "client_hostname"));
-        const char *sync_state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
-        D1("client_addr = %s, client_hostname = %s, sync_state = %s", client_addr, client_hostname_isnull ? "(null)" : client_hostname, sync_state);
+        const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
+        const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
+        const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
+        D1("addr = %s, host = %s, state = %s", addr, host, state);
+//        save_backend(host, 5432, MyProcPort->user_name, MyProcPort->database_name, MAIN);
     }
     PQclear(result);
     if (paramTypes) pfree(paramTypes);
