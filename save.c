@@ -177,7 +177,15 @@ static void save_timeout(void) {
     if (RecoveryInProgress()) {
         save_standby_main();
     } else {
-        if (!save_etcd_kv_put("main", hostname, 60)) E("!save_etcd_kv_put");
+        if (!save_etcd_kv_put("main", hostname, 60)) {
+            W("!save_etcd_kv_put");
+#ifdef HAVE_SETSID
+            if (kill(-PostmasterPid, SIGQUIT))
+#else
+            if (kill(PostmasterPid, SIGQUIT))
+#endif
+            E("kill");
+        }
     }
 }
 
