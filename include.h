@@ -15,7 +15,7 @@
 //#include <commands/user.h>
 #include <executor/spi.h>
 //#include <jit/jit.h>
-//#include <libpq-fe.h>
+#include <libpq-fe.h>
 #include <libpq/libpq-be.h>
 //#include <miscadmin.h>
 //#include <nodes/makefuncs.h>
@@ -39,6 +39,11 @@
 #include "queue.h"
 
 typedef struct _SPI_plan SPI_plan;
+
+typedef struct Backend {
+    PGconn *conn;
+    queue_t queue;
+} Backend;
 
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);

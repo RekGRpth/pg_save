@@ -4,7 +4,7 @@
 extern int timeout;
 static char *hostname;
 static Oid etcd_kv_put;
-//static queue_t queue;
+static queue_t queue;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -103,7 +103,13 @@ static void save_extension(const char *schema, const char *extension) {
     pfree(buf.data);
 }
 
-static void save_curl(void) {
+static void save_standby_init(void) {
+    SPI_connect_my("SELECT sender_host FROM pg_stat_wal_receiver");
+    SPI_execute_with_args_my("SELECT sender_host FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
+    SPI_finish_my();
+}
+
+static void save_primary_init(void) {
     save_schema("curl");
     save_extension("curl", "pg_curl");
     save_schema("save");
@@ -120,6 +126,7 @@ static void save_init(void) {
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
+    queue_init(&queue);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, init_sighup);
     pqsignal(SIGTERM, init_sigterm);
@@ -127,9 +134,8 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    if (!RecoveryInProgress()) {
-        save_curl();
-    }
+    if (RecoveryInProgress()) save_standby_init();
+    else save_primary_init();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
 }
 
