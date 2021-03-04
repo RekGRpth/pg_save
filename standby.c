@@ -134,17 +134,28 @@ void standby_init(void) {
     standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
+static void standby_finish(Backend *standby) {
+    queue_remove(&standby->queue);
+    PQfinish(standby->conn);
+    pfree(standby);
+}
+
 static void standby_standby(void) {
-    //queue_each(&primary.queue, queue) {
-    for (queue_t *(queue) = (&primary.queue)->next, *_; (queue) != (&primary.queue) && (_ = (queue)->next); (queue) = _) {
+    queue_each(&primary.queue, queue) {
         Backend *standby = queue_data(queue, Backend, queue);
         PGresult *result;
-        if (!(result = PQexec(standby->conn, "SELECT * FROM pg_stat_get_wal_receiver()"))) E("!PQexec and %s", PQerrorMessage(standby->conn));
+        if (!(result = PQexec(standby->conn, "SELECT * FROM pg_stat_get_wal_receiver()"))) {
+            if (PQstatus(standby->conn) == CONNECTION_BAD) {
+                W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(standby->conn));
+                standby_finish(standby);
+                continue;
+            }
+            E("!PQexec and %s", PQerrorMessage(standby->conn));
+        }
         if (PQresultStatus(result) != PGRES_TUPLES_OK) {
             if (PQstatus(standby->conn) == CONNECTION_BAD) {
                 W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(standby->conn));
-                queue_remove(&standby->queue);
-                pfree(standby);
+                standby_finish(standby);
                 continue;
             }
             E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
@@ -164,12 +175,9 @@ void standby_timeout(void) {
 
 void standby_fini(void) {
     PQfinish(primary.conn);
-    while (!queue_empty(&primary.queue)) {
-        queue_t *queue = queue_head(&primary.queue);
+    queue_each(&primary.queue, queue) {
         Backend *standby = queue_data(queue, Backend, queue);
-        queue_remove(&standby->queue);
-        PQfinish(standby->conn);
-        pfree(standby);
+        standby_finish(standby);
     }
 }
 
