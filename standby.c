@@ -137,3 +137,5 @@ void standby_fini(void) {
         standby_finish(backend);
     }
 }
+
+//WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
