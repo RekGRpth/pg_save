@@ -1,23 +1,17 @@
 #include "include.h"
 
-typedef enum STATE {ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
+typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
-typedef struct Standby {
+typedef struct Backend {
     int reset;
     PGconn *conn;
     queue_t queue;
     STATE state;
-} Standby;
-
-typedef struct Primary {
-    int reset;
-    PGconn *conn;
-    queue_t queue;
-} Primary;
+} Backend;
 
 extern char *hostname;
 extern int reset;
-static Primary primary;
+static Backend primary;
 
 static char *standby_int2char(int number) {
     StringInfoData buf;
@@ -46,6 +40,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     StringInfoData buf;
     primary.conn = standby_connect(host, port, user, dbname);
     primary.reset = reset;
+    primary.state = PRIMARY;
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
@@ -69,7 +64,7 @@ static void standby_primary(void) {
     appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
     nParams = 0;
     queue_each(&primary.queue, queue) {
-        Standby *standby = queue_data(queue, Standby, queue);
+        Backend *standby = queue_data(queue, Backend, queue);
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " AND client_addr NOT IN (");
         paramTypes[nParams] = INETOID;
@@ -90,7 +85,7 @@ static void standby_primary(void) {
     }
     primary.reset = reset;
     for (int row = 0; row < PQntuples(result); row++) {
-        Standby *standby;
+        Backend *standby;
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *cstate = PQgetvalue(result, row, PQfnumber(result, "state"));
@@ -102,8 +97,9 @@ static void standby_primary(void) {
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
         if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
-        standby->state = state;
         standby->conn = standby_connect(host, 5432, MyProcPort->user_name, MyProcPort->database_name);
+        standby->reset = reset;
+        standby->state = state;
         queue_insert_tail(&primary.queue, &standby->queue);
     }
 PQclear:
@@ -113,7 +109,7 @@ PQclear:
     pfree(buf.data);
 }
 
-static void standby_finish(Standby *standby) {
+static void standby_finish(Backend *standby) {
     queue_remove(&standby->queue);
     PQfinish(standby->conn);
     pfree(standby);
@@ -148,7 +144,7 @@ void standby_timeout(void) {
 void standby_fini(void) {
     PQfinish(primary.conn);
     queue_each(&primary.queue, queue) {
-        Standby *standby = queue_data(queue, Standby, queue);
+        Backend *standby = queue_data(queue, Backend, queue);
         standby_finish(standby);
     }
 }
