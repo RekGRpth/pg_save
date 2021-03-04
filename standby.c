@@ -32,8 +32,8 @@ static void standby_connect(Backend *backend, const char *host, int port, const 
 }
 
 static void standby_primary_init(const char *host, int port, const char *user, const char *dbname) {
-    char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
-    const char *cluster_name_quote = quote_identifier(cluster_name);
+    char *cluster_name_ = cluster_name ? cluster_name : "walreceiver";
+    const char *cluster_name_quote = quote_identifier(cluster_name_);
     PGresult *result;
     StringInfoData buf;
     standby_connect(&primary, host, port, user, dbname);
@@ -42,8 +42,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     queue_init(&primary.queue);
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
-    if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
-    pfree(cluster_name);
+    if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
     if (!(result = PQexec(primary.conn, buf.data))) E("!PQexec and %s", PQerrorMessage(primary.conn));
     pfree(buf.data);
     if (PQresultStatus(result) != PGRES_COMMAND_OK) E("%s != PGRES_COMMAND_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
