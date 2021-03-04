@@ -8,6 +8,7 @@ typedef struct Backend {
     STATE state;
 } Backend;
 
+extern char *hostname;
 static PGconn *conn = NULL;
 static queue_t save_queue;
 
@@ -122,6 +123,10 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
+    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
+        W("!save_etcd_kv_put");
+        init_kill();
+    }
     standby_main();
 }
 

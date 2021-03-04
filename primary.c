@@ -10,6 +10,10 @@ void primary_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
+    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
+        W("!save_etcd_kv_put");
+        init_kill();
+    }
     for (int i = 0; i < max_wal_senders; i++) {
         char *client_addr = NULL;
         char *client_hostname = NULL;
