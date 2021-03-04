@@ -118,6 +118,7 @@ pfree:
 }
 
 static void standby_finish(Backend *standby) {
+    D1("hi");
     queue_remove(&standby->queue);
     PQfinish(standby->conn);
     pfree(standby);
@@ -141,7 +142,7 @@ void standby_init(void) {
 }
 
 static void standby_standby(void) {
-    queue_each(&primary.queue, queue) {
+    queue_each(&primary.queue, queue) { // for (queue_t *(q) = (h)->next; (q) != (h); (q) = (q)->next)
         Backend *standby = queue_data(queue, Backend, queue);
         PGresult *result;
         if (!(result = PQexec(standby->conn, "SELECT * FROM pg_stat_get_wal_receiver()"))) E("!PQexec and %s", PQerrorMessage(standby->conn));
