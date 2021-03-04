@@ -137,9 +137,13 @@ static void standby_standby(void) {
         PGresult *result;
         if (!(result = PQexec(standby->conn, "SELECT * FROM pg_stat_get_wal_receiver()"))) E("!PQexec and %s", PQerrorMessage(standby->conn));
         if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-            if (PQstatus(standby->conn) == CONNECTION_BAD) standby_finish(standby);
+            if (PQstatus(standby->conn) == CONNECTION_BAD) {
+                standby_finish(standby);
+                goto PQclear;
+            }
             E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
         }
+PQclear:
         PQclear(result);
     }
 }
