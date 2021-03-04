@@ -60,12 +60,12 @@ static void standby_primary(void) {
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
+    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
     nParams = 0;
     queue_each(&primary.queue, queue) {
         Backend *standby = queue_data(queue, Backend, queue);
         if (nParams) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " AND client_addr NOT IN (");
+        else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
         paramTypes[nParams] = INETOID;
         paramValues[nParams] = PQhostaddr(standby->conn);
         nParams++;
@@ -96,13 +96,16 @@ static void standby_primary(void) {
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *cstate = PQgetvalue(result, row, PQfnumber(result, "state"));
+        const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
+        bool me = cme[0] == 't' || cme[0] == 'T';
         STATE state;
-        D1("addr = %s, host = %s, state = %s", addr, host, cstate);
+        D1("addr = %s, host = %s, state = %s, me = %s", addr, host, cstate, me ? "true": "false");
         if (pg_strcasecmp(cstate, "async")) state = ASYNC;
         else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
+        if (me) continue;
         if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
         standby_connect(standby, host, 5432, MyProcPort->user_name, MyProcPort->database_name);
         standby->reset = reset;
