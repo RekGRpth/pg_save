@@ -52,10 +52,12 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     PQclear(result);
 }
 
-static void standby_promote(void) {
+static void standby_reprimary(void) {
 }
 
-static void standby_reprimary(void) {
+static void standby_promote(void) {
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
+    else standby_fini();
 }
 
 static void standby_reprimary_or_promote_or_kill(void) {
