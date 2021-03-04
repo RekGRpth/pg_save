@@ -74,6 +74,7 @@ static void standby_primary(void) {
     if (nParams) appendStringInfoString(&buf, ")");
     if (!(result = PQexecParams(primary.conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
+            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(primary.conn));
             PQreset(primary.conn);
             if (!--primary.reset) init_kill();
             W("%i < %i", primary.reset, reset);
@@ -83,6 +84,7 @@ static void standby_primary(void) {
     }
     if (PQresultStatus(result) != PGRES_TUPLES_OK) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
+            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(primary.conn));
             PQreset(primary.conn);
             if (!--primary.reset) init_kill();
             W("%i < %i", primary.reset, reset);
