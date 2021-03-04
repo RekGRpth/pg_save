@@ -59,13 +59,6 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     PQclear(result);
 }
 
-static void standby_standby_init(const char *host, int port, const char *user, const char *dbname, STATE state) {
-    Standby *standby = palloc0(sizeof(*standby));
-    standby->state = state;
-    standby->conn = standby_connect(host, port, user, dbname);
-    queue_insert_tail(&save_queue, &standby->queue);
-}
-
 static void standby_primary(void) {
     PGresult *result;
     int nParams = queue_size(&save_queue);
@@ -97,6 +90,7 @@ static void standby_primary(void) {
     }
     primary.reset = reset;
     for (int row = 0; row < PQntuples(result); row++) {
+        Standby *standby;
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *cstate = PQgetvalue(result, row, PQfnumber(result, "state"));
@@ -107,7 +101,10 @@ static void standby_primary(void) {
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
-        standby_standby_init(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
+        if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
+        standby->state = state;
+        standby->conn = standby_connect(host, 5432, MyProcPort->user_name, MyProcPort->database_name);
+        queue_insert_tail(&save_queue, &standby->queue);
     }
 PQclear:
     PQclear(result);
