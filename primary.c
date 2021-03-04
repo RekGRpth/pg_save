@@ -49,7 +49,7 @@ void primary_timeout(void) {
                     remote_port[0] = '\0';
                     if (!pg_getnameinfo_all(&beentry->st_clientaddr.addr, beentry->st_clientaddr.salen, remote_host, sizeof(remote_host), remote_port, sizeof(remote_port), NI_NUMERICHOST | NI_NUMERICSERV)) {
                         clean_ipv6_addr(beentry->st_clientaddr.addr.ss_family, remote_host);
-                        client_addr = /*inet_in*/(remote_host);
+                        client_addr = remote_host;
                         if (beentry->st_clienthostname && beentry->st_clienthostname[0]) client_hostname = beentry->st_clienthostname;
                     }
                 }
