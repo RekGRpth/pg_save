@@ -3,10 +3,13 @@
 extern char *hostname;
 
 void primary_timeout(void) {
+    SyncRepStandbyData *sync_standbys;
+    int num_standbys = SyncRepGetCandidateStandbys(&sync_standbys);
     if (!save_etcd_kv_put("primary", hostname, 60)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
+    pfree(sync_standbys);
 }
 
 static void primary_schema(const char *schema) {
