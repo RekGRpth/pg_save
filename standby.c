@@ -16,7 +16,7 @@ typedef struct Primary {
 
 extern char *hostname;
 extern int reset;
-static PGconn *conn = NULL;
+static Primary primary;
 static queue_t save_queue;
 
 static char *standby_int2char(int number) {
@@ -44,16 +44,17 @@ static void standby_main_init(const char *host, int port, const char *user, cons
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
     StringInfoData buf;
-    conn = standby_connect(host, port, user, dbname);
+    primary.conn = standby_connect(host, port, user, dbname);
+    primary.reset = reset;
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
     pfree(cluster_name);
-    if (!(result = PQexec(conn, buf.data))) E("!PQexec and %s", PQerrorMessage(conn));
+    if (!(result = PQexec(primary.conn, buf.data))) E("!PQexec and %s", PQerrorMessage(primary.conn));
     pfree(buf.data);
     if (PQresultStatus(result) != PGRES_COMMAND_OK) E("%s != PGRES_COMMAND_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
-    if (!(result = PQexec(conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(conn));
+    if (!(result = PQexec(primary.conn, "SELECT pg_reload_conf()"))) E("!PQexec and %s", PQerrorMessage(primary.conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     PQclear(result);
 }
@@ -84,14 +85,18 @@ static void standby_main(void) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!(result = PQexecParams(conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(conn));
+    if (!(result = PQexecParams(primary.conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(primary.conn));
     if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-        if (PQstatus(conn) == CONNECTION_BAD) {
-            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
-            PQreset(conn);
+        if (PQstatus(primary.conn) == CONNECTION_BAD) {
+            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(primary.conn));
+            PQreset(primary.conn);
+            if (!--primary.reset) init_kill();
+            W("%i < %i", primary.reset, reset);
+            goto PQclear;
         }
         E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
     }
+    primary.reset = reset;
     for (int row = 0; row < PQntuples(result); row++) {
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
@@ -105,6 +110,7 @@ static void standby_main(void) {
         else E("unknown state = %s", cstate);
         standby_standby(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
     }
+PQclear:
     PQclear(result);
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);
@@ -144,7 +150,7 @@ void standby_timeout(void) {
 }
 
 void standby_fini(void) {
-    PQfinish(conn);
+    PQfinish(primary.conn);
     queue_each(&save_queue, queue) {
         Standby *standby = queue_data(queue, Standby, queue);
         standby_finish(standby);
