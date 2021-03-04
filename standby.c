@@ -2,13 +2,20 @@
 
 typedef enum STATE {ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
-typedef struct Backend {
+typedef struct Standby {
+    int reset;
     PGconn *conn;
     queue_t queue;
     STATE state;
-} Backend;
+} Standby;
+
+typedef struct Primary {
+    int reset;
+    PGconn *conn;
+} Primary;
 
 extern char *hostname;
+extern int reset;
 static PGconn *conn = NULL;
 static queue_t save_queue;
 
@@ -51,11 +58,11 @@ static void standby_main_init(const char *host, int port, const char *user, cons
     PQclear(result);
 }
 
-static void standby_backend(const char *host, int port, const char *user, const char *dbname, STATE state) {
-    Backend *backend = palloc0(sizeof(*backend));
-    backend->state = state;
-    backend->conn = standby_connect(host, port, user, dbname);
-    queue_insert_tail(&save_queue, &backend->queue);
+static void standby_standby(const char *host, int port, const char *user, const char *dbname, STATE state) {
+    Standby *standby = palloc0(sizeof(*standby));
+    standby->state = state;
+    standby->conn = standby_connect(host, port, user, dbname);
+    queue_insert_tail(&save_queue, &standby->queue);
 }
 
 static void standby_main(void) {
@@ -68,17 +75,23 @@ static void standby_main(void) {
     appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
     nParams = 0;
     queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
+        Standby *standby = queue_data(queue, Standby, queue);
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " AND client_addr NOT IN (");
         paramTypes[nParams] = INETOID;
-        paramValues[nParams] = PQhostaddr(backend->conn);
+        paramValues[nParams] = PQhostaddr(standby->conn);
         nParams++;
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!(result = PQexecParams(conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(conn));
-    if (PQresultStatus(result) != PGRES_TUPLES_OK) E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
+    if (PQresultStatus(result) != PGRES_TUPLES_OK) {
+        if (PQstatus(conn) == CONNECTION_BAD) {
+            W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
+            PQreset(conn);
+        }
+        E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
+    }
     for (int row = 0; row < PQntuples(result); row++) {
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
@@ -90,7 +103,7 @@ static void standby_main(void) {
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
-        standby_backend(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
+        standby_standby(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
     }
     PQclear(result);
     if (paramTypes) pfree(paramTypes);
@@ -98,10 +111,10 @@ static void standby_main(void) {
     pfree(buf.data);
 }
 
-static void standby_finish(Backend *backend) {
-    queue_remove(&backend->queue);
-    PQfinish(backend->conn);
-    pfree(backend);
+static void standby_finish(Standby *standby) {
+    queue_remove(&standby->queue);
+    PQfinish(standby->conn);
+    pfree(standby);
 }
 
 void standby_init(void) {
@@ -133,8 +146,8 @@ void standby_timeout(void) {
 void standby_fini(void) {
     PQfinish(conn);
     queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        standby_finish(backend);
+        Standby *standby = queue_data(queue, Standby, queue);
+        standby_finish(standby);
     }
 }
 
