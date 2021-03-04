@@ -72,7 +72,15 @@ static void standby_primary(void) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!(result = PQexecParams(primary.conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) E("!PQexecParams and %s", PQerrorMessage(primary.conn));
+    if (!(result = PQexecParams(primary.conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) {
+        E("!PQexecParams and %s", PQerrorMessage(primary.conn));
+        if (PQstatus(primary.conn) == CONNECTION_BAD) {
+            PQreset(primary.conn);
+            if (!--primary.reset) init_kill();
+            W("%i < %i", primary.reset, reset);
+            goto pfree;
+        }
+    }
     if (PQresultStatus(result) != PGRES_TUPLES_OK) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
             PQreset(primary.conn);
@@ -103,6 +111,7 @@ static void standby_primary(void) {
     }
 PQclear:
     PQclear(result);
+pfree:
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);
     pfree(buf.data);
