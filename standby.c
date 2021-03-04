@@ -53,6 +53,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
 }
 
 static void standby_reprimary(void) {
+    //WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
 }
 
 static void standby_promote(void) {
@@ -143,15 +144,17 @@ void standby_init(void) {
     char sender_host[NI_MAXHOST];
     int pid;
     int sender_port = 0;
+    char slotname[NAMEDATALEN];
     SpinLockAcquire(&WalRcv->mutex);
     pid = (int)WalRcv->pid;
     ready_to_display = WalRcv->ready_to_display;
     sender_port = WalRcv->sender_port;
     strlcpy(sender_host, (char *)WalRcv->sender_host, sizeof(sender_host));
+    strlcpy(slotname, (char *) WalRcv->slotname, sizeof(slotname));
     SpinLockRelease(&WalRcv->mutex);
     if (!pid) E("!pid");
     if (!ready_to_display) E("!ready_to_display");
-    D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
+    D1("sender_host = %s, sender_port = %i, slotname = %s", sender_host, sender_port, slotname);
     standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
@@ -207,5 +210,3 @@ void standby_fini(void) {
         standby_finish(standby);
     }
 }
-
-//WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
