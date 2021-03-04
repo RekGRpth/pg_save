@@ -181,7 +181,12 @@ static void standby_standby(void) {
             }
             E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
         }
-        if (PQntuples(result) != 1) E("PQntuples != 1");
+        if (PQntuples(result) != 1) {
+            W("PQntuples != 1");
+            PQclear(result);
+            standby_finish(standby);
+            continue;
+        }
         PQclear(result);
     }
 }
