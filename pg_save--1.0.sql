@@ -7,7 +7,7 @@ create or replace function etcd(location text, request json) returns json langua
 begin
     --perform curl.curl_easy_reset();
     --perform curl.curl_easy_setopt_verbose(1);
-    --perform curl.curl_easy_setopt_timeout(10);
+    perform curl.curl_easy_setopt_timeout(10);
     perform curl.curl_easy_setopt_url(concat_ws('/', local.url, etcd.location));
     perform curl.curl_easy_setopt_copypostfields(convert_to(etcd.request::text, 'utf-8'));
     perform curl.curl_easy_perform(1);
