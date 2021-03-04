@@ -39,7 +39,7 @@ static PGconn *standby_connect(const char *host, int port, const char *user, con
     return conn;
 }
 
-static void standby_main_init(const char *host, int port, const char *user, const char *dbname) {
+static void standby_primary_init(const char *host, int port, const char *user, const char *dbname) {
     char *cluster_name = GetConfigOptionByName("cluster_name", NULL, false);
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
@@ -59,14 +59,14 @@ static void standby_main_init(const char *host, int port, const char *user, cons
     PQclear(result);
 }
 
-static void standby_standby(const char *host, int port, const char *user, const char *dbname, STATE state) {
+static void standby_standby_init(const char *host, int port, const char *user, const char *dbname, STATE state) {
     Standby *standby = palloc0(sizeof(*standby));
     standby->state = state;
     standby->conn = standby_connect(host, port, user, dbname);
     queue_insert_tail(&save_queue, &standby->queue);
 }
 
-static void standby_main(void) {
+static void standby_primary(void) {
     PGresult *result;
     int nParams = queue_size(&save_queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
@@ -107,7 +107,7 @@ static void standby_main(void) {
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
-        standby_standby(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
+        standby_standby_init(host, 5432, MyProcPort->user_name, MyProcPort->database_name, state);
     }
 PQclear:
     PQclear(result);
@@ -137,7 +137,7 @@ void standby_init(void) {
     if (!pid) E("!pid");
     if (!ready_to_display) E("!ready_to_display");
     D1("sender_host = %s, sender_port = %i", sender_host, sender_port);
-    standby_main_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
 void standby_timeout(void) {
@@ -145,7 +145,7 @@ void standby_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
-    standby_main();
+    standby_primary();
 }
 
 void standby_fini(void) {
