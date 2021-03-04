@@ -99,13 +99,16 @@ static void standby_primary(void) {
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         STATE state;
-        D1("addr = %s, host = %s, state = %s, me = %s", addr, host, cstate, me ? "true": "false");
+        if (!me) D1("addr = %s, host = %s, state = %s", addr, host, cstate);
         if (pg_strcasecmp(cstate, "async")) state = ASYNC;
         else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
-        if (me) continue;
+        if (me) {
+            primary.state = state;
+            continue;
+        }
         if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
         standby_connect(standby, host, 5432, MyProcPort->user_name, MyProcPort->database_name);
         standby->reset = reset;
