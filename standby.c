@@ -41,6 +41,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     primary.conn = standby_connect(host, port, user, dbname);
     primary.reset = reset;
     primary.state = PRIMARY;
+    queue_init(&primary.queue);
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (cluster_name_quote != cluster_name) pfree((void *)cluster_name_quote);
@@ -120,7 +121,6 @@ void standby_init(void) {
     char sender_host[NI_MAXHOST];
     int pid;
     int sender_port = 0;
-    queue_init(&primary.queue);
     SpinLockAcquire(&WalRcv->mutex);
     pid = (int)WalRcv->pid;
     ready_to_display = WalRcv->ready_to_display;
