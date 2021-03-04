@@ -2,18 +2,10 @@
 
 extern char *hostname;
 
-void primary_timeout(void) {
+static void primary_info(void) {
     SyncRepStandbyData *sync_standbys;
     int num_standbys = SyncRepGetCandidateStandbys(&sync_standbys);
     int num_backends = pgstat_fetch_stat_numbackends();
-    if (!save_etcd_kv_put("primary", hostname, 0)) {
-        W("!save_etcd_kv_put");
-        init_kill();
-    }
-    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
-        W("!save_etcd_kv_put");
-        init_kill();
-    }
     for (int i = 0; i < max_wal_senders; i++) {
         char *client_addr = NULL;
         char *client_hostname = NULL;
@@ -62,6 +54,18 @@ void primary_timeout(void) {
         D1("pid = %i, state = %i, sync_priority = %i, sync_state = %s, client_addr = %s, client_hostname = %s", pid, state, priority, sync_state, client_addr ? client_addr : "(null)", client_hostname ? client_hostname : "(null)");
     }
     pfree(sync_standbys);
+}
+
+void primary_timeout(void) {
+    if (!save_etcd_kv_put("primary", hostname, 0)) {
+        W("!save_etcd_kv_put");
+        init_kill();
+    }
+    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
+        W("!save_etcd_kv_put");
+        init_kill();
+    }
+    primary_info();
 }
 
 static void primary_schema(const char *schema) {
