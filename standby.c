@@ -117,13 +117,6 @@ pfree:
     pfree(buf.data);
 }
 
-static void standby_finish(Backend *standby) {
-    D1("hi");
-    queue_remove(&standby->queue);
-    PQfinish(standby->conn);
-    pfree(standby);
-}
-
 void standby_init(void) {
     bool ready_to_display;
     char sender_host[NI_MAXHOST];
@@ -149,7 +142,8 @@ static void standby_standby(void) {
         if (PQresultStatus(result) != PGRES_TUPLES_OK) {
             if (PQstatus(standby->conn) == CONNECTION_BAD) {
                 W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(standby->conn));
-                standby_finish(standby);
+                queue_remove(&standby->queue);
+                pfree(standby);
                 continue;
             }
             E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
@@ -172,7 +166,9 @@ void standby_fini(void) {
     while (!queue_empty(&primary.queue)) {
         queue_t *queue = queue_head(&primary.queue);
         Backend *standby = queue_data(queue, Backend, queue);
-        standby_finish(standby);
+        queue_remove(&standby->queue);
+        PQfinish(standby->conn);
+        pfree(standby);
     }
 }
 
