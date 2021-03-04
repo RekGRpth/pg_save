@@ -39,3 +39,12 @@ void _PG_init(void); void _PG_init(void) {
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     save_work();
 }
+
+void init_kill(void) {
+#ifdef HAVE_SETSID
+    if (kill(-PostmasterPid, SIGQUIT))
+#else
+    if (kill(PostmasterPid, SIGQUIT))
+#endif
+    E("kill");
+}

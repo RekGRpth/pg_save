@@ -41,15 +41,23 @@
 
 typedef struct _SPI_plan SPI_plan;
 
+bool save_etcd_kv_put(const char *key, const char *value, int ttl);
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+void init_kill(void);
+void primary_fini(void);
+void primary_init(void);
+void primary_timeout(void);
 void SPI_commit_my(void);
 void SPI_connect_my(const char *src);
 void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit);
 void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *values, const char *nulls, int res, bool commit);
 void SPI_finish_my(void);
 void SPI_start_transaction_my(const char *src);
+void standby_fini(void);
+void standby_init(void);
+void standby_timeout(void);
 
 #define Q(name) #name
 #define S(macro) Q(macro)
