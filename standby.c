@@ -59,7 +59,6 @@ static void standby_primary(void) {
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
-    D1("hi");
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
     nParams = 0;
@@ -133,7 +132,6 @@ void standby_init(void) {
 }
 
 static void standby_standby(void) {
-    D1("hi");
     queue_each(&primary.queue, queue) {
         Backend *standby = queue_data(queue, Backend, queue);
         PGresult *result;
@@ -151,7 +149,6 @@ static void standby_standby(void) {
 }
 
 void standby_timeout(void) {
-    D1("hi");
     if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
