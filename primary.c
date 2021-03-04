@@ -9,6 +9,25 @@ void primary_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
+    for (int i = 0; i < max_wal_senders; i++) {
+        WalSnd *walsnd = &WalSndCtl->walsnds[i];
+        int priority;
+        int pid;
+        WalSndState state;
+        bool is_sync_standby = false;
+        char *sync_state;
+        SpinLockAcquire(&walsnd->mutex);
+        if (!walsnd->pid) { SpinLockRelease(&walsnd->mutex); continue; }
+        pid = walsnd->pid;
+        state = walsnd->state;
+        priority = walsnd->sync_standby_priority;
+        SpinLockRelease(&walsnd->mutex);
+        for (int j = 0; j < num_standbys; j++) if (sync_standbys[j].walsnd_index == i && sync_standbys[j].pid == pid) { is_sync_standby = true; break; }
+        if (priority == 0) sync_state = "async";
+        else if (is_sync_standby) sync_state = SyncRepConfig->syncrep_method == SYNC_REP_PRIORITY ? "sync" : "quorum";
+        else sync_state = "potential";
+        D1("pid = %i, state = %i, sync_priority = %i, sync_state = %s", pid, state, priority, sync_state);
+    }
     pfree(sync_standbys);
 }
 
