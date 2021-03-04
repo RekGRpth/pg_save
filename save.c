@@ -110,7 +110,7 @@ static void save_standby_backend(const char *host, int port, const char *user, c
     queue_insert_tail(&save_queue, &backend->queue);
 }
 
-static void save_standby_main() {
+static void save_standby_main(void) {
     PGresult *result;
     int nParams = queue_size(&save_queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
@@ -173,20 +173,29 @@ static void save_standby_init(void) {
     save_standby_main_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
-static void save_timeout(void) {
-    if (RecoveryInProgress()) {
-        save_standby_main();
-    } else {
-        if (!save_etcd_kv_put("primary", hostname, 60)) {
-            W("!save_etcd_kv_put");
+static void save_kill(void) {
 #ifdef HAVE_SETSID
-            if (kill(-PostmasterPid, SIGQUIT))
+    if (kill(-PostmasterPid, SIGQUIT))
 #else
-            if (kill(PostmasterPid, SIGQUIT))
+    if (kill(PostmasterPid, SIGQUIT))
 #endif
-            E("kill");
-        }
+    E("kill");
+}
+
+static void save_standby_timeout(void) {
+    save_standby_main();
+}
+
+static void save_primary_timeout(void) {
+    if (!save_etcd_kv_put("primary", hostname, 60)) {
+        W("!save_etcd_kv_put");
+        save_kill();
     }
+}
+
+static void save_timeout(void) {
+    if (RecoveryInProgress()) save_standby_timeout();
+    else save_primary_timeout();
 }
 
 static void save_primary_schema(const char *schema) {
