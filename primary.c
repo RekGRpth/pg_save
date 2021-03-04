@@ -11,6 +11,8 @@ void primary_timeout(void) {
         init_kill();
     }
     for (int i = 0; i < max_wal_senders; i++) {
+        char *client_addr = NULL;
+        char *client_hostname = NULL;
         WalSnd *walsnd = &WalSndCtl->walsnds[i];
         int priority;
         int pid;
@@ -27,7 +29,33 @@ void primary_timeout(void) {
         if (priority == 0) sync_state = "async";
         else if (is_sync_standby) sync_state = SyncRepConfig->syncrep_method == SYNC_REP_PRIORITY ? "sync" : "quorum";
         else sync_state = "potential";
-        D1("pid = %i, state = %i, sync_priority = %i, sync_state = %s", pid, state, priority, sync_state);
+        for (int curr_backend = 1; curr_backend <= num_backends; curr_backend++) {
+            SockAddr zero_clientaddr;
+            PgBackendStatus *beentry;
+            LocalPgBackendStatus *local_beentry = pgstat_fetch_stat_local_beentry(curr_backend);
+            if (!local_beentry) continue;
+            beentry = &local_beentry->backendStatus;
+            if (pid != -1 && beentry->st_procpid != pid) continue;
+            memset(&zero_clientaddr, 0, sizeof(zero_clientaddr));
+            if (memcmp(&(beentry->st_clientaddr), &zero_clientaddr, sizeof(zero_clientaddr))) {
+                if (beentry->st_clientaddr.addr.ss_family == AF_INET
+#ifdef HAVE_IPV6
+                    || beentry->st_clientaddr.addr.ss_family == AF_INET6
+#endif
+                ) {
+                    char remote_host[NI_MAXHOST];
+                    char remote_port[NI_MAXSERV];
+                    remote_host[0] = '\0';
+                    remote_port[0] = '\0';
+                    if (!pg_getnameinfo_all(&beentry->st_clientaddr.addr, beentry->st_clientaddr.salen, remote_host, sizeof(remote_host), remote_port, sizeof(remote_port), NI_NUMERICHOST | NI_NUMERICSERV)) {
+                        clean_ipv6_addr(beentry->st_clientaddr.addr.ss_family, remote_host);
+                        client_addr = /*inet_in*/(remote_host);
+                        if (beentry->st_clienthostname && beentry->st_clienthostname[0]) client_hostname = beentry->st_clienthostname;
+                    }
+                }
+            }
+        }
+        D1("pid = %i, state = %i, sync_priority = %i, sync_state = %s, client_addr = %s, client_hostname = %s", pid, state, priority, sync_state, client_addr ? client_addr : "(null)", client_hostname ? client_hostname : "(null)");
     }
     pfree(sync_standbys);
 }

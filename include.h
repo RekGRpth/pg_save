@@ -13,6 +13,7 @@
 #include <commands/extension.h>
 #include <commands/prepare.h>
 //#include <commands/user.h>
+#include <common/ip.h>
 #include <executor/spi.h>
 //#include <jit/jit.h>
 #include <libpq-fe.h>
