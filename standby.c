@@ -52,6 +52,18 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     PQclear(result);
 }
 
+static void standby_promote(void) {
+}
+
+static void standby_reprimary(void) {
+}
+
+static void standby_reprimary_or_promote_or_kill(void) {
+    if (primary.state != SYNC) standby_reprimary();
+    else if (!queue_empty(&primary.queue)) standby_promote();
+    else init_kill();
+}
+
 static void standby_primary(void) {
     PGresult *result;
     int nParams = queue_size(&primary.queue);
@@ -75,7 +87,7 @@ static void standby_primary(void) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
             W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(primary.conn));
             PQreset(primary.conn);
-            if (!--primary.reset) init_kill();
+            if (!--primary.reset) standby_reprimary_or_promote_or_kill();
             W("%i < %i", primary.reset, reset);
             goto pfree;
         }
@@ -85,7 +97,7 @@ static void standby_primary(void) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
             W("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(primary.conn));
             PQreset(primary.conn);
-            if (!--primary.reset) init_kill();
+            if (!--primary.reset) standby_reprimary_or_promote_or_kill();
             W("%i < %i", primary.reset, reset);
             goto PQclear;
         }
