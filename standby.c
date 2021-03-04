@@ -168,7 +168,8 @@ void standby_timeout(void) {
 
 void standby_fini(void) {
     PQfinish(primary.conn);
-    queue_each(&primary.queue, queue) {
+    while (!queue_empty(&primary.queue)) {
+        queue_t *queue = queue_head(&primary.queue);
         Backend *standby = queue_data(queue, Backend, queue);
         standby_finish(standby);
     }
