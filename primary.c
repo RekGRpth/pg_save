@@ -65,7 +65,7 @@ void primary_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
-    primary_info();
+    //primary_info();
 }
 
 static void primary_schema(const char *schema) {
