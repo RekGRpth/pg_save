@@ -73,13 +73,13 @@ static void standby_primary(void) {
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!(result = PQexecParams(primary.conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false))) {
-        E("!PQexecParams and %s", PQerrorMessage(primary.conn));
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
             PQreset(primary.conn);
             if (!--primary.reset) init_kill();
             W("%i < %i", primary.reset, reset);
             goto pfree;
         }
+        E("!PQexecParams and %s", PQerrorMessage(primary.conn));
     }
     if (PQresultStatus(result) != PGRES_TUPLES_OK) {
         if (PQstatus(primary.conn) == CONNECTION_BAD) {
