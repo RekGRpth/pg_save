@@ -20,17 +20,15 @@ static char *standby_int2char(int number) {
     return buf.data;
 }
 
-static PGconn *standby_connect(const char *host, int port, const char *user, const char *dbname) {
+static void standby_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname) {
     char *cport = standby_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
-    PGconn *conn;
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    if (!(conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(conn));
+    if (!(backend->conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(backend->conn));
     pfree(cport);
-    if (PQstatus(conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(conn));
-    if (PQclientEncoding(conn) != GetDatabaseEncoding()) PQsetClientEncoding(conn, GetDatabaseEncodingName());
-    return conn;
+    if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
+    if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
 }
 
 static void standby_primary_init(const char *host, int port, const char *user, const char *dbname) {
@@ -38,7 +36,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     const char *cluster_name_quote = quote_identifier(cluster_name);
     PGresult *result;
     StringInfoData buf;
-    primary.conn = standby_connect(host, port, user, dbname);
+    standby_connect(&primary, host, port, user, dbname);
     primary.reset = reset;
     primary.state = PRIMARY;
     queue_init(&primary.queue);
@@ -98,7 +96,7 @@ static void standby_primary(void) {
         else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
         else E("unknown state = %s", cstate);
         if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
-        standby->conn = standby_connect(host, 5432, MyProcPort->user_name, MyProcPort->database_name);
+        standby_connect(standby, host, 5432, MyProcPort->user_name, MyProcPort->database_name);
         standby->reset = reset;
         standby->state = state;
         queue_insert_tail(&primary.queue, &standby->queue);
