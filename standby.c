@@ -12,12 +12,12 @@ typedef struct Standby {
 typedef struct Primary {
     int reset;
     PGconn *conn;
+    queue_t queue;
 } Primary;
 
 extern char *hostname;
 extern int reset;
 static Primary primary;
-static queue_t save_queue;
 
 static char *standby_int2char(int number) {
     StringInfoData buf;
@@ -61,14 +61,14 @@ static void standby_primary_init(const char *host, int port, const char *user, c
 
 static void standby_primary(void) {
     PGresult *result;
-    int nParams = queue_size(&save_queue);
+    int nParams = queue_size(&primary.queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE client_addr IS DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
     nParams = 0;
-    queue_each(&save_queue, queue) {
+    queue_each(&primary.queue, queue) {
         Standby *standby = queue_data(queue, Standby, queue);
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " AND client_addr NOT IN (");
@@ -104,7 +104,7 @@ static void standby_primary(void) {
         if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
         standby->state = state;
         standby->conn = standby_connect(host, 5432, MyProcPort->user_name, MyProcPort->database_name);
-        queue_insert_tail(&save_queue, &standby->queue);
+        queue_insert_tail(&primary.queue, &standby->queue);
     }
 PQclear:
     PQclear(result);
@@ -124,7 +124,7 @@ void standby_init(void) {
     char sender_host[NI_MAXHOST];
     int pid;
     int sender_port = 0;
-    queue_init(&save_queue);
+    queue_init(&primary.queue);
     SpinLockAcquire(&WalRcv->mutex);
     pid = (int)WalRcv->pid;
     ready_to_display = WalRcv->ready_to_display;
@@ -147,7 +147,7 @@ void standby_timeout(void) {
 
 void standby_fini(void) {
     PQfinish(primary.conn);
-    queue_each(&save_queue, queue) {
+    queue_each(&primary.queue, queue) {
         Standby *standby = queue_data(queue, Standby, queue);
         standby_finish(standby);
     }
