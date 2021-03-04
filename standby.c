@@ -131,12 +131,26 @@ void standby_init(void) {
     standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
 }
 
+static void standby_standby(void) {
+    queue_each(&primary.queue, queue) {
+        Backend *standby = queue_data(queue, Backend, queue);
+        PGresult *result;
+        if (!(result = PQexec(standby->conn, "SELECT * FROM pg_stat_get_wal_receiver()"))) E("!PQexec and %s", PQerrorMessage(standby->conn));
+        if (PQresultStatus(result) != PGRES_TUPLES_OK) {
+            if (PQstatus(standby->conn) == CONNECTION_BAD) standby_finish(standby);
+            E("%s != PGRES_TUPLES_OK and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result));
+        }
+        PQclear(result);
+    }
+}
+
 void standby_timeout(void) {
     if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
     standby_primary();
+    standby_standby();
 }
 
 void standby_fini(void) {
