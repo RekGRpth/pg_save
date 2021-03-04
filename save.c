@@ -4,6 +4,7 @@
 extern int timeout;
 char *hostname;
 static Oid etcd_kv_put;
+static Oid etcd_kv_range;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
@@ -54,6 +55,17 @@ bool save_etcd_kv_put(const char *key, const char *value, int ttl) {
     return DatumGetBool(ok);
 }
 
+char *save_etcd_kv_range(const char *key) {
+    Datum key_datum = CStringGetTextDatum(key);
+    Datum value;
+    SPI_connect_my("etcd_kv_range");
+    value = OidFunctionCall1(etcd_kv_range, key_datum);
+    SPI_commit_my();
+    SPI_finish_my();
+    pfree((void *)key_datum);
+    return TextDatumGetCStringMy(value);
+}
+
 static void save_timeout(void) {
     if (RecoveryInProgress()) standby_timeout();
     else primary_timeout();
@@ -79,6 +91,7 @@ static void save_init(void) {
     if (RecoveryInProgress()) standby_init();
     else primary_init();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
+    etcd_kv_range = save_get_function_oid("save", "etcd_kv_range", 1, (Oid []){TEXTOID});
 }
 
 static void save_fini(void) {

@@ -6,7 +6,7 @@ void primary_timeout(void) {
     SyncRepStandbyData *sync_standbys;
     int num_standbys = SyncRepGetCandidateStandbys(&sync_standbys);
     int num_backends = pgstat_fetch_stat_numbackends();
-    if (!save_etcd_kv_put("primary", hostname, 60)) {
+    if (!save_etcd_kv_put("primary", hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }

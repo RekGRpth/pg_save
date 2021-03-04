@@ -45,6 +45,7 @@
 typedef struct _SPI_plan SPI_plan;
 
 bool save_etcd_kv_put(const char *key, const char *value, int ttl);
+char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
