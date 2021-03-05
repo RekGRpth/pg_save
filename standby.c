@@ -115,6 +115,7 @@ static void standby_connect(Backend *backend, const char *host, int port, const 
 
 static void standby_primary_init(const char *host, int port, const char *user, const char *dbname) {
     Backend *backend = palloc0(sizeof(*backend));
+    D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     backend->reset = reset;
     backend->state = PRIMARY;
     standby_connect(backend, host, port, user, dbname);
