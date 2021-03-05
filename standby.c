@@ -210,7 +210,7 @@ void standby_init(void) {
     int sender_port;
     uint64 row = 0;
     SPI_connect_my("SELECT * FROM pg_stat_wal_receiver");
-    SPI_execute_with_args_my("SELECT sender_host, sender_port, slot_name FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
+    SPI_execute_with_args_my("SELECT * FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
     if (SPI_processed != 1) E("SPI_processed != 1");
     sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sender_host", false));
     slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "slot_name", false));
@@ -229,12 +229,12 @@ static void standby_finish(Backend *backend) {
 }
 
 static void standby_standby_check(Backend *backend, PGresult *result) {
-    const char *sender_host;
-    const char *sender_port;
-    int row = 0;
+//    const char *sender_host;
+//    const char *sender_port;
+//    int row = 0;
     if (PQntuples(result) != 1) E("PQntuples(result) != 1");
-    sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
-    sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
+//    sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
+//    sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
 //    if (pg_strcasecmp(PQhost(backend->conn), sender_host)) E("%s != %s", PQhost(backend->conn), sender_host);
 //    if (pg_strcasecmp(PQport(backend->conn), sender_port)) E("%s != %s", PQport(backend->conn), sender_port);
 }
@@ -253,7 +253,7 @@ static void standby_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; continue; }
-        if (!PQsendQuery(backend->conn, "SELECT sender_host, sender_port FROM pg_stat_wal_receiver")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
+        if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
         backend->events = WL_SOCKET_WRITEABLE;
     }
