@@ -290,7 +290,7 @@ static void standby_standby_check(Backend *backend, PGresult *result) {
 //    const char *sender_host;
 //    const char *sender_port;
 //    int row = 0;
-    if (PQntuples(result) != 1) E("PQntuples(result) != 1");
+    if (PQntuples(result) != 1) W("%s:%s PQntuples(result) != 1", PQhost(backend->conn), PQport(backend->conn));
 //    sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
 //    sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
 //    if (pg_strcasecmp(PQhost(backend->conn), sender_host)) E("%s != %s", PQhost(backend->conn), sender_host);
