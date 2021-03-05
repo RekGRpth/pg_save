@@ -189,7 +189,7 @@ static void standby_primary(void) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (primary) {
+    if (primary && primary->callback == standby_idle_callback) {
         if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("!PQsendQueryParams and %s", PQerrorMessage(primary->conn));
         primary->callback = standby_primary_callback;
         primary->events = WL_SOCKET_WRITEABLE;
@@ -237,6 +237,7 @@ static void standby_standby_callback(Backend *backend) {
 static void standby_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->callback != standby_idle_callback) continue;
         if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_get_wal_receiver()")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
         backend->events = WL_SOCKET_WRITEABLE;
