@@ -102,6 +102,7 @@ static void standby_connect(Backend *backend, const char *host, int port, const 
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("!PQconnectStartParams and %s", PQerrorMessage(backend->conn));
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("PQstatus == CONNECTION_BAD and %s", PQerrorMessage(backend->conn));
@@ -214,8 +215,8 @@ void standby_init(void) {
     SPI_finish_my();
     D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
     standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
-    pfree(sender_host);
-    pfree(slot_name);
+//    pfree(sender_host);
+//    pfree(slot_name);
 }
 
 static void standby_finish(Backend *backend) {
