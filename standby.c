@@ -235,8 +235,8 @@ static void standby_standby_check(Backend *backend, PGresult *result) {
     if (PQntuples(result) != 1) E("PQntuples(result) != 1");
     sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
     sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
-    if (pg_strcasecmp(PQhostaddr(backend->conn), sender_host)) E("%s != %s", PQhostaddr(backend->conn), sender_host);
-    if (pg_strcasecmp(PQport(backend->conn), sender_port)) E("%s != %s", PQport(backend->conn), sender_port);
+//    if (pg_strcasecmp(PQhost(backend->conn), sender_host)) E("%s != %s", PQhost(backend->conn), sender_host);
+//    if (pg_strcasecmp(PQport(backend->conn), sender_port)) E("%s != %s", PQport(backend->conn), sender_port);
 }
 
 static void standby_standby_callback(Backend *backend) {
