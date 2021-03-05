@@ -262,7 +262,7 @@ static void standby_primary(void) {
     if (nParams) appendStringInfoString(&buf, ")");
     if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) == CONNECTION_BAD) standby_reset(primary);
-    else if (PQstatus(primary->conn) != CONNECTION_OK);
+    else if (PQstatus(primary->conn) != CONNECTION_OK) D1("my_state = %i", my_state);
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE; else {
         if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
         primary->callback = standby_primary_callback;
