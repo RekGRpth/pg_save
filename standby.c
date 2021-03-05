@@ -314,6 +314,7 @@ static void standby_standby_callback(Backend *backend) {
 static void standby_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state == PRIMARY) continue;
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; continue; }
         if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
