@@ -65,11 +65,11 @@ static void standby_reset_callback(Backend *backend) {
         case CONNECTION_STARTED: D1("%s:%s PQstatus == CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn)); break;
     }
     switch (PQresetPoll(backend->conn)) {
-        case PGRES_POLLING_ACTIVE: D1("%s:%s PQconnectPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn)); break;
-        case PGRES_POLLING_FAILED: E("%s:%s PQconnectPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); break;
-        case PGRES_POLLING_OK: D1("%s:%s PQconnectPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn)); connected = true; break;
-        case PGRES_POLLING_READING: D1("%s:%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_ACTIVE: D1("%s:%s PQresetPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PGRES_POLLING_FAILED: E("%s:%s PQresetPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); break;
+        case PGRES_POLLING_OK: D1("%s:%s PQresetPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn)); connected = true; break;
+        case PGRES_POLLING_READING: D1("%s:%s PQresetPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("%s:%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
     if ((backend->fd = PQsocket(backend->conn)) < 0) E("%s:%s PQsocket < 0 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (connected) {
@@ -182,6 +182,12 @@ static void standby_connect(Backend *backend, const char *host, int port, const 
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
+    switch (PQpingParams(keywords, values, false)) {
+        case PQPING_NO_ATTEMPT: E("%s:%s PQpingParams == PQPING_NO_ATTEMPT", host, cport); break;
+        case PQPING_NO_RESPONSE: E("%s:%s PQpingParams == PQPING_NO_RESPONSE", host, cport); break;
+        case PQPING_OK: D1("%s:%s PQpingParams == PQPING_OK", host, cport); break;
+        case PQPING_REJECT: E("%s:%s PQpingParams == PQPING_REJECT", host, cport); break;
+    }
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
