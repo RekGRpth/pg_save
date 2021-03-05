@@ -72,7 +72,6 @@ static void standby_reset_callback(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s PQresetPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if ((backend->fd = PQsocket(backend->conn)) < 0) E("%s:%s PQsocket < 0 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (connected) {
         backend->reset = reset;
         standby_idle(backend);
@@ -95,7 +94,6 @@ static void standby_reset(Backend *backend) {
     if (!(PQresetStart(backend->conn))) E("%s:%s !PQresetStart and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
-    if ((backend->fd = PQsocket(backend->conn)) < 0) E("%s:%s PQsocket < 0", PQhost(backend->conn), PQport(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->callback = standby_reset_callback;
     backend->events = WL_SOCKET_WRITEABLE;
@@ -169,7 +167,6 @@ static void standby_connect_callback(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if ((backend->fd = PQsocket(backend->conn)) < 0) E("%s:%s PQsocket < 0 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (connected) {
         backend->reset = reset;
         if (backend->state == PRIMARY) standby_set_synchronous_standby_names(backend);
@@ -192,7 +189,6 @@ static void standby_connect(Backend *backend, const char *host, int port, const 
     pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
-    if ((backend->fd = PQsocket(backend->conn)) < 0) E("%s:%s PQsocket < 0", PQhost(backend->conn), PQport(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->callback = standby_connect_callback;
     backend->events = WL_SOCKET_WRITEABLE;

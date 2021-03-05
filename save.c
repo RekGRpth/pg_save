@@ -129,12 +129,14 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
         queue_each(&backend_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
+            int fd = PQsocket(backend->conn);
+            if (fd < 0) { W("%s:%s PQsocket < 0 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); continue; }
             if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
                 case 0: /*D1("PQflush = 0");*/ break;
                 case 1: D1("PQflush = 1"); break;
                 default: D1("PQflush = default"); break;
             }
-            AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, backend->fd, NULL, backend);
+            AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
         nevents = WaitEventSetWait(set, timeout, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
