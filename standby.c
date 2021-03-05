@@ -6,7 +6,7 @@ extern queue_t backend_queue;
 extern TimestampTz start;
 static STATE my_state;
 
-static void standby_check(Backend *backend);
+static void standby_check(Backend *backend, const char *func, const char *FILE, int LINE);
 
 static char *standby_int2char(int number) {
     StringInfoData buf;
@@ -16,7 +16,7 @@ static char *standby_int2char(int number) {
 }
 
 static void standby_idle_callback(Backend *backend) {
-    standby_check(backend);
+    standby_check(backend, __func__, __FILE__, __LINE__);
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
@@ -100,19 +100,19 @@ static void standby_reset(Backend *backend) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-static void standby_check(Backend *backend) {
+static void standby_check(Backend *backend, const char *func, const char *FILE, int LINE) {
     if (!PQconsumeInput(backend->conn)) {
         if (PQstatus(backend->conn) == CONNECTION_BAD) {
-            W("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
+            W("%s(%s:%d): %s:%s PQstatus == CONNECTION_BAD and %s", func, FILE, LINE, PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
             standby_reset(backend);
             return;
         }
-        E("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
+        E("%s(%s:%d): %s:%s !PQconsumeInput and %s", func, FILE, LINE, PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     }
 }
 
 static void standby_reload_conf_callback(Backend *backend) {
-    standby_check(backend);
+    standby_check(backend, __func__, __FILE__, __LINE__);
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: break;
@@ -129,7 +129,7 @@ static void standby_reload_conf(Backend *backend) {
 }
 
 static void standby_set_synchronous_standby_names_callback(Backend *backend) {
-    standby_check(backend);
+    standby_check(backend, __func__, __FILE__, __LINE__);
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_COMMAND_OK: break;
@@ -232,7 +232,7 @@ static void standby_standby_init(PGresult *result) {
 }
 
 static void standby_primary_callback(Backend *backend) {
-    standby_check(backend);
+    standby_check(backend, __func__, __FILE__, __LINE__);
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_standby_init(result); break;
@@ -316,7 +316,7 @@ static void standby_standby_check(Backend *backend, PGresult *result) {
 }
 
 static void standby_standby_callback(Backend *backend) {
-    standby_check(backend);
+    standby_check(backend, __func__, __FILE__, __LINE__);
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_standby_check(backend, result); break;
