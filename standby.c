@@ -48,6 +48,7 @@ static void standby_finish(Backend *backend) {
 
 static void standby_finish_or_reprimary_or_promote_or_kill(Backend *backend) {
     if (backend->state != PRIMARY) { standby_finish(backend); return; }
+    D1("my_state = %i", my_state);
     if (my_state != SYNC) standby_reprimary();
     else if (queue_size(&backend_queue) > 1) standby_promote();
     else init_kill();
@@ -262,7 +263,7 @@ static void standby_primary(void) {
     if (nParams) appendStringInfoString(&buf, ")");
     if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) == CONNECTION_BAD) standby_reset(primary);
-    else if (PQstatus(primary->conn) != CONNECTION_OK) D1("my_state = %i", my_state);
+    else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE; else {
         if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
         primary->callback = standby_primary_callback;
