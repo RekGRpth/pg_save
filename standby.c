@@ -262,6 +262,7 @@ static void standby_primary(void) {
     if (nParams) appendStringInfoString(&buf, ")");
     if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) == CONNECTION_BAD) standby_reset(primary);
+    else if (PQstatus(primary->conn) != CONNECTION_OK);
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE; else {
         if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
         primary->callback = standby_primary_callback;
@@ -312,6 +313,7 @@ static void standby_standby(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state == PRIMARY) continue;
         if (PQstatus(backend->conn) == CONNECTION_BAD) { standby_reset(backend); continue; }
+        if (PQstatus(backend->conn) != CONNECTION_OK) continue;
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; continue; }
         if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
