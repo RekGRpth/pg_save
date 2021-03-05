@@ -1,6 +1,5 @@
 #include "include.h"
 
-extern char *channel;
 extern char *hostname;
 extern int reset;
 extern queue_t backend_queue;
@@ -13,7 +12,7 @@ static char *standby_int2char(int number) {
     return buf.data;
 }
 
-static void standby_listen_callback(Backend *backend) {
+static void standby_idle_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
         for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
@@ -22,23 +21,15 @@ static void standby_listen_callback(Backend *backend) {
     }
 }
 
-static void standby_listen(Backend *backend) {
-    const char *channel_quote = quote_identifier(channel);
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "LISTEN %s", channel_quote);
-    if (channel_quote != channel) pfree((void *)channel_quote);
-    if (!PQsendQuery(backend->conn, buf.data)) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
-    backend->callback = standby_listen_callback;
-    backend->events = WL_SOCKET_WRITEABLE;
-    pfree(buf.data);
+static void standby_idle(Backend *backend) {
+    backend->callback = standby_idle_callback;
 }
 
 static void standby_reload_conf_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
         for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_TUPLES_OK: standby_listen(backend); break;
+            case PGRES_TUPLES_OK: standby_idle(backend); break;
             default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
         }
     }
