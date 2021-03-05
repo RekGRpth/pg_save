@@ -120,7 +120,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     standby_connect(backend, host, port, user, dbname);
 }
 
-static void standby_reprimary(void) {
+/*static void standby_reprimary(void) {
     //WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
 }
 
@@ -133,7 +133,7 @@ static void standby_reprimary_or_promote_or_kill(void) {
     if (my_state != SYNC) standby_reprimary();
     else if (queue_size(&backend_queue) > 1) standby_promote();
     else init_kill();
-}
+}*/
 
 static void standby_standby_init(Backend *backend, PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
@@ -200,22 +200,21 @@ static void standby_primary(void) {
 }
 
 void standby_init(void) {
-    bool ready_to_display;
-    char sender_host[NI_MAXHOST];
-    int pid;
-    int sender_port = 0;
-    char slotname[NAMEDATALEN];
-    SpinLockAcquire(&WalRcv->mutex);
-    pid = (int)WalRcv->pid;
-    ready_to_display = WalRcv->ready_to_display;
-    sender_port = WalRcv->sender_port;
-    strlcpy(sender_host, (char *)WalRcv->sender_host, sizeof(sender_host));
-    strlcpy(slotname, (char *) WalRcv->slotname, sizeof(slotname));
-    SpinLockRelease(&WalRcv->mutex);
-    if (!pid) E("!pid");
-    if (!ready_to_display) E("!ready_to_display");
-    D1("sender_host = %s, sender_port = %i, slotname = %s", sender_host, sender_port, slotname);
+    char *sender_host;
+    char *slot_name;
+    int sender_port;
+    uint64 row = 0;
+    SPI_connect_my("SELECT * FROM pg_stat_get_wal_receiver()");
+    SPI_execute_with_args_my("SELECT * FROM pg_stat_get_wal_receiver()", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
+    if (SPI_processed != 1) E("SPI_processed != 1");
+    sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sender_host", false));
+    slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "slot_name", false));
+    sender_port = DatumGetInt32(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sender_port", false));
+    SPI_finish_my();
+    D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
     standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    pfree(sender_host);
+    pfree(slot_name);
 }
 
 static void standby_finish(Backend *backend) {

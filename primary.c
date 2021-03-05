@@ -3,7 +3,7 @@
 extern char *hostname;
 extern TimestampTz start;
 
-static void primary_info(void) {
+/*static void primary_info(void) {
     SyncRepStandbyData *sync_standbys;
     int num_standbys = SyncRepGetCandidateStandbys(&sync_standbys);
     int num_backends = pgstat_fetch_stat_numbackends();
@@ -55,7 +55,7 @@ static void primary_info(void) {
         D1("pid = %i, state = %i, sync_priority = %i, sync_state = %s, client_addr = %s, client_hostname = %s", pid, state, priority, sync_state, client_addr ? client_addr : "(null)", client_hostname ? client_hostname : "(null)");
     }
     pfree(sync_standbys);
-}
+}*/
 
 void primary_timeout(void) {
     if (!save_etcd_kv_put("primary", hostname, 0)) {
