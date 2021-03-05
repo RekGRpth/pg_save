@@ -205,7 +205,7 @@ void standby_init(void) {
     int sender_port;
     uint64 row = 0;
     SPI_connect_my("SELECT * FROM pg_stat_wal_receiver");
-    SPI_execute_with_args_my("SELECT * FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
+    SPI_execute_with_args_my("SELECT sender_host, sender_port, slot_name FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
     if (SPI_processed != 1) E("SPI_processed != 1");
     sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sender_host", false));
     slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "slot_name", false));
