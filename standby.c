@@ -40,6 +40,7 @@ static void standby_promote(void) {
 }
 
 static void standby_finish(Backend *backend) {
+    D1("%s:%s", PQhost(backend->conn), PQport(backend->conn));
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
     pfree(backend);
