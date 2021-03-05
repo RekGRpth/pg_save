@@ -204,8 +204,8 @@ void standby_init(void) {
     char *slot_name;
     int sender_port;
     uint64 row = 0;
-    SPI_connect_my("SELECT * FROM pg_stat_get_wal_receiver()");
-    SPI_execute_with_args_my("SELECT * FROM pg_stat_get_wal_receiver()", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
+    SPI_connect_my("SELECT * FROM pg_stat_wal_receiver");
+    SPI_execute_with_args_my("SELECT * FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
     if (SPI_processed != 1) E("SPI_processed != 1");
     sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sender_host", false));
     slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "slot_name", false));
@@ -237,7 +237,7 @@ static void standby_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->callback != standby_idle_callback) continue;
-        if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_get_wal_receiver()")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
+        if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
         backend->events = WL_SOCKET_WRITEABLE;
     }
