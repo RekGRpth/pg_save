@@ -79,6 +79,18 @@ static void standby_reset_callback(Backend *backend) {
 }
 
 static void standby_reset(Backend *backend) {
+    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
+    const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
+    backend->reset--;
+    W("%s:%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->reset, reset);
+    if (!backend->reset) { standby_reprimary_or_promote_or_kill(backend); return; }
+    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    switch (PQpingParams(keywords, values, false)) {
+        case PQPING_NO_ATTEMPT: E("%s:%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PQPING_NO_RESPONSE: E("%s:%s PQpingParams == PQPING_NO_RESPONSE", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PQPING_OK: D1("%s:%s PQpingParams == PQPING_OK", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PQPING_REJECT: E("%s:%s PQpingParams == PQPING_REJECT", PQhost(backend->conn), PQport(backend->conn)); break;
+    }
     if (!(PQresetStart(backend->conn))) E("%s:%s !PQresetStart and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
@@ -86,8 +98,6 @@ static void standby_reset(Backend *backend) {
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->callback = standby_reset_callback;
     backend->events = WL_SOCKET_WRITEABLE;
-    if (!--backend->reset) standby_reprimary_or_promote_or_kill(backend);
-    W("%s:%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->reset, reset);
 }
 
 static void standby_check(Backend *backend) {
