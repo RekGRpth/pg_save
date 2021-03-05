@@ -223,11 +223,23 @@ static void standby_finish(Backend *backend) {
     pfree(backend);
 }
 
+static void standby_standby_check(Backend *backend, PGresult *result) {
+    const char *sender_host;
+    const char *sender_port;
+    int row = 0;
+    if (PQntuples(result) != 1) E("PQntuples(result) != 1");
+    sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
+    sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
+    if (pg_strcasecmp(PQhostaddr(backend->conn), sender_host)) E("%s != %s", PQhostaddr(backend->conn), sender_host);
+    if (pg_strcasecmp(PQport(backend->conn), sender_port)) E("%s != %s", PQport(backend->conn), sender_port);
+    standby_idle(backend);
+}
+
 static void standby_standby_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
         for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_TUPLES_OK: standby_idle(backend); break;
+            case PGRES_TUPLES_OK: standby_standby_check(backend, result); break;
             default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
         }
     }
@@ -237,7 +249,7 @@ static void standby_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->callback != standby_idle_callback) continue;
-        if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
+        if (!PQsendQuery(backend->conn, "SELECT sender_host, sender_port FROM pg_stat_wal_receiver")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
         backend->callback = standby_standby_callback;
         backend->events = WL_SOCKET_WRITEABLE;
     }
