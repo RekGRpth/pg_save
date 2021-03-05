@@ -241,8 +241,7 @@ static void standby_primary_init(const char *host, int port, const char *user, c
     standby_connect(backend, host, port, user, dbname);
 }
 
-static void standby_primary(void) {
-    Backend *primary = NULL;
+static void standby_primary(Backend *primary) {
     int nParams = queue_size(&backend_queue);
     Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
@@ -252,7 +251,7 @@ static void standby_primary(void) {
     nParams = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == PRIMARY) { primary = backend; continue; }
+        if (backend->state == PRIMARY) continue;
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
         paramTypes[nParams] = INETOID;
@@ -261,14 +260,9 @@ static void standby_primary(void) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
-    else if (PQstatus(primary->conn) == CONNECTION_BAD) standby_reset(primary);
-    else if (PQstatus(primary->conn) != CONNECTION_OK) ;
-    else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE; else {
-        if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
-        primary->callback = standby_primary_callback;
-        primary->events = WL_SOCKET_WRITEABLE;
-    }
+    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
+    primary->callback = standby_primary_callback;
+    primary->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);
     pfree(buf.data);
@@ -288,47 +282,21 @@ void standby_init(void) {
     D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
 }
 
-static void standby_standby_check(Backend *backend, PGresult *result) {
-//    const char *sender_host;
-//    const char *sender_port;
-//    int row = 0;
-    if (PQntuples(result) != 1) W("%s:%s PQntuples(result) != 1", PQhost(backend->conn), PQport(backend->conn));
-//    sender_host = PQgetvalue(result, row, PQfnumber(result, "sender_host"));
-//    sender_port = PQgetvalue(result, row, PQfnumber(result, "sender_port"));
-//    if (pg_strcasecmp(PQhost(backend->conn), sender_host)) E("%s != %s", PQhost(backend->conn), sender_host);
-//    if (pg_strcasecmp(PQport(backend->conn), sender_port)) E("%s != %s", PQport(backend->conn), sender_port);
-}
-
-static void standby_standby_callback(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: standby_standby_check(backend, result); break;
-        default: E("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-    }
-    standby_idle(backend);
-}
-
-static void standby_standby(void) {
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == PRIMARY) continue;
-        if (PQstatus(backend->conn) == CONNECTION_BAD) { standby_reset(backend); continue; }
-        if (PQstatus(backend->conn) != CONNECTION_OK) continue;
-        if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; continue; }
-        if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_wal_receiver")) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
-        backend->callback = standby_standby_callback;
-        backend->events = WL_SOCKET_WRITEABLE;
-    }
-}
-
 void standby_timeout(void) {
+    Backend *primary = NULL;
     if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
-    standby_primary();
-    standby_standby();
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state == PRIMARY) primary = backend;
+        if (PQstatus(backend->conn) == CONNECTION_BAD) { standby_reset(backend); continue; }
+    }
+    if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    else if (PQstatus(primary->conn) != CONNECTION_OK) ;
+    else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
+    else standby_primary(primary);
 }
 
 void standby_fini(void) {
