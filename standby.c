@@ -38,7 +38,7 @@ static void standby_reload_conf_callback(Backend *backend) {
 }
 
 static void standby_reload_conf(Backend *backend) {
-    D1("hi");
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     if (!PQsendQuery(backend->conn, "SELECT pg_reload_conf()")) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
     backend->callback = standby_reload_conf_callback;
     backend->events = WL_SOCKET_WRITEABLE;
@@ -59,14 +59,15 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
     char *cluster_name_ = cluster_name ? cluster_name : "walreceiver";
     const char *cluster_name_quote = quote_identifier(cluster_name_);
     StringInfoData buf;
-    D1("hi");
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; goto ret; }
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
-    if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
     if (!PQsendQuery(backend->conn, buf.data)) E("!PQsendQuery and %s", PQerrorMessage(backend->conn));
     backend->callback = standby_set_synchronous_standby_names_callback;
     backend->events = WL_SOCKET_WRITEABLE;
     pfree(buf.data);
+ret:
+    if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
 }
 
 static void standby_connect_callback(Backend *backend) {
