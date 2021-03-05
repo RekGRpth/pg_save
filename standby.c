@@ -15,10 +15,9 @@ static char *standby_int2char(int number) {
 
 static void standby_idle_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
-        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            default: D1("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-        }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        default: D1("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
 }
 
@@ -28,11 +27,10 @@ static void standby_idle(Backend *backend) {
 
 static void standby_reload_conf_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
-        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_TUPLES_OK: break;
-            default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-        }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_TUPLES_OK: break;
+        default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     standby_idle(backend);
 }
@@ -46,11 +44,10 @@ static void standby_reload_conf(Backend *backend) {
 
 static void standby_set_synchronous_standby_names_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
-        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_COMMAND_OK: break;
-            default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-        }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_COMMAND_OK: break;
+        default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     standby_reload_conf(backend);
 }
@@ -159,11 +156,10 @@ static void standby_standby_init(PGresult *result) {
 
 static void standby_primary_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
-        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_TUPLES_OK: standby_standby_init(result); break;
-            default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-        }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_TUPLES_OK: standby_standby_init(result); break;
+        default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     standby_idle(backend);
 }
@@ -245,11 +241,10 @@ static void standby_standby_check(Backend *backend, PGresult *result) {
 
 static void standby_standby_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) E("!PQconsumeInput and %s", PQerrorMessage(backend->conn));
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else {
-        for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-            case PGRES_TUPLES_OK: standby_standby_check(backend, result); break;
-            default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-        }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_TUPLES_OK: standby_standby_check(backend, result); break;
+        default: E("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     standby_idle(backend);
 }
