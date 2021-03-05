@@ -87,9 +87,9 @@ static void standby_reset(Backend *backend) {
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn)); break;
-        case PQPING_NO_RESPONSE: E("%s:%s PQpingParams == PQPING_NO_RESPONSE", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PQPING_NO_RESPONSE: W("%s:%s PQpingParams == PQPING_NO_RESPONSE", PQhost(backend->conn), PQport(backend->conn)); break;
         case PQPING_OK: D1("%s:%s PQpingParams == PQPING_OK", PQhost(backend->conn), PQport(backend->conn)); break;
-        case PQPING_REJECT: E("%s:%s PQpingParams == PQPING_REJECT", PQhost(backend->conn), PQport(backend->conn)); break;
+        case PQPING_REJECT: W("%s:%s PQpingParams == PQPING_REJECT", PQhost(backend->conn), PQport(backend->conn)); break;
     }
     if (!(PQresetStart(backend->conn))) E("%s:%s !PQresetStart and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
