@@ -210,7 +210,7 @@ static void standby_standby_init(PGresult *result) {
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         STATE state;
-        if (!me) D1("addr = %s, host = %s, state = %s", addr, host, cstate);
+        /*if (!me) */D1("addr = %s, host = %s, state = %s", addr, host, cstate);
         if (pg_strcasecmp(cstate, "async")) state = ASYNC;
         else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
