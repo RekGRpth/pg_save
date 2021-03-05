@@ -39,8 +39,14 @@ static void standby_promote(void) {
 //    else standby_fini();
 }
 
-static void standby_reprimary_or_promote_or_kill(Backend *backend) {
-    if (backend->state != PRIMARY) return;
+static void standby_finish(Backend *backend) {
+    queue_remove(&backend->queue);
+    PQfinish(backend->conn);
+    pfree(backend);
+}
+
+static void standby_finish_or_reprimary_or_promote_or_kill(Backend *backend) {
+    if (backend->state != PRIMARY) { standby_finish(backend); return; }
     if (my_state != SYNC) standby_reprimary();
     else if (queue_size(&backend_queue) > 1) standby_promote();
     else init_kill();
@@ -73,7 +79,7 @@ static void standby_reset_callback(Backend *backend) {
         case PGRES_POLLING_WRITING: D1("%s:%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
     if (connected) {
-        backend->reset = reset;
+        backend->reset = 0;
         standby_idle(backend);
     }
 }
@@ -81,9 +87,9 @@ static void standby_reset_callback(Backend *backend) {
 static void standby_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
-    backend->reset--;
+    backend->reset++;
     W("%s:%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->reset, reset);
-    if (!backend->reset) { standby_reprimary_or_promote_or_kill(backend); return; }
+    if (backend->reset >= reset) { standby_finish_or_reprimary_or_promote_or_kill(backend); return; }
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn)); break;
@@ -168,7 +174,6 @@ static void standby_connect_callback(Backend *backend) {
         case PGRES_POLLING_WRITING: D1("%s:%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
     if (connected) {
-        backend->reset = reset;
         if (backend->state == PRIMARY) standby_set_synchronous_standby_names(backend);
     }
 }
@@ -278,12 +283,6 @@ void standby_init(void) {
     sender_port = DatumGetInt32(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "sender_port", false));
     SPI_finish_my();
     D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
-}
-
-static void standby_finish(Backend *backend) {
-    queue_remove(&backend->queue);
-    PQfinish(backend->conn);
-    pfree(backend);
 }
 
 static void standby_standby_check(Backend *backend, PGresult *result) {
