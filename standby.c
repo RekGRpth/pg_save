@@ -271,11 +271,14 @@ static void standby_primary(void) {
 }
 
 void standby_init(void) {
+    MemoryContext oldMemoryContext;
     SPI_connect_my("SELECT * FROM pg_stat_wal_receiver");
     SPI_execute_with_args_my("SELECT * FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
     if (SPI_processed != 1) E("SPI_processed != 1");
+    oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
     sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "sender_host", false));
     slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "slot_name", false));
+    MemoryContextSwitchTo(oldMemoryContext);
     sender_port = DatumGetInt32(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "sender_port", false));
     SPI_finish_my();
     D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
