@@ -42,6 +42,18 @@
 
 #include "queue.h"
 
+typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
+
+typedef struct Backend {
+    int events;
+    int fd;
+    int reset;
+    PGconn *conn;
+    queue_t queue;
+    STATE state;
+    void (*callback) (struct Backend *backend);
+} Backend;
+
 typedef struct _SPI_plan SPI_plan;
 
 bool save_etcd_kv_put(const char *key, const char *value, int ttl);

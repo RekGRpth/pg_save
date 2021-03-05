@@ -1,6 +1,7 @@
 #include "include.h"
 
 extern char *hostname;
+extern TimestampTz start;
 
 static void primary_info(void) {
     SyncRepStandbyData *sync_standbys;
@@ -61,7 +62,7 @@ void primary_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
-    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
+    if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }

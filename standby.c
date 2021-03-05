@@ -1,16 +1,9 @@
 #include "include.h"
 
-typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
-
-typedef struct Backend {
-    int reset;
-    PGconn *conn;
-    queue_t queue;
-    STATE state;
-} Backend;
-
 extern char *hostname;
 extern int reset;
+extern queue_t backend_queue;
+extern TimestampTz start;
 static Backend primary;
 
 static char *standby_int2char(int number) {
@@ -22,7 +15,7 @@ static char *standby_int2char(int number) {
 
 static void standby_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname) {
     char *cport = standby_int2char(port);
-    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
+    const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL}; // target_session_attrs=read-write
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     if (!(backend->conn = PQconnectdbParams(keywords, values, false))) E("!PQconnectdbParams and %s", PQerrorMessage(backend->conn));
@@ -125,7 +118,7 @@ static void standby_primary(void) {
             primary.state = state;
             continue;
         }
-        if (!(standby = palloc0(sizeof(*standby)))) E("!palloc0");
+        standby = palloc0(sizeof(*standby));
         standby_connect(standby, host, 5432, MyProcPort->user_name, MyProcPort->database_name);
         standby->reset = reset;
         standby->state = state;
@@ -195,7 +188,7 @@ static void standby_standby(void) {
 }
 
 void standby_timeout(void) {
-    if (!save_etcd_kv_put(hostname, timestamptz_to_str(GetCurrentTimestamp()), 0)) {
+    if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
@@ -210,3 +203,5 @@ void standby_fini(void) {
         standby_finish(standby);
     }
 }
+
+// pg_rewind --target-pgdata /home/pg_data --source-server application_name=pgautofailover_standby_12 host=postgres-docker-bill-02 port=5432 user=pgautofailover_replicator dbname=postgres sslmode=prefer --progress
