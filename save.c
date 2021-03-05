@@ -113,7 +113,8 @@ static void save_latch(void) {
     if (sighup) save_reload();
 }
 
-static void save_socket(Backend *backend) {
+static void save_socket(void *data) {
+    Backend *backend = data;
     backend->callback(backend);
 }
 
