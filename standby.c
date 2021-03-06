@@ -4,6 +4,7 @@ extern char *hostname;
 extern int reset;
 extern queue_t backend_queue;
 extern TimestampTz start;
+static Backend *primary = NULL;
 static char *sender_host;
 static char *slot_name;
 static int sender_port;
@@ -41,6 +42,7 @@ static void standby_promote(void) {
 
 static void standby_finish(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), PQport(backend->conn));
+    if (backend->state == PRIMARY) primary = NULL;
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
     pfree(backend);
@@ -283,14 +285,12 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
-    Backend *primary = NULL;
     if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == PRIMARY) primary = backend;
         if (PQstatus(backend->conn) == CONNECTION_BAD) { standby_reset(backend); continue; }
     }
     if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
