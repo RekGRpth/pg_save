@@ -90,7 +90,7 @@ static void standby_standby_connect(PGresult *result) {
         if (me) { my_state = state; continue; }
         backend = palloc0(sizeof(*backend));
         backend->state = state;
-        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, NULL);
+        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
     }
 }
 
