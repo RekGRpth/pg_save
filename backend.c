@@ -110,10 +110,10 @@ static void backend_connect_callback(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected && backend->callback2) backend->callback2(backend);
+    if (connected && backend->after) backend->after(backend);
 }
 
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t callback) {
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t after) {
     char *cport = backend_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
@@ -130,8 +130,8 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
+    backend->after = after;
     backend->callback = backend_connect_callback;
-    backend->callback2 = callback;
     backend->events = WL_SOCKET_WRITEABLE;
     queue_insert_tail(&backend_queue, &backend->queue);
 }
