@@ -15,17 +15,16 @@ static void primary_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (nargs) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
-        argtypes[nargs] = INETOID;
+        else appendStringInfoString(&buf, " WHERE client_addr::text NOT IN (");
+        argtypes[nargs] = TEXTOID;
         values[nargs] = CStringGetTextDatum(PQhostaddr(backend->conn));
         nargs++;
         appendStringInfo(&buf, "$%i", nargs);
     }
     if (nargs) appendStringInfoString(&buf, ")");
-//    D1(buf.data);
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
-    for (uint64 row = 0; row < SPI_processed; row++) {
+    /*for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
@@ -37,7 +36,7 @@ static void primary_standby(void) {
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
         pfree((void *)host);
         pfree((void *)state);
-    }
+    }*/
     SPI_finish_my();
     for (int i = 0; i < nargs; i++) pfree((void *)values[i]);
     pfree(buf.data);

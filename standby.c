@@ -73,18 +73,18 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
 }
 
 static void standby_standby_connect(PGresult *result) {
-    for (int row = 0; row < PQntuples(result); row++) {
+    /*for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        /*if (!me) */D1("host = %s, state = %s", host, state);
+        D1("host = %s, state = %s", host, state);
         if (me) { my_state = backend_state(state); continue; }
         backend = palloc0(sizeof(*backend));
         backend->state = backend_state(state);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
-    }
+    }*/
 }
 
 static void standby_primary_socket(Backend *backend) {
