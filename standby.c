@@ -71,7 +71,7 @@ ret:
     if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
 }
 
-static void standby_standby_init(PGresult *result) {
+static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
         const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
@@ -97,13 +97,13 @@ static void standby_primary_callback(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: standby_standby_init(result); break;
+        case PGRES_TUPLES_OK: standby_standby_connect(result); break;
         default: E("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
 
-static void standby_primary_init(const char *host, int port, const char *user, const char *dbname) {
+static void standby_primary_connect(const char *host, int port, const char *user, const char *dbname) {
     Backend *backend = palloc0(sizeof(*backend));
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     backend->state = PRIMARY;
@@ -160,7 +160,7 @@ void standby_timeout(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, standby_reset); continue; }
     }
-    if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    if (!primary) standby_primary_connect(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
     else standby_primary(primary);
