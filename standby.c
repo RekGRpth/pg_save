@@ -20,7 +20,7 @@ static void standby_promote(void) {
 //    else standby_fini();
 }
 
-static void standby_finish_or_reprimary_or_promote_or_kill(Backend *backend) {
+static void standby_reset(Backend *backend) {
     if (backend->state != PRIMARY) { backend_finish(backend); return; }
     D1("my_state = %i", my_state);
     if (my_state != SYNC) standby_reprimary();
@@ -158,7 +158,7 @@ void standby_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, standby_finish_or_reprimary_or_promote_or_kill); continue; }
+        if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, standby_reset); continue; }
     }
     if (!primary) standby_primary_init(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
