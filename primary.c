@@ -26,23 +26,17 @@ static void primary_standby(void) {
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
     for (uint64 row = 0; row < SPI_processed; row++) {
-        STATE state;
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
-        const char *cstate = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
-        D1("host = %s, state = %s", host, cstate);
-        if (pg_strcasecmp(cstate, "async")) state = ASYNC;
-        else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
-        else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
-        else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
-        else E("unknown state = %s", cstate);
+        const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
+        D1("host = %s, state = %s", host, state);
         backend = palloc0(sizeof(*backend));
         MemoryContextSwitchTo(oldMemoryContext);
-        backend->state = state;
+        backend->state = backend_state(state);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
         pfree((void *)host);
-        pfree((void *)cstate);
+        pfree((void *)state);
     }
     SPI_finish_my();
     for (int i = 0; i < nargs; i++) pfree((void *)values[i]);

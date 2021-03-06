@@ -4,6 +4,14 @@ Backend *primary = NULL;
 extern int reset;
 extern queue_t backend_queue;
 
+STATE backend_state(const char *state) {
+    if (!pg_strcasecmp(state, "async")) return ASYNC;
+    if (!pg_strcasecmp(state, "potential")) return POTENTIAL;
+    if (!pg_strcasecmp(state, "sync")) return SYNC;
+    if (!pg_strcasecmp(state, "quorum")) return QUORUM;
+    E("unknown state = %s", state);
+}
+
 static char *backend_int2char(int number) {
     StringInfoData buf;
     initStringInfo(&buf);

@@ -64,6 +64,7 @@ char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+STATE backend_state(const char *state);
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t connect);
 void backend_finish(Backend *backend);
 void backend_fini(void);
