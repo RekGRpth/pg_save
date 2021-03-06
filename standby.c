@@ -28,7 +28,7 @@ static void standby_reset(Backend *backend) {
     else init_kill();
 }
 
-static void standby_reload_conf_callback(Backend *backend) {
+static void standby_reload_conf_socket(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
@@ -41,11 +41,11 @@ static void standby_reload_conf_callback(Backend *backend) {
 static void standby_reload_conf(Backend *backend) {
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     if (!PQsendQuery(backend->conn, "SELECT pg_reload_conf()")) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
-    backend->callback = standby_reload_conf_callback;
+    backend->socket = standby_reload_conf_socket;
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-static void standby_set_synchronous_standby_names_callback(Backend *backend) {
+static void standby_set_synchronous_standby_names_socket(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
@@ -66,7 +66,7 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (!PQsendQuery(backend->conn, buf.data)) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
-    backend->callback = standby_set_synchronous_standby_names_callback;
+    backend->socket = standby_set_synchronous_standby_names_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     pfree(buf.data);
     if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
@@ -94,7 +94,7 @@ static void standby_standby_connect(PGresult *result) {
     }
 }
 
-static void standby_primary_callback(Backend *backend) {
+static void standby_primary_socket(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
     if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
@@ -131,7 +131,7 @@ static void standby_primary(Backend *primary) {
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
-    primary->callback = standby_primary_callback;
+    primary->socket = standby_primary_socket;
     primary->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);

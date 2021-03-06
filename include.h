@@ -48,8 +48,8 @@ struct Backend;
 typedef void (*callback_t) (struct Backend *backend);
 
 typedef struct Backend {
-    callback_t after;
-    callback_t callback;
+    callback_t connect;
+    callback_t socket;
     int events;
     int reset;
     PGconn *conn;
@@ -64,7 +64,7 @@ char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t after);
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t connect);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

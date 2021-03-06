@@ -115,7 +115,7 @@ static void save_latch(void) {
 
 static void save_socket(void *data) {
     Backend *backend = data;
-    backend->callback(backend);
+    backend->socket(backend);
 }
 
 void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
