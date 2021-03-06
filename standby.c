@@ -152,7 +152,7 @@ void standby_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, backend_idle, standby_reset); continue; }
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend, backend_idle, standby_reset);
     }
     if (!primary) standby_primary_connect(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
