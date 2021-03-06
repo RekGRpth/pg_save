@@ -79,7 +79,7 @@ static void standby_standby_connect(PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        D1("host = %s, state = %s", host, state);
+        if (!me) D1("host = %s, state = %s", host, state);
         if (me) { my_state = backend_state(state); continue; }
         backend = palloc0(sizeof(*backend));
         backend->state = backend_state(state);
