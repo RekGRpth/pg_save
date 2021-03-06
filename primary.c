@@ -10,7 +10,7 @@ static void primary_standby(void) {
     Datum *values = nargs ? palloc(nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
+    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -22,16 +22,16 @@ static void primary_standby(void) {
         appendStringInfo(&buf, "$%i", nargs);
     }
     if (nargs) appendStringInfoString(&buf, ")");
+    D1(buf.data);
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
     for (uint64 row = 0; row < SPI_processed; row++) {
         STATE state;
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
-        const char *addr = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "addr", false));
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
         const char *cstate = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
-        D1("addr = %s, host = %s, state = %s", addr, host, cstate);
+        D1("host = %s, state = %s", host, cstate);
         if (pg_strcasecmp(cstate, "async")) state = ASYNC;
         else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
@@ -41,7 +41,6 @@ static void primary_standby(void) {
         MemoryContextSwitchTo(oldMemoryContext);
         backend->state = state;
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
-        pfree((void *)addr);
         pfree((void *)host);
         pfree((void *)cstate);
     }

@@ -75,13 +75,12 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
 static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
-        const char *addr = PQgetvalue(result, row, PQfnumber(result, "addr"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *cstate = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         STATE state;
-        /*if (!me) */D1("addr = %s, host = %s, state = %s", addr, host, cstate);
+        /*if (!me) */D1("host = %s, state = %s", host, cstate);
         if (pg_strcasecmp(cstate, "async")) state = ASYNC;
         else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
         else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
@@ -117,7 +116,7 @@ static void standby_primary(Backend *primary) {
     char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
+    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
     nParams = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
