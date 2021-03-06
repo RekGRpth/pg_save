@@ -122,15 +122,22 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
     TimestampTz stop = (start = GetCurrentTimestamp());
     save_init();
     while (!sigterm) {
-        int nevents = queue_size(&backend_queue) + 2;
-        WaitEvent *events = palloc0(nevents * sizeof(*events));
-        WaitEventSet *set = CreateWaitEventSet(TopMemoryContext, nevents);
+        WaitEvent *events;
+        WaitEventSet *set;
+        int nevents = 2;
+        queue_each(&backend_queue, queue) {
+            Backend *backend = queue_data(queue, Backend, queue);
+            if (PQsocket(backend->conn) < 0) continue;
+            nevents++;
+        }
+        events = palloc0(nevents * sizeof(*events));
+        set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
         queue_each(&backend_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             int fd = PQsocket(backend->conn);
-            if (fd < 0) { nevents--; continue; }
+            if (fd < 0) continue;
             if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
                 case 0: /*D1("PQflush = 0");*/ break;
                 case 1: D1("PQflush = 1"); break;
