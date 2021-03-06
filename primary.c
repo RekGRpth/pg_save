@@ -54,7 +54,7 @@ void primary_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, backend_idle, backend_finish); continue; }
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend, backend_idle, backend_finish);
     }
     primary_standby();
 }
