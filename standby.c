@@ -56,18 +56,19 @@ static void standby_set_synchronous_standby_names_callback(Backend *backend) {
 }
 
 static void standby_set_synchronous_standby_names(Backend *backend) {
-    char *cluster_name_ = cluster_name ? cluster_name : "walreceiver";
-    const char *cluster_name_quote = quote_identifier(cluster_name_);
+    char *cluster_name_;
+    const char *cluster_name_quote;
     StringInfoData buf;
-    if (backend->state != PRIMARY) goto ret;
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; goto ret; }
+    if (backend->state != PRIMARY) return;
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    cluster_name_ = cluster_name ? cluster_name : "walreceiver";
+    cluster_name_quote = quote_identifier(cluster_name_);
     initStringInfo(&buf);
     appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
     if (!PQsendQuery(backend->conn, buf.data)) E("%s:%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     backend->callback = standby_set_synchronous_standby_names_callback;
     backend->events = WL_SOCKET_WRITEABLE;
     pfree(buf.data);
-ret:
     if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
 }
 
