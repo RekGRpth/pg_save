@@ -58,7 +58,6 @@ void primary_timeout(void) {
         W("!save_etcd_kv_put");
         init_kill();
     }
-    //primary_info();
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, backend_idle, backend_finish); continue; }
