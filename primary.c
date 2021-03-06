@@ -1,6 +1,7 @@
 #include "include.h"
 
 extern char *hostname;
+extern queue_t backend_queue;
 extern TimestampTz start;
 
 /*static void primary_info(void) {
@@ -57,6 +58,51 @@ extern TimestampTz start;
     pfree(sync_standbys);
 }*/
 
+static void primary_standby(void) {
+    int nargs = queue_size(&backend_queue);
+    Oid *argtypes = nargs ? palloc(nargs * sizeof(*argtypes)) : NULL;
+    Datum *values = nargs ? palloc(nargs * sizeof(*values)) : NULL;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfoString(&buf, "SELECT client_addr AS addr, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
+    nargs = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (nargs) appendStringInfoString(&buf, ", ");
+        else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
+        argtypes[nargs] = INETOID;
+        values[nargs] = CStringGetTextDatum(PQhostaddr(backend->conn));
+        nargs++;
+        appendStringInfo(&buf, "$%i", nargs);
+    }
+    if (nargs) appendStringInfoString(&buf, ")");
+    SPI_connect_my(buf.data);
+    SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
+    for (uint64 row = 0; row < SPI_processed; row++) {
+        STATE state;
+        Backend *backend;
+        MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
+        const char *addr = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "addr", false));
+        const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
+        const char *cstate = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
+        D1("addr = %s, host = %s, state = %s", addr, host, cstate);
+        if (pg_strcasecmp(cstate, "async")) state = ASYNC;
+        else if (pg_strcasecmp(cstate, "potential")) state = POTENTIAL;
+        else if (pg_strcasecmp(cstate, "sync")) state = SYNC;
+        else if (pg_strcasecmp(cstate, "quorum")) state = QUORUM;
+        else E("unknown state = %s", cstate);
+        backend = palloc0(sizeof(*backend));
+        MemoryContextSwitchTo(oldMemoryContext);
+        backend->state = state;
+        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
+        pfree((void *)addr);
+        pfree((void *)host);
+        pfree((void *)cstate);
+    }
+    SPI_finish_my();
+    for (int i = 0; i < nargs; i++) pfree((void *)values[i]);
+}
+
 void primary_timeout(void) {
     if (!save_etcd_kv_put("primary", hostname, 0)) {
         W("!save_etcd_kv_put");
@@ -67,6 +113,11 @@ void primary_timeout(void) {
         init_kill();
     }
     //primary_info();
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) { backend_reset(backend, backend_idle, backend_finish); continue; }
+    }
+    primary_standby();
 }
 
 static void primary_schema(const char *schema) {
