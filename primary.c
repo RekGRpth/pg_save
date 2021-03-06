@@ -106,4 +106,5 @@ void primary_init(void) {
 }
 
 void primary_fini(void) {
+    backend_fini();
 }
