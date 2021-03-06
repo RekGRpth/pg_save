@@ -73,7 +73,7 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
 }
 
 static void standby_standby_connect(PGresult *result) {
-    /*for (int row = 0; row < PQntuples(result); row++) {
+    for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
@@ -84,7 +84,7 @@ static void standby_standby_connect(PGresult *result) {
         backend = palloc0(sizeof(*backend));
         backend->state = backend_state(state);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
-    }*/
+    }
 }
 
 static void standby_primary_socket(Backend *backend) {
@@ -117,10 +117,10 @@ static void standby_primary(Backend *primary) {
         if (backend->state == PRIMARY) continue;
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
-        paramTypes[nParams] = INETOID;
+        paramTypes[nParams] = TEXTOID;
         paramValues[nParams] = PQhostaddr(backend->conn);
         nParams++;
-        appendStringInfo(&buf, "$%i", nParams);
+        appendStringInfo(&buf, "$%i::inet", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), PQerrorMessage(primary->conn));
