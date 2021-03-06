@@ -57,13 +57,10 @@ static void backend_reset_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s PQresetPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) {
-        backend->reset = 0;
-        backend_idle(backend);
-    }
+    if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
-void backend_reset(Backend *backend, callback_t after) {
+void backend_reset(Backend *backend, callback_t connect, callback_t after) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
     backend->reset++;
@@ -80,6 +77,7 @@ void backend_reset(Backend *backend, callback_t after) {
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
+    backend->connect = connect;
     backend->socket = backend_reset_socket;
     backend->events = WL_SOCKET_WRITEABLE;
 }
@@ -110,7 +108,7 @@ static void backend_connect_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected && backend->connect) backend->connect(backend);
+    if (connected) backend->connect(backend);
 }
 
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t connect) {

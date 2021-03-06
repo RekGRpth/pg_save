@@ -68,7 +68,7 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
-void backend_reset(Backend *backend, callback_t after);
+void backend_reset(Backend *backend, callback_t connect, callback_t after);
 void init_kill(void);
 void primary_fini(void);
 void primary_init(void);
