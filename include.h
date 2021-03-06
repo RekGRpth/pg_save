@@ -44,13 +44,17 @@
 
 typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
+struct Backend;
+typedef void (*callback_t) (struct Backend *backend);
+
 typedef struct Backend {
     int events;
     int reset;
     PGconn *conn;
     queue_t queue;
     STATE state;
-    void (*callback) (struct Backend *backend);
+    callback_t callback;
+    callback_t callback2;
 } Backend;
 
 typedef struct _SPI_plan SPI_plan;
@@ -60,6 +64,11 @@ char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t callback);
+void backend_finish(Backend *backend);
+void backend_fini(void);
+void backend_idle(Backend *backend);
+void backend_reset(Backend *backend, callback_t callback);
 void init_kill(void);
 void primary_fini(void);
 void primary_init(void);
