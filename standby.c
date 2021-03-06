@@ -9,22 +9,24 @@ static char *slot_name;
 static int sender_port;
 static STATE my_state;
 
-static void standby_reprimary(void) {
+static void standby_reprimary(Backend *backend) {
     D1("hi");
     //WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
+    backend_finish(backend);
 }
 
-static void standby_promote(void) {
+static void standby_promote(Backend *backend) {
     D1("hi");
 //    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
 //    else standby_fini();
+    backend_finish(backend);
 }
 
 static void standby_reset(Backend *backend) {
     if (backend->state != PRIMARY) { backend_finish(backend); return; }
     D1("my_state = %i", my_state);
-    if (my_state != SYNC) standby_reprimary();
-    else if (queue_size(&backend_queue) > 1) standby_promote();
+    if (my_state != SYNC) standby_reprimary(backend);
+    else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
 }
 
