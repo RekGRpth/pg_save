@@ -40,6 +40,7 @@ static void primary_standby(void) {
     }
     SPI_finish_my();
     for (int i = 0; i < nargs; i++) pfree((void *)values[i]);
+    pfree(buf.data);
 }
 
 void primary_timeout(void) {
