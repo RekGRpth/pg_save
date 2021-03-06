@@ -22,7 +22,7 @@ static void primary_standby(void) {
         appendStringInfo(&buf, "$%i", nargs);
     }
     if (nargs) appendStringInfoString(&buf, ")");
-    D1(buf.data);
+//    D1(buf.data);
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
     for (uint64 row = 0; row < SPI_processed; row++) {
