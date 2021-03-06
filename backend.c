@@ -139,6 +139,7 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     backend->connect = connect;
     backend->socket = backend_connect_socket;
     backend->events = WL_SOCKET_WRITEABLE;
+    if (backend->state == PRIMARY) primary = backend;
     queue_insert_tail(&backend_queue, &backend->queue);
 }
 
