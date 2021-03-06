@@ -63,12 +63,12 @@ static void backend_reset_callback(Backend *backend) {
     }
 }
 
-void backend_reset(Backend *backend, callback_t callback) {
+void backend_reset(Backend *backend, callback_t after) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
     backend->reset++;
     W("%s:%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->reset, reset);
-    if (backend->reset >= reset) { callback(backend); return; }
+    if (backend->reset >= reset) { after(backend); return; }
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn)); break;
