@@ -4,6 +4,7 @@ PG_MODULE_MAGIC;
 
 int reset;
 int timeout;
+//static char *state;
 static int restart;
 
 static void save_work(void) {
@@ -39,6 +40,7 @@ void _PG_init(void); void _PG_init(void) {
     DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+//    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &state, RecoveryInProgress() ? "async" : "primary", PGC_SIGHUP, 0, NULL, NULL, NULL);
     save_work();
 }
 

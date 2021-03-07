@@ -68,7 +68,7 @@ static void backend_reset_socket(Backend *backend) {
     if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
-void backend_reset(Backend *backend, callback_t connect, callback_t after) {
+void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*after) (Backend *backend)) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
     backend->reset++;
@@ -119,7 +119,7 @@ static void backend_connect_socket(Backend *backend) {
     if (connected) backend->connect(backend);
 }
 
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, callback_t connect) {
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend)) {
     char *cport = backend_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
