@@ -8,7 +8,6 @@ extern TimestampTz start;
 static char *sender_host;
 static char *slot_name;
 static int sender_port;
-static STATE my_state;
 
 static void standby_reprimary(Backend *backend) {
     D1("hi");
@@ -25,8 +24,8 @@ static void standby_promote(Backend *backend) {
 
 static void standby_reset(Backend *backend) {
     if (backend->state != PRIMARY) { backend_finish(backend); return; }
-    D1("my_state = %i", my_state);
-    if (my_state != SYNC) standby_reprimary(backend);
+    D1("state = %s", state);
+    if (backend_state(state) != SYNC) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
 }
@@ -39,7 +38,7 @@ static void standby_standby_connect(PGresult *result) {
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (!me) D1("host = %s, state = %s", host, state_);
-        if (me) { my_state = backend_state(state_); backend_alter_system_set("pg_save.state", state, state_); continue; }
+        if (me) { backend_alter_system_set("pg_save.state", state, state_); continue; }
         backend = palloc0(sizeof(*backend));
         backend->state = backend_state(state_);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
