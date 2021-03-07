@@ -1,7 +1,9 @@
 #include "include.h"
 
 Backend *primary = NULL;
-extern int reset;
+extern char *hostname;
+extern char *default_primary;
+extern int default_reset;
 extern queue_t backend_queue;
 
 STATE backend_state(const char *state) {
@@ -81,8 +83,8 @@ void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
     backend->reset++;
-    W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), backend->reset, reset);
-    if (backend->reset >= reset) { after(backend); return; }
+    W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), backend->reset, default_reset);
+    if (backend->reset >= default_reset) { after(backend); return; }
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state)); break;
@@ -148,7 +150,10 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     backend->connect = connect;
     backend->socket = backend_connect_socket;
     backend->events = WL_SOCKET_WRITEABLE;
-    if (backend->state == PRIMARY) primary = backend;
+    if (backend->state == PRIMARY) {
+        primary = backend;
+        backend_alter_system_set("pg_save.primary", default_primary, hostname);
+    }
     queue_insert_tail(&backend_queue, &backend->queue);
 }
 

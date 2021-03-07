@@ -2,7 +2,7 @@
 
 extern Backend *primary;
 extern char *hostname;
-extern char *state;
+extern char *default_state;
 extern queue_t backend_queue;
 extern TimestampTz start;
 static char *sender_host;
@@ -24,8 +24,8 @@ static void standby_promote(Backend *backend) {
 
 static void standby_reset(Backend *backend) {
     if (backend->state != PRIMARY) { backend_finish(backend); return; }
-    D1("state = %s", state);
-    if (backend_state(state) != SYNC) standby_reprimary(backend);
+    D1("state = %s", default_state);
+    if (backend_state(default_state) != SYNC) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
 }
@@ -34,13 +34,13 @@ static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
-        const char *state_ = PQgetvalue(result, row, PQfnumber(result, "state"));
+        const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        if (!me) D1("host = %s, state = %s", host, state_);
-        if (me) { backend_alter_system_set("pg_save.state", state, state_); continue; }
+        if (!me) D1("host = %s, state = %s", host, state);
+        if (me) { backend_alter_system_set("pg_save.state", default_state, state); continue; }
         backend = palloc0(sizeof(*backend));
-        backend->state = backend_state(state_);
+        backend->state = backend_state(state);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
     }
 }
@@ -102,7 +102,7 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
-    if (!save_etcd_kv_put(state, hostname, 0)) {
+    if (!save_etcd_kv_put(default_state, hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }

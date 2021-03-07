@@ -2,17 +2,18 @@
 
 PG_MODULE_MAGIC;
 
-char *state;
-int reset;
-int timeout;
-static int restart;
+char *default_primary;
+char *default_state;
+int default_reset;
+int default_timeout;
+static int default_restart;
 
 static void save_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
-    worker.bgw_restart_time = restart;
+    worker.bgw_restart_time = default_restart;
     worker.bgw_start_time = BgWorkerStart_ConsistentState;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "pg_save");
@@ -37,10 +38,11 @@ static void save_work(void) {
 void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
-    DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &default_reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &default_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
+    DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &default_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &default_primary, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &default_state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
     save_work();
 }
 

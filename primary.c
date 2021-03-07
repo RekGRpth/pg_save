@@ -1,7 +1,8 @@
 #include "include.h"
 
 extern char *hostname;
-extern char *state;
+extern char *default_primary;
+extern char *default_state;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
@@ -53,7 +54,7 @@ static void primary_standby(void) {
 }
 
 void primary_timeout(void) {
-    if (!save_etcd_kv_put(state, hostname, 0)) {
+    if (!save_etcd_kv_put(default_state, hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
@@ -108,7 +109,8 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
-    backend_alter_system_set("pg_save.state", state, "primary");
+    backend_alter_system_set("pg_save.primary", default_primary, hostname);
+    backend_alter_system_set("pg_save.state", default_state, "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
