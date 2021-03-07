@@ -168,13 +168,7 @@ static Node *makeStringConst(char *str, int location) {
 }
 
 void backend_set_my_state(const char *state) {
-    const char *state_quote = quote_identifier(state);
-    AlterSystemStmt *stmt;
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "ALTER SYSTEM SET pg_save.state TO %s", state_quote);
-    SPI_connect_my(buf.data);
-    stmt = makeNode(AlterSystemStmt);
+    AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = "pg_save.state";
     stmt->setstmt->kind = VAR_SET_VALUE;
@@ -183,8 +177,4 @@ void backend_set_my_state(const char *state) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    SPI_commit_my();
-    SPI_finish_my();
-    pfree(buf.data);
-    if (state_quote != state) pfree((void *)state_quote);
 }
