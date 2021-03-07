@@ -4,6 +4,14 @@ extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
+static void primary_set_synchronous_standby_names(void) {
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "FIRST 1 (%s)", cluster_name);
+    backend_alter_system_set("synchronous_standby_names", buf.data);
+    pfree(buf.data);
+}
+
 static void primary_standby(void) {
     int nargs = queue_size(&backend_queue);
     Oid *argtypes = nargs ? palloc(nargs * sizeof(*argtypes)) : NULL;
@@ -24,6 +32,7 @@ static void primary_standby(void) {
     if (nargs) appendStringInfoString(&buf, ")");
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
+    if (SPI_processed) primary_set_synchronous_standby_names();
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
