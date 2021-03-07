@@ -9,7 +9,7 @@ static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfo(&buf, "FIRST 1 (%s)", cluster_name);
-    backend_alter_system_set("synchronous_standby_names", buf.data);
+    backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
 }
 
@@ -108,7 +108,7 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
-    backend_alter_system_set("pg_save.state", "primary");
+    backend_alter_system_set("pg_save.state", state, "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");

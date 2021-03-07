@@ -63,7 +63,7 @@ const char *backend_state_str(STATE state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 STATE backend_state(const char *state);
-void backend_alter_system_set(const char *name, const char *value);
+void backend_alter_system_set(const char *name, const char *old, const char *new);
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend));
 void backend_finish(Backend *backend);
 void backend_fini(void);

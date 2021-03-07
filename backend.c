@@ -177,18 +177,17 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
     return result;
 }
 
-void backend_alter_system_set(const char *name, const char *value) {
-    const char *old = GetConfigOptionByName(name, NULL, false);
-    if (!pg_strcasecmp(old, value)) pfree((void *)old); else {
-        AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
-        stmt->setstmt = makeNode(VariableSetStmt);
-        stmt->setstmt->name = (char *)name;
-        stmt->setstmt->kind = VAR_SET_VALUE;
-        stmt->setstmt->args = list_make1(makeStringConst((char *)value, -1));
-        AlterSystemSetConfigFile(stmt);
-        list_free_deep(stmt->setstmt->args);
-        pfree(stmt->setstmt);
-        pfree(stmt);
-        if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
-    }
+void backend_alter_system_set(const char *name, const char *old, const char *new) {
+    AlterSystemStmt *stmt;
+    if (!pg_strcasecmp(old, new)) return;
+    stmt = makeNode(AlterSystemStmt);
+    stmt->setstmt = makeNode(VariableSetStmt);
+    stmt->setstmt->name = (char *)name;
+    stmt->setstmt->kind = VAR_SET_VALUE;
+    stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
+    AlterSystemSetConfigFile(stmt);
+    list_free_deep(stmt->setstmt->args);
+    pfree(stmt->setstmt);
+    pfree(stmt);
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
