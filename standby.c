@@ -30,44 +30,6 @@ static void standby_reset(Backend *backend) {
     else init_kill();
 }
 
-static void standby_reload_conf_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-    }
-    backend_idle(backend);
-}
-
-static void standby_reload_conf(Backend *backend) {
-    if (!PQsendQuery(backend->conn, "SELECT pg_reload_conf()")) E("%s:%s/%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), PQerrorMessage(backend->conn));
-    backend->socket = standby_reload_conf_socket;
-    backend->events = WL_SOCKET_WRITEABLE;
-}
-
-static void standby_set_synchronous_standby_names_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_COMMAND_OK: break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
-    }
-    standby_reload_conf(backend);
-}
-
-static void standby_set_synchronous_standby_names(Backend *backend) {
-    char *cluster_name_;
-    const char *cluster_name_quote;
-    StringInfoData buf;
-    if (backend->state != PRIMARY) return;
-    cluster_name_ = cluster_name ? cluster_name : "walreceiver";
-    cluster_name_quote = quote_identifier(cluster_name_);
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "ALTER SYSTEM SET synchronous_standby_names TO 'FIRST 1 (%s)'", cluster_name_quote);
-    if (!PQsendQuery(backend->conn, buf.data)) E("%s:%s/%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), PQerrorMessage(backend->conn));
-    backend->socket = standby_set_synchronous_standby_names_socket;
-    backend->events = WL_SOCKET_WRITEABLE;
-    pfree(buf.data);
-    if (cluster_name_quote != cluster_name_) pfree((void *)cluster_name_quote);
-}
-
 static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend;
@@ -95,7 +57,7 @@ static void standby_primary_connect(const char *host, int port, const char *user
     Backend *backend = palloc0(sizeof(*backend));
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     backend->state = PRIMARY;
-    backend_connect(backend, host, port, user, dbname, standby_set_synchronous_standby_names);
+    backend_connect(backend, host, port, user, dbname, backend_idle);
 }
 
 static void standby_primary(Backend *primary) {
