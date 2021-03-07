@@ -39,7 +39,6 @@ static void standby_reload_conf_socket(Backend *backend) {
 }
 
 static void standby_reload_conf(Backend *backend) {
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     if (!PQsendQuery(backend->conn, "SELECT pg_reload_conf()")) E("%s:%s/%s !PQsendQuery and %s", PQhost(backend->conn), PQport(backend->conn), backend_state_str(backend->state), PQerrorMessage(backend->conn));
     backend->socket = standby_reload_conf_socket;
     backend->events = WL_SOCKET_WRITEABLE;
@@ -58,7 +57,6 @@ static void standby_set_synchronous_standby_names(Backend *backend) {
     const char *cluster_name_quote;
     StringInfoData buf;
     if (backend->state != PRIMARY) return;
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     cluster_name_ = cluster_name ? cluster_name : "walreceiver";
     cluster_name_quote = quote_identifier(cluster_name_);
     initStringInfo(&buf);
