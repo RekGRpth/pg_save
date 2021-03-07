@@ -31,8 +31,6 @@ static void standby_reset(Backend *backend) {
 }
 
 static void standby_reload_conf_socket(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: break;
         default: E("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
@@ -48,8 +46,6 @@ static void standby_reload_conf(Backend *backend) {
 }
 
 static void standby_set_synchronous_standby_names_socket(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_COMMAND_OK: break;
         default: E("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
@@ -90,8 +86,6 @@ static void standby_standby_connect(PGresult *result) {
 }
 
 static void standby_primary_socket(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_standby_connect(result); break;
         default: E("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;

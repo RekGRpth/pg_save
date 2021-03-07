@@ -20,8 +20,6 @@ static char *backend_int2char(int number) {
 }
 
 static void backend_idle_socket(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }

@@ -113,8 +113,9 @@ static void save_latch(void) {
     if (sighup) save_reload();
 }
 
-static void save_socket(void *data) {
-    Backend *backend = data;
+static void save_socket(Backend *backend) {
+    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), PQerrorMessage(backend->conn)); return; }
+    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     backend->socket(backend);
 }
 
