@@ -167,7 +167,7 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
+/*#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
 static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
     LOCAL_FCINFO(fcinfo, 0);
     Datum result;
@@ -175,7 +175,7 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
     result = (*func)(fcinfo);
     if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
     return result;
-}
+}*/
 
 void backend_alter_system_set(const char *name, const char *value) {
     AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
@@ -187,5 +187,5 @@ void backend_alter_system_set(const char *name, const char *value) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+//    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
