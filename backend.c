@@ -168,14 +168,17 @@ static Node *makeStringConst(char *str, int location) {
 }
 
 void backend_alter_system_set(const char *name, const char *value) {
-    AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
-    stmt->setstmt = makeNode(VariableSetStmt);
-    stmt->setstmt->name = (char *)name;
-    stmt->setstmt->kind = VAR_SET_VALUE;
-    stmt->setstmt->args = list_make1(makeStringConst((char *)value, -1));
-    AlterSystemSetConfigFile(stmt);
-    list_free_deep(stmt->setstmt->args);
-    pfree(stmt->setstmt);
-    pfree(stmt);
-    set_config_option(name, value, PGC_SIGHUP, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
+    const char *old = GetConfigOptionByName(name, NULL, false);
+    if (!pg_strcasecmp(old, value)) {
+        AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
+        stmt->setstmt = makeNode(VariableSetStmt);
+        stmt->setstmt->name = (char *)name;
+        stmt->setstmt->kind = VAR_SET_VALUE;
+        stmt->setstmt->args = list_make1(makeStringConst((char *)value, -1));
+        AlterSystemSetConfigFile(stmt);
+        list_free_deep(stmt->setstmt->args);
+        pfree(stmt->setstmt);
+        pfree(stmt);
+        set_config_option(name, value, PGC_SIGHUP, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
+    } else pfree((void *)old);
 }
