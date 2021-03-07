@@ -24,10 +24,10 @@ static void primary_standby(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (nargs) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
-        argtypes[nargs] = TEXTOID;
-        values[nargs] = CStringGetTextDatum(PQhostaddr(backend->conn));
+        argtypes[nargs] = INETOID;
+        values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(PQhostaddr(backend->conn)));
         nargs++;
-        appendStringInfo(&buf, "$%i::inet", nargs);
+        appendStringInfo(&buf, "$%i", nargs);
     }
     if (nargs) appendStringInfoString(&buf, ")");
     SPI_connect_my(buf.data);

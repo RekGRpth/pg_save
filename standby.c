@@ -73,10 +73,10 @@ static void standby_primary(Backend *primary) {
         if (backend->state == PRIMARY) continue;
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
-        paramTypes[nParams] = TEXTOID;
+        paramTypes[nParams] = INETOID;
         paramValues[nParams] = PQhostaddr(backend->conn);
         nParams++;
-        appendStringInfo(&buf, "$%i::inet", nParams);
+        appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), backend_state_str(primary->state), PQerrorMessage(primary->conn));
