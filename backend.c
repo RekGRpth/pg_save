@@ -152,7 +152,7 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     backend->events = WL_SOCKET_WRITEABLE;
     if (backend->state == PRIMARY) {
         primary = backend;
-        backend_alter_system_set("pg_save.primary", default_primary, hostname);
+        backend_alter_system_set("pg_save.primary", default_primary, PQhost(backend->conn));
     }
     queue_insert_tail(&backend_queue, &backend->queue);
 }
