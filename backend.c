@@ -167,16 +167,6 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-/*#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
-static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
-    LOCAL_FCINFO(fcinfo, 0);
-    Datum result;
-    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
-    result = (*func)(fcinfo);
-    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
-    return result;
-}*/
-
 void backend_alter_system_set(const char *name, const char *value) {
     AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
@@ -187,5 +177,5 @@ void backend_alter_system_set(const char *name, const char *value) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-//    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+    set_config_option(name, value, PGC_SIGHUP, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
 }
