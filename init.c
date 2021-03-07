@@ -2,9 +2,9 @@
 
 PG_MODULE_MAGIC;
 
+char *state;
 int reset;
 int timeout;
-static char *state;
 static int restart;
 
 static void save_work(void) {

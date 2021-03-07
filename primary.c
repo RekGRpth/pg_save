@@ -1,6 +1,7 @@
 #include "include.h"
 
 extern char *hostname;
+extern char *state;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
@@ -52,7 +53,7 @@ static void primary_standby(void) {
 }
 
 void primary_timeout(void) {
-    if (!save_etcd_kv_put("primary", hostname, 0)) {
+    if (!save_etcd_kv_put(state, hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }

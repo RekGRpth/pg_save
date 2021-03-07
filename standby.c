@@ -2,6 +2,7 @@
 
 extern Backend *primary;
 extern char *hostname;
+extern char *state;
 extern queue_t backend_queue;
 extern TimestampTz start;
 static char *sender_host;
@@ -102,6 +103,10 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
+    if (!save_etcd_kv_put(state, hostname, 0)) {
+        W("!save_etcd_kv_put");
+        init_kill();
+    }
     if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
         W("!save_etcd_kv_put");
         init_kill();
