@@ -98,7 +98,7 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
-    backend_set_my_state("primary");
+    backend_alter_system_set("pg_save.state", "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");

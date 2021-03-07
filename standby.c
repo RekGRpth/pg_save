@@ -76,7 +76,7 @@ static void standby_standby_connect(PGresult *result) {
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (!me) D1("host = %s, state = %s", host, state);
-        if (me) { my_state = backend_state(state); backend_set_my_state(state); continue; }
+        if (me) { my_state = backend_state(state); backend_alter_system_set("pg_save.state", state); continue; }
         backend = palloc0(sizeof(*backend));
         backend->state = backend_state(state);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);

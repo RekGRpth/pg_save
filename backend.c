@@ -167,14 +167,25 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-void backend_set_my_state(const char *state) {
+#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
+static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
+    LOCAL_FCINFO(fcinfo, 0);
+    Datum result;
+    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
+    result = (*func)(fcinfo);
+    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
+    return result;
+}
+
+void backend_alter_system_set(const char *name, const char *value) {
     AlterSystemStmt *stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
-    stmt->setstmt->name = "pg_save.state";
+    stmt->setstmt->name = (char *)name;
     stmt->setstmt->kind = VAR_SET_VALUE;
-    stmt->setstmt->args = list_make1(makeStringConst((char *)state, -1));
+    stmt->setstmt->args = list_make1(makeStringConst((char *)value, -1));
     AlterSystemSetConfigFile(stmt);
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
