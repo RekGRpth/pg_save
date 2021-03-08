@@ -55,8 +55,9 @@ static void primary_standby(void) {
         backend = palloc0(sizeof(*backend));
         MemoryContextSwitchTo(oldMemoryContext);
         backend->state = backend_state(state);
-        backend->name = name;
+        backend->name = MemoryContextStrdup(TopMemoryContext, name);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
+        pfree((void *)name);
         pfree((void *)host);
         pfree((void *)state);
     }
