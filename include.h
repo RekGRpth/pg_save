@@ -62,7 +62,7 @@ char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 void backend_alter_system_set(const char *name, const char *old, const char *new);
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
+void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

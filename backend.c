@@ -6,13 +6,6 @@ extern char *hostname;
 extern int default_reset;
 extern queue_t backend_queue;
 
-static char *backend_int2char(int number) {
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "%i", number);
-    return buf.data;
-}
-
 static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
@@ -114,25 +107,23 @@ static void backend_connect_socket(Backend *backend) {
     if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
-    char *cport = backend_int2char(port);
+void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, cport, user, dbname, hostname, NULL};
+    const char *values[] = {host, port, user, dbname, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
+    D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
     if (reset) {
         backend->reset++;
-        W("%s:%s/%s %i < %i", host, cport, backend->state ? backend->state : "primary", backend->reset, default_reset);
+        W("%s:%s/%s %i < %i", host, port, backend->state ? backend->state : "primary", backend->reset, default_reset);
         if (backend->reset >= default_reset) { reset(backend); return; }
     }
     switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, cport, backend->state ? backend->state : "primary"); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, cport, backend->state ? backend->state : "primary"); break;
-        case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, cport, backend->state ? backend->state : "primary"); break;
-        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT", host, cport, backend->state ? backend->state : "primary"); break;
+        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, port, backend->state ? backend->state : "primary"); break;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, port, backend->state ? backend->state : "primary"); break;
+        case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, port, backend->state ? backend->state : "primary"); break;
+        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT", host, port, backend->state ? backend->state : "primary"); break;
     }
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
-    pfree(cport);
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());

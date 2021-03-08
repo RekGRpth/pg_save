@@ -1,13 +1,12 @@
 #include "include.h"
 
 extern Backend *primary;
-extern char *hostname;
 extern char *default_state;
+extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
 static char *sender_host;
-static char *slot_name;
-static int sender_port;
+static char *sender_port;
 
 static void standby_reprimary(Backend *backend) {
     D1("hi");
@@ -51,7 +50,7 @@ static void standby_standby_connect(PGresult *result) {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle, standby_reset, NULL);
+            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, backend_idle, standby_reset, NULL);
         }
     }
 }
@@ -64,9 +63,9 @@ static void standby_primary_socket(Backend *backend) {
     backend_idle(backend);
 }
 
-static void standby_primary_connect(const char *host, int port, const char *user, const char *dbname) {
+static void standby_primary_connect(const char *host, const char *port, const char *user, const char *dbname) {
     Backend *backend = palloc0(sizeof(*backend));
-    D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
+    D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
     backend_connect(backend, host, port, user, dbname, backend_idle, NULL, NULL);
 }
 
@@ -102,17 +101,18 @@ static void standby_primary(Backend *primary) {
 }
 
 void standby_init(void) {
-    MemoryContext oldMemoryContext;
-    SPI_connect_my("SELECT * FROM pg_stat_wal_receiver");
-    SPI_execute_with_args_my("SELECT * FROM pg_stat_wal_receiver", 0, NULL, NULL, NULL, SPI_OK_SELECT, true);
-    if (SPI_processed != 1) E("SPI_processed != 1");
-    oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
-    sender_host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "sender_host", false));
-    slot_name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "slot_name", false));
-    MemoryContextSwitchTo(oldMemoryContext);
-    sender_port = DatumGetInt32(SPI_getbinval_my(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, "sender_port", false));
-    SPI_finish_my();
-    D1("sender_host = %s, sender_port = %i, slot_name = %s", sender_host, sender_port, slot_name);
+    char *err;
+    PQconninfoOption *opts;
+    if (!(opts = PQconninfoParse(PrimaryConnInfo, &err))) E("!PQconninfoParse and %s", err);
+    for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
+        if (!opt->val) continue;
+        D1("%s = %s", opt->keyword, opt->val);
+        if (!strcmp(opt->keyword, "host")) { sender_host = pstrdup(opt->val); continue; }
+        if (!strcmp(opt->keyword, "port")) { sender_port = pstrdup(opt->val); continue; }
+    }
+    if (err) PQfreemem(err);
+    PQconninfoFree(opts);
+    D1("sender_host = %s, sender_port = %s, PrimarySlotName = %s", sender_host, sender_port, PrimarySlotName);
 }
 
 void standby_timeout(void) {
@@ -137,5 +137,3 @@ void standby_timeout(void) {
 void standby_fini(void) {
     backend_fini();
 }
-
-// pg_rewind --target-pgdata /home/pg_data --source-server application_name=pgautofailover_standby_12 host=postgres-docker-bill-02 port=5432 user=pgautofailover_replicator dbname=postgres sslmode=prefer --progress
