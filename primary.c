@@ -28,7 +28,7 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
     appendStringInfoString(&buf, ")");
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
-    backend_idle(backend);
+    if (PQstatus(backend->conn) == CONNECTION_OK) backend_idle(backend);
 }
 
 static void primary_standby(void) {
@@ -75,7 +75,7 @@ static void primary_standby(void) {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
+            backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names, primary_set_synchronous_standby_names);
         }
         pfree((void *)name);
         pfree((void *)host);

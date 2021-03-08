@@ -28,6 +28,7 @@ void backend_finish(Backend *backend) {
     if (!backend->state) primary = NULL;
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
+    if (backend->finish) backend->finish(backend);
     if (backend->name) pfree(backend->name);
     if (backend->state) pfree(backend->state);
     pfree(backend);
@@ -113,7 +114,7 @@ static void backend_connect_socket(Backend *backend) {
     if (connected) backend->connect(backend);
 }
 
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend)) {
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*finish) (Backend *backend)) {
     char *cport = backend_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, hostname, NULL};
@@ -131,6 +132,7 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->connect = connect;
+    backend->finish = finish;
     backend->socket = backend_connect_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     if (!backend->state) {
