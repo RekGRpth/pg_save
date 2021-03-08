@@ -27,8 +27,8 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
 
 static void primary_standby(void) {
     int nargs = queue_size(&backend_queue);
-    Oid *argtypes = nargs ? palloc(nargs * sizeof(*argtypes)) : NULL;
-    Datum *values = nargs ? palloc(nargs * sizeof(*values)) : NULL;
+    Oid *argtypes = nargs ? palloc(2 * nargs * sizeof(*argtypes)) : NULL;
+    Datum *values = nargs ? palloc(2 * nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
@@ -36,27 +36,40 @@ static void primary_standby(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (nargs) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
+        else appendStringInfoString(&buf, " WHERE (client_addr, sync_state) NOT IN (");
         argtypes[nargs] = INETOID;
         values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(PQhostaddr(backend->conn)));
         nargs++;
-        appendStringInfo(&buf, "$%i", nargs);
+        appendStringInfo(&buf, "($%i", nargs);
+        argtypes[nargs] = TEXTOID;
+        values[nargs] = CStringGetTextDatum(backend->state);
+        nargs++;
+        appendStringInfo(&buf, ", $%i)", nargs);
     }
     if (nargs) appendStringInfoString(&buf, ")");
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
     for (uint64 row = 0; row < SPI_processed; row++) {
-        Backend *backend;
+        Backend *backend = NULL;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
         const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
         const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
         D1("name = %s, host = %s, state = %s", name, host, state);
-        backend = palloc0(sizeof(*backend));
-        backend->name = pstrdup(name);
-        backend->state = pstrdup(state);
-        MemoryContextSwitchTo(oldMemoryContext);
-        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
+        queue_each(&backend_queue, queue) {
+            Backend *backend_ = queue_data(queue, Backend, queue);
+            if (!pg_strcasecmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+        }
+        if (backend) {
+            pfree(backend->state);
+            backend->state = pstrdup(state);
+        } else {
+            backend = palloc0(sizeof(*backend));
+            backend->name = pstrdup(name);
+            backend->state = pstrdup(state);
+            MemoryContextSwitchTo(oldMemoryContext);
+            backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
+        }
         pfree((void *)name);
         pfree((void *)host);
         pfree((void *)state);
