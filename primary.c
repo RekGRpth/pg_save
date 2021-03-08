@@ -13,8 +13,11 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
     initStringInfo(&buf);
     appendStringInfo(&buf, "%s (", default_policy);
     queue_each(&backend_queue, queue) {
+        const char *name = PQparameterStatus(backend->conn, "application_name") ? PQparameterStatus(backend->conn, "application_name") : cluster_name ? cluster_name : "walreceiver";
+        const char *name_quote = quote_identifier(name);
         if (i++) appendStringInfoString(&buf, ", ");
-        appendStringInfoString(&buf, PQparameterStatus(backend->conn, "application_name") ? PQparameterStatus(backend->conn, "application_name") : cluster_name ? cluster_name : "walreceiver");
+        appendStringInfoString(&buf, name_quote);
+        if (name_quote != name) pfree((void *)name_quote);
     }
     appendStringInfoString(&buf, ")");
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);

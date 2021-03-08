@@ -133,7 +133,7 @@ static void backend_connect_socket(Backend *backend) {
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend)) {
     char *cport = backend_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, cport, user, dbname, "pg_save", NULL};
+    const char *values[] = {host, cport, user, dbname, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     switch (PQpingParams(keywords, values, false)) {
