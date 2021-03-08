@@ -115,7 +115,7 @@ static void save_latch(void) {
 
 static void save_socket(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s/%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), backend->state, PQerrorMessage(backend->conn)); return; }
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s/%s !PQconsumeInput and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn)); return; }
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);

@@ -50,7 +50,7 @@ static void standby_standby_connect(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_standby_connect(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend->state, PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -80,7 +80,7 @@ static void standby_primary(Backend *primary) {
         appendStringInfo(&buf, "$%i", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), primary->state, PQerrorMessage(primary->conn));
+    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), primary->state ? primary->state : "primary", PQerrorMessage(primary->conn));
     primary->socket = standby_primary_socket;
     primary->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
