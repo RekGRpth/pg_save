@@ -167,7 +167,7 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
 
 void backend_alter_system_set(const char *name, const char *old, const char *new) {
     AlterSystemStmt *stmt;
-    if (old && old[0] != '\0' && !pg_strcasecmp(old, new)) return;
+    if (old && old[0] != '\0' && !strcmp(old, new)) return;
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;

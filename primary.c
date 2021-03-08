@@ -65,7 +65,7 @@ static void primary_standby(void) {
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!pg_strcasecmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         if (backend) {
             pfree(backend->state);

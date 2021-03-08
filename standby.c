@@ -25,7 +25,7 @@ static void standby_promote(Backend *backend) {
 static void standby_reset(Backend *backend) {
     if (backend->state) { backend_finish(backend); return; }
     D1("state = %s", default_state);
-    if (pg_strcasecmp(default_state, "sync")) standby_reprimary(backend);
+    if (strcmp(default_state, "sync")) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
 }
@@ -42,7 +42,7 @@ static void standby_standby_connect(PGresult *result) {
         if (me) { backend_alter_system_set("pg_save.state", default_state, state); continue; }
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!pg_strcasecmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         if (backend) {
             pfree(backend->state);
