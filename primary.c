@@ -7,12 +7,19 @@ extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
-static void primary_set_synchronous_standby_names(void) {
+static void primary_set_synchronous_standby_names(Backend *backend) {
+    int i = 0;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfo(&buf, "%s (%s)", default_policy, cluster_name);
+    appendStringInfo(&buf, "%s (", default_policy);
+    queue_each(&backend_queue, queue) {
+        if (i++) appendStringInfoString(&buf, ", ");
+        appendStringInfoString(&buf, PQparameterStatus(backend->conn, "application_name") ? PQparameterStatus(backend->conn, "application_name") : cluster_name ? cluster_name : "walreceiver");
+    }
+    appendStringInfoString(&buf, ")");
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
+    backend_idle(backend);
 }
 
 static void primary_standby(void) {
@@ -35,7 +42,6 @@ static void primary_standby(void) {
     if (nargs) appendStringInfoString(&buf, ")");
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
-    if (SPI_processed) primary_set_synchronous_standby_names();
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
@@ -45,7 +51,7 @@ static void primary_standby(void) {
         backend = palloc0(sizeof(*backend));
         MemoryContextSwitchTo(oldMemoryContext);
         backend->state = backend_state(state);
-        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
+        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
         pfree((void *)host);
         pfree((void *)state);
     }
