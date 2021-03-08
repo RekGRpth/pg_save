@@ -50,7 +50,7 @@ static void standby_standby_connect(PGresult *result) {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, backend_idle, standby_reset, NULL);
+            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, backend_idle, NULL, NULL);
         }
     }
 }
@@ -66,7 +66,7 @@ static void standby_primary_socket(Backend *backend) {
 static void standby_primary_connect(const char *host, const char *port, const char *user, const char *dbname) {
     Backend *backend = palloc0(sizeof(*backend));
     D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
-    backend_connect(backend, host, port, user, dbname, backend_idle, NULL, NULL);
+    backend_connect(backend, host, port, user, dbname, backend_idle, standby_reset, NULL);
 }
 
 static void standby_primary(Backend *primary) {
