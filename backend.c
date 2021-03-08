@@ -1,8 +1,8 @@
 #include "include.h"
 
 Backend *primary = NULL;
-extern char *hostname;
 extern char *default_primary;
+extern char *hostname;
 extern int default_reset;
 extern queue_t backend_queue;
 

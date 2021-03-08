@@ -1,15 +1,16 @@
 #include "include.h"
 
-extern char *hostname;
+extern char *default_policy;
 extern char *default_primary;
 extern char *default_state;
+extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfo(&buf, "FIRST 1 (%s)", cluster_name);
+    appendStringInfo(&buf, "%s (%s)", default_policy, cluster_name);
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
 }

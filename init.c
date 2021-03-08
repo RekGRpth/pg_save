@@ -2,6 +2,7 @@
 
 PG_MODULE_MAGIC;
 
+char *default_policy;
 char *default_primary;
 char *default_state;
 int default_reset;
@@ -41,6 +42,7 @@ void _PG_init(void); void _PG_init(void) {
     DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &default_reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &default_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &default_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &default_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &default_primary, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &default_state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
     save_work();
