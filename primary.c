@@ -13,6 +13,7 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
     initStringInfo(&buf);
     appendStringInfo(&buf, "%s (", default_policy);
     queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
         const char *name = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
         const char *name_quote = quote_identifier(name);
         if (i++) appendStringInfoString(&buf, ", ");
