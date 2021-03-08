@@ -8,18 +8,23 @@ extern queue_t backend_queue;
 extern TimestampTz start;
 
 static void primary_set_synchronous_standby_names(Backend *backend) {
-    int i = 0;
     StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "%s (", default_policy);
+    char **names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
+    int i = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        const char *name = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
-        const char *name_quote = quote_identifier(name);
-        if (i++) appendStringInfoString(&buf, ", ");
-        appendStringInfoString(&buf, name_quote);
-        if (name_quote != name) pfree((void *)name_quote);
+        names[i++] = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
     }
+    pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "%s (", default_policy);
+    for (int i = 0; i < queue_size(&backend_queue); i++) {
+        const char *name_quote = quote_identifier(names[i]);
+        if (i) appendStringInfoString(&buf, ", ");
+        appendStringInfoString(&buf, name_quote);
+        if (name_quote != names[i]) pfree((void *)name_quote);
+    }
+    pfree(names);
     appendStringInfoString(&buf, ")");
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
