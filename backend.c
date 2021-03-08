@@ -63,13 +63,13 @@ static void backend_reset_socket(Backend *backend) {
     if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
-void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*after) (Backend *backend)) {
+void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*reset) (Backend *backend)) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
+    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     backend->reset++;
     W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", backend->reset, default_reset);
-    if (backend->reset >= default_reset) { after(backend); return; }
-    StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
+    if (backend->reset >= default_reset) { reset(backend); return; }
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); break;
         case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); return;
@@ -114,17 +114,22 @@ static void backend_connect_socket(Backend *backend) {
     if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
-void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*finish) (Backend *backend)) {
+void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
     char *cport = backend_int2char(port);
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, cport, user, dbname, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
+    if (reset) {
+        backend->reset++;
+        W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", backend->reset, default_reset);
+        if (backend->reset >= default_reset) { reset(backend); return; }
+    }
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, cport, backend->state ? backend->state : "primary"); break;
-        case PQPING_NO_RESPONSE: E("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, cport, backend->state ? backend->state : "primary"); break;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, cport, backend->state ? backend->state : "primary"); break;
         case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, cport, backend->state ? backend->state : "primary"); break;
-        case PQPING_REJECT: E("%s:%s/%s PQpingParams == PQPING_REJECT", host, cport, backend->state ? backend->state : "primary"); break;
+        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT", host, cport, backend->state ? backend->state : "primary"); break;
     }
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
     pfree(cport);
