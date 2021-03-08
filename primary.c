@@ -53,9 +53,9 @@ static void primary_standby(void) {
         const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
         D1("name = %s, host = %s, state = %s", name, host, state);
         backend = palloc0(sizeof(*backend));
+        backend->name = pstrdup(name);
+        backend->state = pstrdup(state);
         MemoryContextSwitchTo(oldMemoryContext);
-        backend->state = backend_state(state);
-        backend->name = MemoryContextStrdup(TopMemoryContext, name);
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
         pfree((void *)name);
         pfree((void *)host);

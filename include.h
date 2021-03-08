@@ -42,15 +42,13 @@
 
 #include "queue.h"
 
-typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
-
 typedef struct Backend {
     char *name;
+    char *state;
     int events;
     int reset;
     PGconn *conn;
     queue_t queue;
-    STATE state;
     void (*connect) (struct Backend *backend);
     void (*socket) (struct Backend *backend);
 } Backend;
@@ -60,10 +58,8 @@ typedef struct _SPI_plan SPI_plan;
 bool save_etcd_kv_put(const char *key, const char *value, int ttl);
 char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
-const char *backend_state_str(STATE state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
-STATE backend_state(const char *state);
 void backend_alter_system_set(const char *name, const char *old, const char *new);
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend));
 void backend_finish(Backend *backend);
