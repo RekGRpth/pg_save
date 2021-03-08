@@ -122,7 +122,7 @@ void backend_connect(Backend *backend, const char *host, int port, const char *u
     D1("host = %s, port = %i, user = %s, dbname = %s", host, port, user, dbname);
     if (reset) {
         backend->reset++;
-        W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", backend->reset, default_reset);
+        W("%s:%s/%s %i < %i", host, cport, backend->state ? backend->state : "primary", backend->reset, default_reset);
         if (backend->reset >= default_reset) { reset(backend); return; }
     }
     switch (PQpingParams(keywords, values, false)) {
