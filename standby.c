@@ -73,7 +73,7 @@ static void standby_primary_connect(const char *host, int port, const char *user
 static void standby_primary(Backend *primary) {
     int nParams = queue_size(&backend_queue);
     Oid *paramTypes = nParams ? palloc(2 * nParams * sizeof(*paramTypes)) : NULL;
-    char **paramValues = nParams ? palloc(2 * nParams * sizeof(**paramValues)) : NULL;
+    char **paramValues = nParams ? palloc(2 * nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
