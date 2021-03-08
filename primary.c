@@ -55,6 +55,7 @@ static void primary_standby(void) {
         const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
         const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
+        MemoryContextSwitchTo(oldMemoryContext);
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
@@ -62,12 +63,11 @@ static void primary_standby(void) {
         }
         if (backend) {
             pfree(backend->state);
-            backend->state = pstrdup(state);
+            backend->state = MemoryContextStrdup(TopMemoryContext, state);
         } else {
-            backend = palloc0(sizeof(*backend));
-            backend->name = pstrdup(name);
-            backend->state = pstrdup(state);
-            MemoryContextSwitchTo(oldMemoryContext);
+            backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
+            backend->name = MemoryContextStrdup(TopMemoryContext, name);
+            backend->state = MemoryContextStrdup(TopMemoryContext, state);
             backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
         }
         pfree((void *)name);

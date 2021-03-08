@@ -32,7 +32,7 @@ static void standby_reset(Backend *backend) {
 
 static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
-        Backend *backend;
+        Backend *backend = NULL;
         const char *name = PQgetvalue(result, row, PQfnumber(result, "name"));
         const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
@@ -40,10 +40,19 @@ static void standby_standby_connect(PGresult *result) {
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (!me) D1("name = %s, host = %s, state = %s", name, host, state);
         if (me) { backend_alter_system_set("pg_save.state", default_state, state); continue; }
-        backend = palloc0(sizeof(*backend));
-        backend->name = pstrdup(name);
-        backend->state = pstrdup(state);
-        backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
+        queue_each(&backend_queue, queue) {
+            Backend *backend_ = queue_data(queue, Backend, queue);
+            if (!pg_strcasecmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+        }
+        if (backend) {
+            pfree(backend->state);
+            backend->state = pstrdup(state);
+        } else {
+            backend = palloc0(sizeof(*backend));
+            backend->name = pstrdup(name);
+            backend->state = pstrdup(state);
+            backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, backend_idle);
+        }
     }
 }
 
@@ -63,8 +72,8 @@ static void standby_primary_connect(const char *host, int port, const char *user
 
 static void standby_primary(Backend *primary) {
     int nParams = queue_size(&backend_queue);
-    Oid *paramTypes = nParams ? palloc(nParams * sizeof(*paramTypes)) : NULL;
-    char **paramValues = nParams ? palloc(nParams * sizeof(**paramValues)) : NULL;
+    Oid *paramTypes = nParams ? palloc(2 * nParams * sizeof(*paramTypes)) : NULL;
+    char **paramValues = nParams ? palloc(2 * nParams * sizeof(**paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
@@ -73,11 +82,15 @@ static void standby_primary(Backend *primary) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (!backend->state) continue;
         if (nParams) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " WHERE client_addr NOT IN (");
+        else appendStringInfoString(&buf, " WHERE (client_addr, sync_state) NOT IN (");
         paramTypes[nParams] = INETOID;
         paramValues[nParams] = PQhostaddr(backend->conn);
         nParams++;
-        appendStringInfo(&buf, "$%i", nParams);
+        appendStringInfo(&buf, "($%i", nParams);
+        paramTypes[nParams] = TEXTOID;
+        paramValues[nParams] = backend->state;
+        nParams++;
+        appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
     if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), primary->state ? primary->state : "primary", PQerrorMessage(primary->conn));
