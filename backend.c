@@ -111,7 +111,7 @@ static void backend_connect_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) backend->connect(backend);
+    if (connected) { backend->reset = 0; backend->connect(backend); }
 }
 
 void backend_connect(Backend *backend, const char *host, int port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*finish) (Backend *backend)) {
