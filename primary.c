@@ -13,7 +13,7 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
     initStringInfo(&buf);
     appendStringInfo(&buf, "%s (", default_policy);
     queue_each(&backend_queue, queue) {
-        const char *name = PQparameterStatus(backend->conn, "application_name") ? PQparameterStatus(backend->conn, "application_name") : cluster_name ? cluster_name : "walreceiver";
+        const char *name = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
         const char *name_quote = quote_identifier(name);
         if (i++) appendStringInfoString(&buf, ", ");
         appendStringInfoString(&buf, name_quote);
@@ -31,7 +31,7 @@ static void primary_standby(void) {
     Datum *values = nargs ? palloc(nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
+    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -48,12 +48,14 @@ static void primary_standby(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend;
         MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
+        const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
         const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
-        D1("host = %s, state = %s", host, state);
+        D1("name = %s, host = %s, state = %s", name, host, state);
         backend = palloc0(sizeof(*backend));
         MemoryContextSwitchTo(oldMemoryContext);
         backend->state = backend_state(state);
+        backend->name = name;
         backend_connect(backend, host, 5432, MyProcPort->user_name, MyProcPort->database_name, primary_set_synchronous_standby_names);
         pfree((void *)host);
         pfree((void *)state);

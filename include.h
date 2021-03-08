@@ -45,6 +45,7 @@
 typedef enum STATE {PRIMARY, ASYNC, POTENTIAL, SYNC, QUORUM} STATE;
 
 typedef struct Backend {
+    char *name;
     int events;
     int reset;
     PGconn *conn;

@@ -47,6 +47,7 @@ void backend_finish(Backend *backend) {
     if (backend->state == PRIMARY) primary = NULL;
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
+    if (backend->name) pfree(backend->name);
     pfree(backend);
 }
 
