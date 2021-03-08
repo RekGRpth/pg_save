@@ -64,6 +64,7 @@ static void primary_standby(void) {
         if (backend) {
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
+            primary_set_synchronous_standby_names(backend);
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
