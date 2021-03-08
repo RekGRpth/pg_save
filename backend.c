@@ -24,7 +24,7 @@ void backend_idle(Backend *backend) {
 }
 
 void backend_finish(Backend *backend) {
-    D1("%s:%s/%s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary");
+    if (PQstatus(backend->conn) == CONNECTION_OK) D1("%s:%s/%s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary");
     if (!backend->state) primary = NULL;
     queue_remove(&backend->queue);
     PQfinish(backend->conn);
