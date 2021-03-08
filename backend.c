@@ -119,9 +119,9 @@ void backend_connect(Backend *backend, const char *host, const char *port, const
     }
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, port, backend->state ? backend->state : "primary"); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, port, backend->state ? backend->state : "primary"); break;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", host, port, backend->state ? backend->state : "primary"); return;
         case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, port, backend->state ? backend->state : "primary"); break;
-        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT", host, port, backend->state ? backend->state : "primary"); break;
+        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT", host, port, backend->state ? backend->state : "primary"); return;
     }
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQerrorMessage(backend->conn));
