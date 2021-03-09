@@ -127,6 +127,7 @@ void standby_init(void) {
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
     D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
+    backend_alter_system_reset("synchronous_standby_names");
 }
 
 void standby_timeout(void) {
