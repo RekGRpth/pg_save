@@ -12,10 +12,7 @@ static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     char **names;
     int i = 0;
-    if (!queue_size(&backend_queue)) {
-        backend_alter_system_reset("synchronous_standby_names");
-        return;
-    }
+    if (!queue_size(&backend_queue)) return;
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -49,7 +46,6 @@ static void primary_reset(Backend *backend) {
 }
 
 static void primary_finish(Backend *backend) {
-    primary_set_synchronous_standby_names();
     backend_reset_state(backend);
 }
 
@@ -168,7 +164,6 @@ static void primary_extension(const char *schema, const char *extension) {
 void primary_init(void) {
     backend_alter_system_reset("primary_conninfo");
     backend_alter_system_reset("primary_slot_name");
-    backend_alter_system_reset("synchronous_standby_names");
     backend_alter_system_set("pg_save.primary", init_primary, hostname);
     backend_alter_system_set("pg_save.state", init_state, "primary");
     primary_schema("curl");
