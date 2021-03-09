@@ -15,6 +15,7 @@
 //#include <commands/user.h>
 #include <common/ip.h>
 #include <executor/spi.h>
+#include <fe_utils/recovery_gen.h>
 //#include <jit/jit.h>
 #include <libpq-fe.h>
 #include <libpq/libpq-be.h>

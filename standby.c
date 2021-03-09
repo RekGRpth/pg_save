@@ -9,7 +9,11 @@ extern TimestampTz start;
 
 static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state);
-    //WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (strcmp(backend->state, "sync")) continue;
+        WriteRecoveryConfig(backend->conn, getenv("PGDATA"), GenerateRecoveryConfig(backend->conn, PrimarySlotName));
+    }
     backend_finish(backend);
 }
 
@@ -27,10 +31,10 @@ static void standby_connect(Backend *backend) {
 
 static void standby_reset(Backend *backend) {
     if (backend->probe++ < init_probe) return;
-    if (backend->state) { backend_finish(backend); return; }
-    if (strcmp(init_state, "sync")) standby_reprimary(backend);
-    else if (queue_size(&backend_queue) > 1) standby_promote(backend);
-    else init_kill();
+    if (backend->state) backend_finish(backend);
+    else if (queue_size(&backend_queue) <= 1) init_kill();
+    else if (strcmp(init_state, "sync")) standby_reprimary(backend);
+    else standby_promote(backend);
 }
 
 static void standby_finish(Backend *backend) {
@@ -123,7 +127,7 @@ static void standby_primary_connect(void) {
     }
     if (err) PQfreemem(err);
     if (primary_port && primary_host) {
-        D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
+        D1("primary_host = %s, primary_port = %s", primary_host, primary_port);
         primary = palloc0(sizeof(*primary));
         backend_connect(primary, primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, standby_connect, standby_reset, standby_finish);
     }
