@@ -161,9 +161,11 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
+    backend_alter_system_reset("primary_conninfo");
+    backend_alter_system_reset("primary_slot_name");
+    backend_alter_system_reset("synchronous_standby_names");
     backend_alter_system_set("pg_save.primary", init_primary, hostname);
     backend_alter_system_set("pg_save.state", init_state, "primary");
-    backend_alter_system_reset("synchronous_standby_names");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
