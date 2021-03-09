@@ -21,8 +21,8 @@ void backend_idle(Backend *backend) {
 void backend_finish(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) D1("%s:%s/%s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend));
     queue_remove(&backend->queue);
+    backend->finish(backend);
     PQfinish(backend->conn);
-    if (backend->finish) backend->finish(backend);
     if (backend->name) pfree(backend->name);
     if (backend->state) pfree(backend->state);
     pfree(backend);
