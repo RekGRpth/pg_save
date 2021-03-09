@@ -4,7 +4,7 @@ extern char *hostname;
 extern char *init_policy;
 extern char *init_primary;
 extern char *init_state;
-extern int init_reset;
+extern int init_probe;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
@@ -32,13 +32,13 @@ static void primary_set_synchronous_standby_names(void) {
 }
 
 static void primary_connect(Backend *backend) {
-    backend->reset = 0;
+    backend->probe = 0;
     primary_set_synchronous_standby_names();
     backend_idle(backend);
 }
 
 static void primary_reset(Backend *backend) {
-    if (backend->reset++ < init_reset) return;
+    if (backend->probe++ < init_probe) return;
     backend_finish(backend);
 }
 
@@ -112,7 +112,7 @@ void primary_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend, backend_idle, backend_finish);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     primary_standby();
 }

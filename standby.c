@@ -4,7 +4,7 @@ Backend *primary = NULL;
 extern char *hostname;
 extern char *init_primary;
 extern char *init_state;
-extern int init_reset;
+extern int init_probe;
 extern queue_t backend_queue;
 extern TimestampTz start;
 static char *sender_host;
@@ -24,13 +24,13 @@ static void standby_promote(Backend *backend) {
 }
 
 static void standby_connect(Backend *backend) {
-    backend->reset = 0;
+    backend->probe = 0;
     if (!backend->state) backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
     backend_idle(backend);
 }
 
 static void standby_reset(Backend *backend) {
-    if (backend->reset++ < init_reset) return;
+    if (backend->probe++ < init_probe) return;
     if (backend->state) { backend_finish(backend); return; }
     D1("state = %s", init_state);
     if (strcmp(init_state, "sync")) standby_reprimary(backend);
@@ -139,7 +139,7 @@ void standby_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend, backend_idle, standby_reset);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     if (!primary) standby_primary_connect(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;

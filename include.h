@@ -46,11 +46,12 @@ typedef struct Backend {
     char *name;
     char *state;
     int events;
-    int reset;
+    int probe;
     PGconn *conn;
     queue_t queue;
     void (*connect) (struct Backend *backend);
     void (*finish) (struct Backend *backend);
+    void (*reset) (struct Backend *backend);
     void (*socket) (struct Backend *backend);
 } Backend;
 
@@ -67,7 +68,7 @@ void backend_connect(Backend *backend, const char *host, const char *port, const
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
-void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*reset) (Backend *backend));
+void backend_reset(Backend *backend);
 void init_kill(void);
 void primary_fini(void);
 void primary_init(void);

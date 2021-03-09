@@ -5,7 +5,7 @@ PG_MODULE_MAGIC;
 char *init_policy;
 char *init_primary;
 char *init_state;
-int init_reset;
+int init_probe;
 int init_timeout;
 static int init_restart;
 
@@ -39,8 +39,8 @@ static void save_work(void) {
 void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
-    DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &init_reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("reset = %i", init_reset);
+    DefineCustomIntVariable("pg_save.probe", "pg_save probe", NULL, &init_probe, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("probe = %i", init_probe);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     D1("restart = %i", init_restart);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
