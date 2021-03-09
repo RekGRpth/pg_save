@@ -75,7 +75,7 @@ static void standby_primary_socket(Backend *backend) {
     backend_idle(backend);
 }
 
-static void standby_primary(Backend *primary) {
+static void standby_primary(Backend *backend) {
     int nParams = queue_size(&backend_queue);
     Oid *paramTypes = nParams ? palloc(2 * nParams * sizeof(*paramTypes)) : NULL;
     char **paramValues = nParams ? palloc(2 * nParams * sizeof(*paramValues)) : NULL;
@@ -98,9 +98,9 @@ static void standby_primary(Backend *primary) {
         appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), backend_state(primary), PQerrorMessage(primary->conn));
-    primary->socket = standby_primary_socket;
-    primary->events = WL_SOCKET_WRITEABLE;
+    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
+    backend->socket = standby_primary_socket;
+    backend->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);
     pfree(buf.data);
