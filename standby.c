@@ -6,19 +6,16 @@ extern char *init_state;
 extern int init_probe;
 extern queue_t backend_queue;
 extern TimestampTz start;
-static char *primary_host;
-static char *primary_port;
 
 static void standby_reprimary(Backend *backend) {
-    D1("hi");
+    D1("state = %s", init_state);
     //WriteRecoveryConfig(pgconn, target_dir, GenerateRecoveryConfig(pgconn, replication_slot));
     backend_finish(backend);
 }
 
 static void standby_promote(Backend *backend) {
-    D1("hi");
-//    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
-//    else standby_fini();
+    D1("state = %s", init_state);
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
     backend_finish(backend);
 }
 
@@ -31,7 +28,6 @@ static void standby_connect(Backend *backend) {
 static void standby_reset(Backend *backend) {
     if (backend->probe++ < init_probe) return;
     if (backend->state) { backend_finish(backend); return; }
-    D1("state = %s", init_state);
     if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
@@ -113,19 +109,28 @@ static void standby_primary(Backend *backend) {
     pfree(buf.data);
 }
 
-void standby_init(void) {
+static void standby_primary_connect(void) {
+    const char *primary_host = NULL;
+    const char *primary_port = NULL;
     char *err;
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(PrimaryConnInfo, &err))) E("!PQconninfoParse and %s", err);
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
-        if (!strcmp(opt->keyword, "host")) { primary_host = pstrdup(opt->val); continue; }
-        if (!strcmp(opt->keyword, "port")) { primary_port = pstrdup(opt->val); continue; }
+        if (!strcmp(opt->keyword, "host")) { primary_host = opt->val; continue; }
+        if (!strcmp(opt->keyword, "port")) { primary_port = opt->val; continue; }
     }
     if (err) PQfreemem(err);
+    if (primary_port && primary_host) {
+        D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
+        primary = palloc0(sizeof(*primary));
+        backend_connect(primary, primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, standby_connect, standby_reset, standby_finish);
+    }
     PQconninfoFree(opts);
-    D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
+}
+
+void standby_init(void) {
     backend_alter_system_reset("synchronous_standby_names");
 }
 
@@ -142,7 +147,7 @@ void standby_timeout(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
-    if (!primary) backend_connect(primary = palloc0(sizeof(*primary)), primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, standby_connect, standby_reset, standby_finish);
+    if (!primary) standby_primary_connect();
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
     else standby_primary(primary);
