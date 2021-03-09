@@ -24,10 +24,7 @@ static void standby_promote(Backend *backend) {
 }
 
 static void standby_connect(Backend *backend) {
-    if (!backend->state) {
-        primary = backend;
-        backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
-    }
+    if (!backend->state) backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -79,9 +76,9 @@ static void standby_primary_socket(Backend *backend) {
 }
 
 static void standby_primary_connect(const char *host, const char *port, const char *user, const char *dbname) {
-    Backend *backend = palloc0(sizeof(*backend));
     D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
-    backend_connect(backend, host, port, user, dbname, standby_connect, standby_reset, standby_finish);
+    primary = palloc0(sizeof(*primary));
+    backend_connect(primary, host, port, user, dbname, standby_connect, standby_reset, standby_finish);
 }
 
 static void standby_primary(Backend *primary) {
