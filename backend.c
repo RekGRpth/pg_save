@@ -188,7 +188,7 @@ void backend_set_state(Backend *backend) {
     char *old;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfo(&buf, "pg_save.%s", backend->state);
+    appendStringInfo(&buf, "pg_save.%s", backend_state(backend));
     old = GetConfigOptionByName(buf.data, NULL, false);
     backend_alter_system_set(buf.data, old, PQhost(backend->conn));
     pfree(old);

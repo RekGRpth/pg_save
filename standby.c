@@ -2,7 +2,6 @@
 
 Backend *primary = NULL;
 extern char *hostname;
-extern char *init_primary;
 extern char *init_state;
 extern int init_probe;
 extern queue_t backend_queue;
@@ -25,6 +24,7 @@ static void standby_promote(Backend *backend) {
 
 static void standby_connect(Backend *backend) {
     backend->probe = 0;
+    backend_set_state(backend);
     backend_idle(backend);
 }
 
@@ -38,6 +38,7 @@ static void standby_reset(Backend *backend) {
 }
 
 static void standby_finish(Backend *backend) {
+    backend_reset_state(backend);
     if (!backend->state) primary = NULL;
 }
 
@@ -56,8 +57,10 @@ static void standby_standby_connect(PGresult *result) {
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         if (backend) {
+            backend_reset_state(backend);
             pfree(backend->state);
             backend->state = pstrdup(state);
+            backend_set_state(backend);
         } else {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
@@ -119,7 +122,6 @@ void standby_init(void) {
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
     D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
-    backend_alter_system_set("pg_save.primary", init_primary, primary_host);
 }
 
 void standby_timeout(void) {
