@@ -8,7 +8,18 @@ extern int init_probe;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
-static void primary_set_synchronous_standby_names(void) {
+static void primary_state(Backend *backend) {
+    char *old;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "pg_save.%s", backend->state);
+    old = GetConfigOptionByName(buf.data, NULL, false);
+    backend_alter_system_set(buf.data, old, PQhost(backend->conn));
+    pfree(old);
+    pfree(buf.data);
+}
+
+static void primary_set_synchronous_standby_names(Backend *backend) {
     StringInfoData buf;
     char **names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     int i = 0;
@@ -29,11 +40,12 @@ static void primary_set_synchronous_standby_names(void) {
     appendStringInfoString(&buf, ")");
     backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
+    primary_state(backend);
 }
 
 static void primary_connect(Backend *backend) {
     backend->probe = 0;
-    primary_set_synchronous_standby_names();
+    primary_set_synchronous_standby_names(backend);
     backend_idle(backend);
 }
 
@@ -43,7 +55,7 @@ static void primary_reset(Backend *backend) {
 }
 
 static void primary_finish(Backend *backend) {
-    primary_set_synchronous_standby_names();
+    primary_set_synchronous_standby_names(backend);
 }
 
 static void primary_standby(void) {
@@ -85,7 +97,7 @@ static void primary_standby(void) {
         if (backend) {
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            primary_set_synchronous_standby_names();
+            primary_set_synchronous_standby_names(backend);
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
