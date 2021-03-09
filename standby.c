@@ -1,7 +1,7 @@
 #include "include.h"
 
 extern Backend *primary;
-extern char *default_state;
+extern char *init_state;
 extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
@@ -23,8 +23,8 @@ static void standby_promote(Backend *backend) {
 
 static void standby_reset(Backend *backend) {
     if (backend->state) { backend_finish(backend); return; }
-    D1("state = %s", default_state);
-    if (strcmp(default_state, "sync")) standby_reprimary(backend);
+    D1("state = %s", init_state);
+    if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
 }
@@ -38,7 +38,7 @@ static void standby_standby_connect(PGresult *result) {
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (!me) D1("name = %s, host = %s, state = %s", name, host, state);
-        if (me) { backend_alter_system_set("pg_save.state", default_state, state); continue; }
+        if (me) { backend_alter_system_set("pg_save.state", init_state, state); continue; }
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
@@ -116,7 +116,7 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
-    if (!save_etcd_kv_put(default_state, hostname, 0)) {
+    if (!save_etcd_kv_put(init_state, hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }

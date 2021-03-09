@@ -2,19 +2,19 @@
 
 PG_MODULE_MAGIC;
 
-char *default_policy;
-char *default_primary;
-char *default_state;
-int default_reset;
-int default_timeout;
-static int default_restart;
+char *init_policy;
+char *init_primary;
+char *init_state;
+int init_reset;
+int init_timeout;
+static int init_restart;
 
 static void save_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
-    worker.bgw_restart_time = default_restart;
+    worker.bgw_restart_time = init_restart;
     worker.bgw_start_time = BgWorkerStart_ConsistentState;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "pg_save");
@@ -39,12 +39,18 @@ static void save_work(void) {
 void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
-    DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &default_reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &default_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &default_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &default_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &default_primary, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &default_state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomIntVariable("pg_save.reset", "pg_save reset", NULL, &init_reset, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("reset = %i", init_reset);
+    DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
+    D1("restart = %i", init_restart);
+    DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("timeout = %i", init_timeout);
+    DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &init_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
+    D1("policy = %s", init_policy);
+    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &init_primary, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("primary = %s", init_primary);
+    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &init_state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("state = %s", init_state);
     save_work();
 }
 

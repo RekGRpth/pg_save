@@ -1,8 +1,8 @@
 #include "include.h"
 
-extern char *default_policy;
-extern char *default_primary;
-extern char *default_state;
+extern char *init_policy;
+extern char *init_primary;
+extern char *init_state;
 extern char *hostname;
 extern queue_t backend_queue;
 extern TimestampTz start;
@@ -17,7 +17,7 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfo(&buf);
-    appendStringInfo(&buf, "%s (", default_policy);
+    appendStringInfo(&buf, "%s (", init_policy);
     for (int i = 0; i < queue_size(&backend_queue); i++) {
         const char *name_quote = quote_identifier(names[i]);
         if (i) appendStringInfoString(&buf, ", ");
@@ -87,7 +87,7 @@ static void primary_standby(void) {
 }
 
 void primary_timeout(void) {
-    if (!save_etcd_kv_put(default_state, hostname, 0)) {
+    if (!save_etcd_kv_put(init_state, hostname, 0)) {
         W("!save_etcd_kv_put");
         init_kill();
     }
@@ -142,8 +142,8 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
-    backend_alter_system_set("pg_save.primary", default_primary, hostname);
-    backend_alter_system_set("pg_save.state", default_state, "primary");
+    backend_alter_system_set("pg_save.primary", init_primary, hostname);
+    backend_alter_system_set("pg_save.state", init_state, "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");

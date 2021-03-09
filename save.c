@@ -2,7 +2,7 @@
 #include <sys/utsname.h>
 
 char *hostname;
-extern int default_timeout;
+extern int init_timeout;
 queue_t backend_queue;
 static Oid etcd_kv_put;
 static Oid etcd_kv_range;
@@ -79,7 +79,7 @@ static void save_init(void) {
     if (uname(&buf)) E("uname");
     queue_init(&backend_queue);
     hostname = pstrdup(buf.nodename);
-    D1("hostname = %s, timeout = %i", hostname, default_timeout);
+    D1("hostname = %s, timeout = %i", hostname, init_timeout);
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
@@ -148,14 +148,14 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        nevents = WaitEventSetWait(set, default_timeout, events, nevents, PG_WAIT_EXTENSION);
+        nevents = WaitEventSetWait(set, init_timeout, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
         stop = GetCurrentTimestamp();
-        if (default_timeout > 0 && (TimestampDifferenceExceeds(start, stop, default_timeout) || !nevents)) {
+        if (init_timeout > 0 && (TimestampDifferenceExceeds(start, stop, init_timeout) || !nevents)) {
             save_timeout();
             start = stop;
         }

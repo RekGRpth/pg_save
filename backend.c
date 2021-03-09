@@ -1,9 +1,9 @@
 #include "include.h"
 
 Backend *primary = NULL;
-extern char *default_primary;
+extern char *init_primary;
 extern char *hostname;
-extern int default_reset;
+extern int init_reset;
 extern queue_t backend_queue;
 
 static void backend_idle_socket(Backend *backend) {
@@ -61,8 +61,8 @@ void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*
     const char *values[] = {PQhost(backend->conn), PQport(backend->conn), PQuser(backend->conn), PQdb(backend->conn), PQparameterStatus(backend->conn, "application_name"), NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     backend->reset++;
-    W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", backend->reset, default_reset);
-    if (backend->reset >= default_reset) { reset(backend); return; }
+    W("%s:%s/%s %i < %i", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", backend->reset, init_reset);
+    if (backend->reset >= init_reset) { reset(backend); return; }
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); break;
         case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary"); return;
@@ -114,8 +114,8 @@ void backend_connect(Backend *backend, const char *host, const char *port, const
     D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
     if (reset) {
         backend->reset++;
-        W("%s:%s/%s %i < %i", host, port, backend->state ? backend->state : "primary", backend->reset, default_reset);
-        if (backend->reset >= default_reset) { reset(backend); return; }
+        W("%s:%s/%s %i < %i", host, port, backend->state ? backend->state : "primary", backend->reset, init_reset);
+        if (backend->reset >= init_reset) { reset(backend); return; }
     }
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, port, backend->state ? backend->state : "primary"); break;
@@ -133,7 +133,7 @@ void backend_connect(Backend *backend, const char *host, const char *port, const
     backend->events = WL_SOCKET_WRITEABLE;
     if (!backend->state) {
         primary = backend;
-        backend_alter_system_set("pg_save.primary", default_primary, PQhost(backend->conn));
+        backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
     }
     queue_insert_tail(&backend_queue, &backend->queue);
 }
