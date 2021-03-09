@@ -1,6 +1,11 @@
 #include "include.h"
 
 extern char *hostname;
+extern char *init_async;
+extern char *init_potential;
+extern char *init_primary;
+extern char *init_quorum;
+extern char *init_sync;
 extern int init_probe;
 extern queue_t backend_queue;
 
@@ -166,3 +171,35 @@ void backend_alter_system_set(const char *name, const char *old, const char *new
     pfree(stmt);
     if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
+
+void backend_alter_system_reset(const char *name) {
+    AlterSystemStmt *stmt;
+    stmt = makeNode(AlterSystemStmt);
+    stmt->setstmt = makeNode(VariableSetStmt);
+    stmt->setstmt->name = (char *)name;
+    stmt->setstmt->kind = VAR_RESET;
+    AlterSystemSetConfigFile(stmt);
+    pfree(stmt->setstmt);
+    pfree(stmt);
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+}
+
+void backend_set_state(Backend *backend) {
+    char *old;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "pg_save.%s", backend->state);
+    old = GetConfigOptionByName(buf.data, NULL, false);
+    backend_alter_system_set(buf.data, old, PQhost(backend->conn));
+    pfree(old);
+    pfree(buf.data);
+}
+
+void backend_reset_state(Backend *backend) {
+    if (!strcmp(init_async, PQhost(backend->conn))) backend_alter_system_reset("pg_save.async");
+    else if (!strcmp(init_potential, PQhost(backend->conn))) backend_alter_system_reset("pg_save.potential");
+//    else if (!strcmp(init_primary, PQhost(backend->conn))) backend_alter_system_reset("pg_save.primary");
+    else if (!strcmp(init_quorum, PQhost(backend->conn))) backend_alter_system_reset("pg_save.quorum");
+    else if (!strcmp(init_sync, PQhost(backend->conn))) backend_alter_system_reset("pg_save.sync");
+}
+
