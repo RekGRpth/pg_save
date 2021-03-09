@@ -19,7 +19,7 @@ static void primary_state(Backend *backend) {
     pfree(buf.data);
 }
 
-static void primary_set_synchronous_standby_names(Backend *backend) {
+static void primary_synchronous_standby_names(Backend *backend) {
     StringInfoData buf;
     char **names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     int i = 0;
@@ -45,7 +45,7 @@ static void primary_set_synchronous_standby_names(Backend *backend) {
 
 static void primary_connect(Backend *backend) {
     backend->probe = 0;
-    primary_set_synchronous_standby_names(backend);
+    primary_synchronous_standby_names(backend);
     backend_idle(backend);
 }
 
@@ -55,7 +55,7 @@ static void primary_reset(Backend *backend) {
 }
 
 static void primary_finish(Backend *backend) {
-    primary_set_synchronous_standby_names(backend);
+    primary_synchronous_standby_names(backend);
 }
 
 static void primary_standby(void) {
@@ -97,7 +97,7 @@ static void primary_standby(void) {
         if (backend) {
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            primary_set_synchronous_standby_names(backend);
+            primary_synchronous_standby_names(backend);
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
