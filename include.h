@@ -16,6 +16,7 @@
 #include <common/ip.h>
 #include <executor/spi.h>
 #include <fe_utils/recovery_gen.h>
+//#include <fe_utils/string_utils.h>
 //#include <jit/jit.h>
 #include <libpq-fe.h>
 #include <libpq/libpq-be.h>
@@ -25,6 +26,7 @@
 #include <parser/parse_func.h>
 //#include <parser/parse_type.h>
 #include <pgstat.h>
+//#include <postgresql/internal/pqexpbuffer.h>
 #include <postmaster/bgworker.h>
 #include <replication/slot.h>
 #include <replication/syncrep.h>
@@ -64,6 +66,7 @@ char *TextDatumGetCStringMy(Datum datum);
 const char *backend_state(Backend *backend);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_alter_system_reset(const char *name);
 void backend_alter_system_set(const char *name, const char *old, const char *new);
 void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
@@ -121,6 +124,8 @@ void standby_timeout(void);
 #define L(fmt, ...) ereport(LOG, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
 #define N(fmt, ...) ereport(NOTICE, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
 #define W(fmt, ...) ereport(WARNING, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
+
+#define pg_log_error(...) E(__VA_ARGS__)
 
 #define countof(array) (sizeof(array)/sizeof(array[0]))
 

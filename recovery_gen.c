@@ -7,11 +7,7 @@
  *
  *-------------------------------------------------------------------------
  */
-#include "postgres_fe.h"
-
-#include "common/logging.h"
-#include "fe_utils/recovery_gen.h"
-#include "fe_utils/string_utils.h"
+#include "include.h"
 
 static char *escape_quotes(const char *src);
 

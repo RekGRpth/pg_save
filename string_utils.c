@@ -1,9 +1,4 @@
-#include "postgres_fe.h"
-
-#include <ctype.h>
-
-#include "common/keywords.h"
-#include "fe_utils/string_utils.h"
+#include "include.h"
 
 /*
  * Append the given string to the buffer, with suitable quoting for passing
