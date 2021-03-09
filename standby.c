@@ -7,8 +7,8 @@ extern char *init_state;
 extern int init_probe;
 extern queue_t backend_queue;
 extern TimestampTz start;
-static char *sender_host;
-static char *sender_port;
+static char *primary_host;
+static char *primary_port;
 
 static void standby_reprimary(Backend *backend) {
     D1("hi");
@@ -25,7 +25,6 @@ static void standby_promote(Backend *backend) {
 
 static void standby_connect(Backend *backend) {
     backend->probe = 0;
-    if (!backend->state) backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -76,12 +75,6 @@ static void standby_primary_socket(Backend *backend) {
     backend_idle(backend);
 }
 
-static void standby_primary_connect(const char *host, const char *port, const char *user, const char *dbname) {
-    D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
-    primary = palloc0(sizeof(*primary));
-    backend_connect(primary, host, port, user, dbname, standby_connect, standby_reset, standby_finish);
-}
-
 static void standby_primary(Backend *primary) {
     int nParams = queue_size(&backend_queue);
     Oid *paramTypes = nParams ? palloc(2 * nParams * sizeof(*paramTypes)) : NULL;
@@ -120,12 +113,13 @@ void standby_init(void) {
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
-        if (!strcmp(opt->keyword, "host")) { sender_host = pstrdup(opt->val); continue; }
-        if (!strcmp(opt->keyword, "port")) { sender_port = pstrdup(opt->val); continue; }
+        if (!strcmp(opt->keyword, "host")) { primary_host = pstrdup(opt->val); continue; }
+        if (!strcmp(opt->keyword, "port")) { primary_port = pstrdup(opt->val); continue; }
     }
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
-    D1("sender_host = %s, sender_port = %s, PrimarySlotName = %s", sender_host, sender_port, PrimarySlotName);
+    D1("primary_host = %s, primary_port = %s, PrimarySlotName = %s", primary_host, primary_port, PrimarySlotName);
+    backend_alter_system_set("pg_save.primary", init_primary, primary_host);
 }
 
 void standby_timeout(void) {
@@ -141,7 +135,7 @@ void standby_timeout(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
-    if (!primary) standby_primary_connect(sender_host, sender_port, MyProcPort->user_name, MyProcPort->database_name);
+    if (!primary) backend_connect(primary = palloc0(sizeof(*primary)), primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, standby_connect, standby_reset, standby_finish);
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
     else standby_primary(primary);
