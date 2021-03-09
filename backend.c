@@ -47,7 +47,7 @@ static void backend_reset_socket(Backend *backend) {
         case CONNECTION_SSL_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
         case CONNECTION_STARTED: D1("%s:%s/%s PQstatus == CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
     }
-    switch (PQresetPoll(backend->conn)) {
+    if (!connected) switch (PQresetPoll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
         case PGRES_POLLING_FAILED: E("%s:%s/%s PQresetPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
         case PGRES_POLLING_OK: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
@@ -95,7 +95,7 @@ static void backend_connect_socket(Backend *backend) {
         case CONNECTION_SSL_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
         case CONNECTION_STARTED: D1("%s:%s/%s PQstatus == CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
     }
-    switch (PQconnectPoll(backend->conn)) {
+    if (!connected) switch (PQconnectPoll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
         case PGRES_POLLING_FAILED: E("%s:%s/%s PQconnectPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
         case PGRES_POLLING_OK: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
