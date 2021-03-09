@@ -10,8 +10,13 @@ extern TimestampTz start;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
-    char **names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
+    char **names;
     int i = 0;
+    if (!queue_size(&backend_queue)) {
+        backend_alter_system_reset("synchronous_standby_names");
+        return;
+    }
+    names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         names[i++] = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
