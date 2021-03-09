@@ -42,12 +42,12 @@ static void standby_finish(Backend *backend) {
     if (!backend->state) primary = NULL;
 }
 
-static void standby_set_state(const char *state) {
+static void standby_state(const char *state) {
     backend_alter_system_set("pg_save.state", init_state, state);
     backend_set_state(state, hostname);
 }
 
-static void standby_standby_connect(PGresult *result) {
+static void standby_result(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend = NULL;
         const char *name = PQgetvalue(result, row, PQfnumber(result, "name"));
@@ -55,7 +55,7 @@ static void standby_standby_connect(PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        if (me) { standby_set_state(state); continue; }
+        if (me) { standby_state(state); continue; }
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
@@ -77,7 +77,7 @@ static void standby_standby_connect(PGresult *result) {
 
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: standby_standby_connect(result); break;
+        case PGRES_TUPLES_OK: standby_result(result); break;
         default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
