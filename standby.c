@@ -1,8 +1,10 @@
 #include "include.h"
 
-extern Backend *primary;
-extern char *init_state;
+Backend *primary = NULL;
 extern char *hostname;
+extern char *init_primary;
+extern char *init_state;
+extern int init_reset;
 extern queue_t backend_queue;
 extern TimestampTz start;
 static char *sender_host;
@@ -21,12 +23,25 @@ static void standby_promote(Backend *backend) {
     backend_finish(backend);
 }
 
+static void standby_connect(Backend *backend) {
+    if (!backend->state) {
+        primary = backend;
+        backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
+    }
+    backend_idle(backend);
+}
+
 static void standby_reset(Backend *backend) {
+    if (backend->reset++ < init_reset) return;
     if (backend->state) { backend_finish(backend); return; }
     D1("state = %s", init_state);
     if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else if (queue_size(&backend_queue) > 1) standby_promote(backend);
     else init_kill();
+}
+
+static void standby_finish(Backend *backend) {
+    if (!backend->state) primary = NULL;
 }
 
 static void standby_standby_connect(PGresult *result) {
@@ -50,7 +65,7 @@ static void standby_standby_connect(PGresult *result) {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, backend_idle, NULL, NULL);
+            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, standby_connect, standby_reset, standby_finish);
         }
     }
 }
@@ -58,7 +73,7 @@ static void standby_standby_connect(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_standby_connect(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend->state ? backend->state : "primary", PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -66,7 +81,7 @@ static void standby_primary_socket(Backend *backend) {
 static void standby_primary_connect(const char *host, const char *port, const char *user, const char *dbname) {
     Backend *backend = palloc0(sizeof(*backend));
     D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
-    backend_connect(backend, host, port, user, dbname, backend_idle, standby_reset, NULL);
+    backend_connect(backend, host, port, user, dbname, standby_connect, standby_reset, standby_finish);
 }
 
 static void standby_primary(Backend *primary) {
@@ -92,7 +107,7 @@ static void standby_primary(Backend *primary) {
         appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), primary->state ? primary->state : "primary", PQerrorMessage(primary->conn));
+    if (!PQsendQueryParams(primary->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(primary->conn), PQport(primary->conn), backend_state(primary), PQerrorMessage(primary->conn));
     primary->socket = standby_primary_socket;
     primary->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
