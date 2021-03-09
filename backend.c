@@ -198,7 +198,7 @@ void backend_set_state(const char *state, const char *host) {
 void backend_reset_state(Backend *backend) {
     if (!strcmp(init_async, PQhost(backend->conn))) backend_alter_system_reset("pg_save.async");
     else if (!strcmp(init_potential, PQhost(backend->conn))) backend_alter_system_reset("pg_save.potential");
-//    else if (!strcmp(init_primary, PQhost(backend->conn))) backend_alter_system_reset("pg_save.primary");
+    else if (!strcmp(init_primary, PQhost(backend->conn))) backend_alter_system_reset("pg_save.primary");
     else if (!strcmp(init_quorum, PQhost(backend->conn))) backend_alter_system_reset("pg_save.quorum");
     else if (!strcmp(init_sync, PQhost(backend->conn))) backend_alter_system_reset("pg_save.sync");
 }

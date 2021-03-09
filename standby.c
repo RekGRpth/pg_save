@@ -38,7 +38,6 @@ static void standby_reset(Backend *backend) {
 }
 
 static void standby_finish(Backend *backend) {
-    backend_reset_state(backend);
     if (!backend->state) primary = NULL;
 }
 

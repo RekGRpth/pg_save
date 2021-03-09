@@ -46,7 +46,6 @@ static void primary_reset(Backend *backend) {
 }
 
 static void primary_finish(Backend *backend) {
-    backend_reset_state(backend);
 }
 
 static void primary_standby(void) {
