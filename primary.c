@@ -32,6 +32,7 @@ static void primary_set_synchronous_standby_names(void) {
 }
 
 static void primary_connect(Backend *backend) {
+    backend->reset = 0;
     primary_set_synchronous_standby_names();
     backend_idle(backend);
 }

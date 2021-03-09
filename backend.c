@@ -55,7 +55,7 @@ static void backend_reset_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) { backend->reset = 0; backend->connect(backend); }
+    if (connected) backend->connect(backend);
 }
 
 void backend_reset(Backend *backend, void (*connect) (Backend *backend), void (*reset) (Backend *backend)) {
@@ -103,7 +103,7 @@ static void backend_connect_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) { backend->reset = 0; backend->connect(backend); }
+    if (connected) backend->connect(backend);
 }
 
 void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {

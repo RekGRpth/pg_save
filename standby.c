@@ -24,6 +24,7 @@ static void standby_promote(Backend *backend) {
 }
 
 static void standby_connect(Backend *backend) {
+    backend->reset = 0;
     if (!backend->state) backend_alter_system_set("pg_save.primary", init_primary, PQhost(backend->conn));
     backend_idle(backend);
 }
