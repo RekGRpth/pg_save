@@ -184,13 +184,13 @@ void backend_alter_system_reset(const char *name) {
     if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
 
-void backend_set_state(Backend *backend) {
+void backend_set_state(const char *state, const char *host) {
     char *old;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfo(&buf, "pg_save.%s", backend_state(backend));
+    appendStringInfo(&buf, "pg_save.%s", state);
     old = GetConfigOptionByName(buf.data, NULL, false);
-    backend_alter_system_set(buf.data, old, PQhost(backend->conn));
+    backend_alter_system_set(buf.data, old, host);
     pfree(old);
     pfree(buf.data);
 }

@@ -71,7 +71,7 @@ void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void backend_reset_state(Backend *backend);
-void backend_set_state(Backend *backend);
+void backend_set_state(const char *state, const char *host);
 void init_kill(void);
 void primary_fini(void);
 void primary_init(void);

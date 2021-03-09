@@ -24,7 +24,7 @@ static void standby_promote(Backend *backend) {
 
 static void standby_connect(Backend *backend) {
     backend->probe = 0;
-    backend_set_state(backend);
+    backend_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -42,6 +42,11 @@ static void standby_finish(Backend *backend) {
     if (!backend->state) primary = NULL;
 }
 
+static void standby_set_state(const char *state) {
+    backend_alter_system_set("pg_save.state", init_state, state);
+    backend_set_state(state, hostname);
+}
+
 static void standby_standby_connect(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend = NULL;
@@ -50,8 +55,8 @@ static void standby_standby_connect(PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        if (!me) D1("name = %s, host = %s, state = %s", name, host, state);
-        if (me) { backend_alter_system_set("pg_save.state", init_state, state); continue; }
+        if (me) { standby_set_state(state); continue; }
+        D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
@@ -60,7 +65,7 @@ static void standby_standby_connect(PGresult *result) {
             backend_reset_state(backend);
             pfree(backend->state);
             backend->state = pstrdup(state);
-            backend_set_state(backend);
+            backend_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);

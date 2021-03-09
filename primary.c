@@ -34,7 +34,7 @@ static void primary_set_synchronous_standby_names(void) {
 static void primary_connect(Backend *backend) {
     backend->probe = 0;
     primary_set_synchronous_standby_names();
-    backend_set_state(backend);
+    backend_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -89,7 +89,7 @@ static void primary_standby(void) {
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
             primary_set_synchronous_standby_names();
-            backend_set_state(backend);
+            backend_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
