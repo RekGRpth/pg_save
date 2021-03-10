@@ -36,28 +36,28 @@ void backend_finish(Backend *backend) {
 static void backend_reset_socket(Backend *backend) {
     bool connected = false;
     switch (PQstatus(backend->conn)) {
-        case CONNECTION_AUTH_OK: D1("%s:%s/%s PQstatus == CONNECTION_AUTH_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s PQstatus == CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_BAD: E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_BAD: E("%s:%s/%s CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
 #if (PG_VERSION_NUM >= 130000)
-        case CONNECTION_CHECK_TARGET: D1("%s:%s/%s PQstatus == CONNECTION_CHECK_TARGET", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CHECK_TARGET: D1("%s:%s/%s CONNECTION_CHECK_TARGET", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
 #endif
-        case CONNECTION_CHECK_WRITABLE: D1("%s:%s/%s PQstatus == CONNECTION_CHECK_WRITABLE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_CONSUME: D1("%s:%s/%s PQstatus == CONNECTION_CONSUME", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_GSS_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_GSS_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_MADE: D1("%s:%s/%s PQstatus == CONNECTION_MADE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_NEEDED: D1("%s:%s/%s PQstatus == CONNECTION_NEEDED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_OK: D1("%s:%s/%s PQstatus == CONNECTION_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
-        case CONNECTION_SETENV: D1("%s:%s/%s PQstatus == CONNECTION_SETENV", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_SSL_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_STARTED: D1("%s:%s/%s PQstatus == CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CHECK_WRITABLE: D1("%s:%s/%s CONNECTION_CHECK_WRITABLE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CONSUME: D1("%s:%s/%s CONNECTION_CONSUME", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_GSS_STARTUP: D1("%s:%s/%s CONNECTION_GSS_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_MADE: D1("%s:%s/%s CONNECTION_MADE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_NEEDED: D1("%s:%s/%s CONNECTION_NEEDED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_OK: D1("%s:%s/%s CONNECTION_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
+        case CONNECTION_SETENV: D1("%s:%s/%s CONNECTION_SETENV", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_SSL_STARTUP: D1("%s:%s/%s CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_STARTED: D1("%s:%s/%s CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
     }
     if (!connected) switch (PQresetPoll(backend->conn)) {
-        case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case PGRES_POLLING_FAILED: E("%s:%s/%s PQresetPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
-        case PGRES_POLLING_OK: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
-        case PGRES_POLLING_READING: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s/%s PQresetPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
+        case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
     if (connected) backend->connect(backend);
 }
@@ -92,28 +92,28 @@ void backend_reset(Backend *backend) {
 static void backend_connect_socket(Backend *backend) {
     bool connected = false;
     switch (PQstatus(backend->conn)) {
-        case CONNECTION_AUTH_OK: D1("%s:%s/%s PQstatus == CONNECTION_AUTH_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s PQstatus == CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_BAD: E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_BAD: E("%s:%s/%s CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
 #if (PG_VERSION_NUM >= 130000)
-        case CONNECTION_CHECK_TARGET: D1("%s:%s/%s PQstatus == CONNECTION_CHECK_TARGET", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CHECK_TARGET: D1("%s:%s/%s CONNECTION_CHECK_TARGET", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
 #endif
-        case CONNECTION_CHECK_WRITABLE: D1("%s:%s/%s PQstatus == CONNECTION_CHECK_WRITABLE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_CONSUME: D1("%s:%s/%s PQstatus == CONNECTION_CONSUME", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_GSS_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_GSS_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_MADE: D1("%s:%s/%s PQstatus == CONNECTION_MADE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_NEEDED: D1("%s:%s/%s PQstatus == CONNECTION_NEEDED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_OK: D1("%s:%s/%s PQstatus == CONNECTION_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
-        case CONNECTION_SETENV: D1("%s:%s/%s PQstatus == CONNECTION_SETENV", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_SSL_STARTUP: D1("%s:%s/%s PQstatus == CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case CONNECTION_STARTED: D1("%s:%s/%s PQstatus == CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CHECK_WRITABLE: D1("%s:%s/%s CONNECTION_CHECK_WRITABLE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_CONSUME: D1("%s:%s/%s CONNECTION_CONSUME", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_GSS_STARTUP: D1("%s:%s/%s CONNECTION_GSS_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_MADE: D1("%s:%s/%s CONNECTION_MADE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_NEEDED: D1("%s:%s/%s CONNECTION_NEEDED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_OK: D1("%s:%s/%s CONNECTION_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
+        case CONNECTION_SETENV: D1("%s:%s/%s CONNECTION_SETENV", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_SSL_STARTUP: D1("%s:%s/%s CONNECTION_SSL_STARTUP", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case CONNECTION_STARTED: D1("%s:%s/%s CONNECTION_STARTED", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
     }
     if (!connected) switch (PQconnectPoll(backend->conn)) {
-        case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
-        case PGRES_POLLING_FAILED: E("%s:%s/%s PQconnectPoll == PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
-        case PGRES_POLLING_OK: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
-        case PGRES_POLLING_READING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s/%s PQconnectPoll == PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); break;
+        case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); connected = true; break;
+        case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
     if (connected) backend->connect(backend);
 }
