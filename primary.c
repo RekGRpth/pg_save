@@ -85,7 +85,7 @@ static void primary_standby(void) {
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         if (backend) {
-            backend_reset_state(backend);
+            init_reset(backend);
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
             primary_set_synchronous_standby_names();

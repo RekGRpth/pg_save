@@ -61,7 +61,7 @@ static void standby_result(PGresult *result) {
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         if (backend) {
-            backend_reset_state(backend);
+            init_reset(backend);
             pfree(backend->state);
             backend->state = pstrdup(state);
             backend_set_state(backend_state(backend), PQhost(backend->conn));

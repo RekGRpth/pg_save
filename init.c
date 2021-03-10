@@ -2,15 +2,15 @@
 
 PG_MODULE_MAGIC;
 
-char *init_async;
 char *init_policy;
-char *init_potential;
 char *init_primary;
-char *init_quorum;
 char *init_state;
-char *init_sync;
 int init_probe;
 int init_timeout;
+static char *init_async;
+static char *init_potential;
+static char *init_quorum;
+static char *init_sync;
 static int init_restart;
 
 static void save_work(void) {
@@ -49,20 +49,20 @@ void _PG_init(void); void _PG_init(void) {
     D1("restart = %i", init_restart);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     D1("timeout = %i", init_timeout);
-    DefineCustomStringVariable("pg_save.async", "pg_save async", NULL, &init_async, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("async = %s", init_async);
+    DefineCustomStringVariable("pg_save.async", "pg_save async", NULL, &init_async, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_async) D1("async = %s", init_async);
     DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &init_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
     D1("policy = %s", init_policy);
-    DefineCustomStringVariable("pg_save.potential", "pg_save potential", NULL, &init_potential, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("potential = %s", init_potential);
-    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &init_primary, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("primary = %s", init_primary);
-    DefineCustomStringVariable("pg_save.quorum", "pg_save quorum", NULL, &init_quorum, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("quorum = %s", init_quorum);
-    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &init_state, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("state = %s", init_state);
-    DefineCustomStringVariable("pg_save.sync", "pg_save sync", NULL, &init_sync, "unknown", PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("sync = %s", init_sync);
+    DefineCustomStringVariable("pg_save.potential", "pg_save potential", NULL, &init_potential, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_potential) D1("potential = %s", init_potential);
+    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &init_primary, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_primary) D1("primary = %s", init_primary);
+    DefineCustomStringVariable("pg_save.quorum", "pg_save quorum", NULL, &init_quorum, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_quorum) D1("quorum = %s", init_quorum);
+    DefineCustomStringVariable("pg_save.state", "pg_save state", NULL, &init_state, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_state) D1("state = %s", init_state);
+    DefineCustomStringVariable("pg_save.sync", "pg_save sync", NULL, &init_sync, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    if (init_sync) D1("sync = %s", init_sync);
     save_work();
 }
 
@@ -73,4 +73,12 @@ void init_kill(void) {
     if (kill(PostmasterPid, SIGQUIT))
 #endif
     E("kill");
+}
+
+void init_reset(Backend *backend) {
+    if (init_async && !strcmp(init_async, PQhost(backend->conn))) backend_alter_system_reset("pg_save.async");
+    else if (init_potential && !strcmp(init_potential, PQhost(backend->conn))) backend_alter_system_reset("pg_save.potential");
+    else if (init_primary && !strcmp(init_primary, PQhost(backend->conn))) backend_alter_system_reset("pg_save.primary");
+    else if (init_quorum && !strcmp(init_quorum, PQhost(backend->conn))) backend_alter_system_reset("pg_save.quorum");
+    else if (init_sync && !strcmp(init_sync, PQhost(backend->conn))) backend_alter_system_reset("pg_save.sync");
 }
