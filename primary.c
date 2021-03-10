@@ -86,7 +86,7 @@ static void primary_standby(void) {
         }
         if (backend) {
             init_reset(backend);
-            pfree(backend->name);
+            if (backend->name) pfree(backend->name);
             pfree(backend->state);
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
