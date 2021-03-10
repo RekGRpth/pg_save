@@ -29,14 +29,14 @@ static void primary_set_synchronous_standby_names(void) {
     }
     pfree(names);
     appendStringInfoString(&buf, ")");
-    backend_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
+    init_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
 }
 
 static void primary_connect(Backend *backend) {
     backend->probe = 0;
     primary_set_synchronous_standby_names();
-    backend_set_state(backend_state(backend), PQhost(backend->conn));
+    init_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -89,7 +89,7 @@ static void primary_standby(void) {
             pfree(backend->state);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
             primary_set_synchronous_standby_names();
-            backend_set_state(backend_state(backend), PQhost(backend->conn));
+            init_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
@@ -164,10 +164,10 @@ static void primary_extension(const char *schema, const char *extension) {
 }
 
 void primary_init(void) {
-    backend_alter_system_reset("primary_conninfo");
-    backend_alter_system_reset("primary_slot_name");
-    backend_alter_system_set("pg_save.primary", init_primary, hostname);
-    backend_alter_system_set("pg_save.state", init_state, "primary");
+    init_alter_system_reset("primary_conninfo");
+    init_alter_system_reset("primary_slot_name");
+    init_alter_system_set("pg_save.primary", init_primary, hostname);
+    init_alter_system_set("pg_save.state", init_state, "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");

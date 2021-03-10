@@ -25,7 +25,7 @@ static void standby_promote(Backend *backend) {
 
 static void standby_connect(Backend *backend) {
     backend->probe = 0;
-    backend_set_state(backend_state(backend), PQhost(backend->conn));
+    init_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -42,8 +42,8 @@ static void standby_finish(Backend *backend) {
 }
 
 static void standby_state(const char *state) {
-    backend_alter_system_set("pg_save.state", init_state, state);
-    backend_set_state(state, hostname);
+    init_alter_system_set("pg_save.state", init_state, state);
+    init_set_state(state, hostname);
 }
 
 static void standby_result(PGresult *result) {
@@ -64,7 +64,7 @@ static void standby_result(PGresult *result) {
             init_reset(backend);
             pfree(backend->state);
             backend->state = pstrdup(state);
-            backend_set_state(backend_state(backend), PQhost(backend->conn));
+            init_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
@@ -141,7 +141,7 @@ static void standby_primary_connect(void) {
 }
 
 void standby_init(void) {
-    backend_alter_system_reset("synchronous_standby_names");
+    init_alter_system_reset("synchronous_standby_names");
 }
 
 void standby_timeout(void) {
