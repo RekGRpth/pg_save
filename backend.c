@@ -109,24 +109,21 @@ static void backend_connect_socket(Backend *backend) {
     if (connected) backend->connect(backend);
 }
 
-void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
+void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, port, user, dbname, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     D1("host = %s, port = %s, user = %s, dbname = %s", host, port, user, dbname);
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); reset(backend); return;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return;
         case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, port, backend_state(backend)); break;
-        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); reset(backend); return;
+        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return;
     }
     if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
     if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    backend->connect = connect;
-    backend->finish = finish;
-    backend->reset = reset;
     backend->socket = backend_connect_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     queue_insert_tail(&backend_queue, &backend->queue);

@@ -69,7 +69,7 @@ SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_alter_system_reset(const char *name);
 void backend_alter_system_set(const char *name, const char *old, const char *new);
-void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
+void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

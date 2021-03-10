@@ -94,7 +94,10 @@ static void primary_standby(void) {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name, primary_connect, primary_reset, primary_finish);
+            backend->connect = primary_connect;
+            backend->reset = primary_reset;
+            backend->finish = primary_finish;
+            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name);
         }
         pfree((void *)name);
         pfree((void *)host);
