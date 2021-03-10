@@ -99,7 +99,7 @@ static void primary_standby(void) {
             backend->connect = primary_connect;
             backend->reset = primary_reset;
             backend->finish = primary_finish;
-            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name);
+            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
         }
         pfree((void *)name);
         pfree((void *)host);

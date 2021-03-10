@@ -74,7 +74,7 @@ static void standby_result(PGresult *result) {
             backend->connect = standby_connect;
             backend->reset = standby_reset;
             backend->finish = standby_finish;
-            backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name);
+            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
         }
     }
 }

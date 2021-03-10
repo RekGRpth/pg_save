@@ -149,7 +149,7 @@ static void init_connect_internal(const char *host, const char *state, void (*co
     backend->connect = connect;
     backend->reset = reset;
     backend->finish = finish;
-    backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name);
+    backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
 }
 
 void init_connect(void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
