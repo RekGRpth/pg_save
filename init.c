@@ -13,7 +13,7 @@ static char *init_quorum;
 static char *init_sync;
 static int init_restart;
 
-static void save_work(void) {
+static void init_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
     MemSet(&worker, 0, sizeof(worker));
@@ -40,9 +40,7 @@ static void save_work(void) {
     RegisterBackgroundWorker(&worker);
 }
 
-void _PG_init(void); void _PG_init(void) {
-    if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
-    if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
+static void init_save(void) {
     DefineCustomIntVariable("pg_save.probe", "pg_save probe", NULL, &init_probe, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     D1("probe = %i", init_probe);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
@@ -63,7 +61,13 @@ void _PG_init(void); void _PG_init(void) {
     if (init_state) D1("state = %s", init_state);
     DefineCustomStringVariable("pg_save.sync", "pg_save sync", NULL, &init_sync, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     if (init_sync) D1("sync = %s", init_sync);
-    save_work();
+    init_work();
+}
+
+void _PG_init(void); void _PG_init(void) {
+    if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
+    if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
+    init_save();
 }
 
 void init_kill(void) {
