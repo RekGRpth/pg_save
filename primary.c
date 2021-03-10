@@ -86,7 +86,9 @@ static void primary_standby(void) {
         }
         if (backend) {
             init_reset(backend);
+            if (backend->name) pfree(backend->name);
             pfree(backend->state);
+            backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
             primary_set_synchronous_standby_names();
             init_set_state(backend_state(backend), PQhost(backend->conn));
@@ -172,6 +174,7 @@ void primary_init(void) {
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
+    init_connect(primary_connect, primary_reset, primary_finish);
 }
 
 void primary_fini(void) {

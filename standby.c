@@ -142,6 +142,7 @@ static void standby_primary_connect(void) {
 
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
+    init_connect(standby_connect, standby_reset, standby_finish);
 }
 
 void standby_timeout(void) {
@@ -155,6 +156,7 @@ void standby_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
+        if (!primary && !backend->state) primary = backend;
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     if (!primary) standby_primary_connect();

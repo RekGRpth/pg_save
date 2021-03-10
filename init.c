@@ -142,3 +142,20 @@ void init_set_state(const char *state, const char *host) {
     pfree(old);
     pfree(buf.data);
 }
+
+static void init_connect_internal(const char *host, const char *state, void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
+    Backend *backend = palloc0(sizeof(*backend));
+    backend->state = state ? pstrdup(state) : NULL;
+    backend->connect = connect;
+    backend->reset = reset;
+    backend->finish = finish;
+    backend_connect(backend, host, "5432", MyProcPort->user_name, MyProcPort->database_name);
+}
+
+void init_connect(void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend)) {
+    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, NULL, connect, reset, finish);
+    if (init_sync && (!init_state || strcmp(init_state, "sync"))) init_connect_internal(init_sync, "sync", connect, reset, finish);
+    if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) init_connect_internal(init_quorum, "quorum", connect, reset, finish);
+    if (init_potential && (!init_state || strcmp(init_state, "potential"))) init_connect_internal(init_potential, "potential", connect, reset, finish);
+    if (init_async && (!init_state || strcmp(init_state, "async"))) init_connect_internal(init_async, "async", connect, reset, finish);
+}

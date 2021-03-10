@@ -75,6 +75,7 @@ void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void init_alter_system_reset(const char *name);
 void init_alter_system_set(const char *name, const char *old, const char *new);
+void init_connect(void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
 void init_kill(void);
 void init_reset(Backend *backend);
 void init_set_state(const char *state, const char *host);
