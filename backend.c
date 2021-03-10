@@ -62,10 +62,10 @@ static bool backend_connect_or_reset(Backend *backend, const char *host, const c
     const char *values[] = {host, port, user, dbname, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQpingParams == PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQpingParams == PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
-        case PQPING_OK: D1("%s:%s/%s PQpingParams == PQPING_OK", host, port, backend_state(backend)); break;
-        case PQPING_REJECT: W("%s:%s/%s PQpingParams == PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
+        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
+        case PQPING_OK: D1("%s:%s/%s PQPING_OK", host, port, backend_state(backend)); break;
+        case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
     }
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
