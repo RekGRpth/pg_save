@@ -16,7 +16,7 @@ static void primary_set_synchronous_standby_names(void) {
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        names[i++] = backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
+        names[i++] = (char *)backend_name(backend);
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfo(&buf);

@@ -20,6 +20,10 @@ const char *backend_state(Backend *backend) {
     return backend->state ? backend->state : "primary";
 }
 
+const char *backend_name(Backend *backend) {
+    return backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
+}
+
 const char *backend_host(Backend *backend) {
     const char *host = PQhost(backend->conn);
     return host ? host : "";

@@ -63,6 +63,7 @@ char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 const char *backend_hostaddr(Backend *backend);
 const char *backend_host(Backend *backend);
+const char *backend_name(Backend *backend);
 const char *backend_port(Backend *backend);
 const char *backend_state(Backend *backend);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
