@@ -69,9 +69,7 @@ static void standby_result(PGresult *result) {
             init_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = palloc0(sizeof(*backend));
-            backend->name = pstrdup(name);
-            backend->state = pstrdup(state);
-            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
+            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }
     }
 }
@@ -131,7 +129,7 @@ static void standby_primary_connect(void) {
     if (primary_port && primary_host) {
         D1("primary_host = %s, primary_port = %s", primary_host, primary_port);
         primary = palloc0(sizeof(*primary));
-        backend_connect(primary, primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name);
+        backend_connect(primary, primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, NULL, NULL);
     }
     PQconninfoFree(opts);
 }

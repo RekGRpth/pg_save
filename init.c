@@ -60,8 +60,7 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
 
 static void init_connect_internal(const char *host, const char *state) {
     Backend *backend = palloc0(sizeof(*backend));
-    backend->state = state ? pstrdup(state) : NULL;
-    backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
+    backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, NULL);
 }
 
 void init_connect(void) {

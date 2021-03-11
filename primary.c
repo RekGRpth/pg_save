@@ -94,9 +94,7 @@ static void primary_standby(void) {
             init_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
-            backend->name = MemoryContextStrdup(TopMemoryContext, name);
-            backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
+            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }
         pfree((void *)name);
         pfree((void *)host);

@@ -97,11 +97,13 @@ void backend_reset(Backend *backend) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
+void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
     if (!backend_connect_or_reset(backend, host, port, user, dbname)) return;
+    backend->events = WL_SOCKET_WRITEABLE;
+    backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->poll = PQconnectPoll;
     backend->socket = backend_connect_or_reset_socket;
-    backend->events = WL_SOCKET_WRITEABLE;
+    backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     queue_insert_tail(&backend_queue, &backend->queue);
 }
 
