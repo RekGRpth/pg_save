@@ -94,7 +94,7 @@ void init_set_state(const char *state, const char *host) {
     appendStringInfo(&buf, "pg_save.%s", state);
     old = GetConfigOptionByName(buf.data, NULL, false);
     init_alter_system_set(buf.data, old, host);
-    pfree(old);
+    if (old) pfree(old);
     pfree(buf.data);
 }
 
