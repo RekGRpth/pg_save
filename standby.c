@@ -30,6 +30,10 @@ void standby_connected(Backend *backend) {
     backend_idle(backend);
 }
 
+void standby_updated(Backend *backend) {
+    init_set_state(backend_host(backend), backend_state(backend));
+}
+
 void standby_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     if (backend->state) backend_finish(backend);
@@ -62,16 +66,7 @@ static void standby_result(PGresult *result) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
         }
-        if (backend) {
-            init_reset_state(backend_host(backend));
-            if (backend->name) pfree(backend->name);
-            pfree(backend->state);
-            backend->name = pstrdup(name);
-            backend->state = pstrdup(state);
-            init_set_state(backend_host(backend), backend_state(backend));
-        } else {
-            backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
-        }
+        backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
     }
 }
 

@@ -41,6 +41,11 @@ void primary_connected(Backend *backend) {
     backend_idle(backend);
 }
 
+void primary_updated(Backend *backend) {
+    primary_set_synchronous_standby_names();
+    init_set_state(backend_host(backend), backend_state(backend));
+}
+
 void primary_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     backend_finish(backend);
@@ -84,17 +89,7 @@ static void primary_standby(void) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
         }
-        if (backend) {
-            init_reset_state(backend_host(backend));
-            if (backend->name) pfree(backend->name);
-            pfree(backend->state);
-            backend->name = MemoryContextStrdup(TopMemoryContext, name);
-            backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            primary_set_synchronous_standby_names();
-            init_set_state(backend_host(backend), backend_state(backend));
-        } else {
-            backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
-        }
+        backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         pfree((void *)name);
         pfree((void *)host);
         pfree((void *)state);

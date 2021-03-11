@@ -12,6 +12,10 @@ static void backend_reseted(Backend *backend) {
     return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }
 
+static void backend_updated(Backend *backend) {
+    return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+}
+
 static void backend_finished(Backend *backend) {
     return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
 }
@@ -146,4 +150,13 @@ void backend_fini(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         backend_finish(backend);
     }
+}
+
+void backend_update(Backend *backend, const char *state, const char *name) {
+    init_reset_state(backend_host(backend));
+    if (backend->name) pfree(backend->name);
+    if (backend->state) pfree(backend->state);
+    backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
+    backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
+    backend_updated(backend);
 }

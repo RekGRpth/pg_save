@@ -75,6 +75,7 @@ void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
+void backend_update(Backend *backend, const char *state, const char *name);
 void etcd_init(void);
 void init_alter_system_reset(const char *name);
 void init_alter_system_set(const char *name, const char *old, const char *new);
@@ -88,6 +89,7 @@ void primary_fini(void);
 void primary_init(void);
 void primary_reseted(Backend *backend);
 void primary_timeout(void);
+void primary_updated(Backend *backend);
 void SPI_commit_my(void);
 void SPI_connect_my(const char *src);
 void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit);
@@ -100,6 +102,7 @@ void standby_fini(void);
 void standby_init(void);
 void standby_reseted(Backend *backend);
 void standby_timeout(void);
+void standby_updated(Backend *backend);
 
 #define Q(name) #name
 #define S(macro) Q(macro)
