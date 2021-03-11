@@ -79,12 +79,12 @@ void init_kill(void) {
     E("kill");
 }
 
-void init_reset(Backend *backend) {
-    if (init_async && !strcmp(init_async, PQhost(backend->conn))) init_alter_system_reset("pg_save.async");
-    else if (init_potential && !strcmp(init_potential, PQhost(backend->conn))) init_alter_system_reset("pg_save.potential");
-    else if (init_primary && !strcmp(init_primary, PQhost(backend->conn))) init_alter_system_reset("pg_save.primary");
-    else if (init_quorum && !strcmp(init_quorum, PQhost(backend->conn))) init_alter_system_reset("pg_save.quorum");
-    else if (init_sync && !strcmp(init_sync, PQhost(backend->conn))) init_alter_system_reset("pg_save.sync");
+void init_reset_state(const char *host) {
+    if (init_async && !strcmp(init_async, host)) init_alter_system_reset("pg_save.async");
+    else if (init_potential && !strcmp(init_potential, host)) init_alter_system_reset("pg_save.potential");
+    else if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary");
+    else if (init_quorum && !strcmp(init_quorum, host)) init_alter_system_reset("pg_save.quorum");
+    else if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync");
 }
 
 void init_set_state(const char *state, const char *host) {
