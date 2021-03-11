@@ -158,3 +158,10 @@ void backend_update(Backend *backend, const char *state, const char *name) {
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     backend_updated(backend);
 }
+
+const char *backend_error(Backend *backend) {
+    const char *err = PQerrorMessage(backend->conn);
+    int len = err ? strlen(err) : 0;
+    if (len) ((char *)err)[len - 1] = '\0';
+    return err;
+}

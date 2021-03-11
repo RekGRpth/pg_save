@@ -61,6 +61,7 @@ bool etcd_kv_put(const char *key, const char *value, int ttl);
 char *etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 const char *backend_db(Backend *backend);
+const char *backend_error(Backend *backend);
 const char *backend_hostaddr(Backend *backend);
 const char *backend_host(Backend *backend);
 const char *backend_name(Backend *backend);
