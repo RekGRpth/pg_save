@@ -55,9 +55,6 @@ typedef struct Backend {
     PGconn *conn;
     PostgresPollingStatusType (*poll) (PGconn *conn);
     queue_t queue;
-    void (*connect) (struct Backend *backend);
-    void (*finish) (struct Backend *backend);
-    void (*reset) (struct Backend *backend);
     void (*socket) (struct Backend *backend);
 } Backend;
 
@@ -77,12 +74,15 @@ void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void init_alter_system_reset(const char *name);
 void init_alter_system_set(const char *name, const char *old, const char *new);
-void init_connect(void (*connect) (Backend *backend), void (*reset) (Backend *backend), void (*finish) (Backend *backend));
+void init_connect(void);
 void init_kill(void);
 void init_reset(Backend *backend);
 void init_set_state(const char *state, const char *host);
+void primary_connected(Backend *backend);
+void primary_finished(Backend *backend);
 void primary_fini(void);
 void primary_init(void);
+void primary_reseted(Backend *backend);
 void primary_timeout(void);
 void SPI_commit_my(void);
 void SPI_connect_my(const char *src);
@@ -90,8 +90,11 @@ void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int r
 void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *values, const char *nulls, int res, bool commit);
 void SPI_finish_my(void);
 void SPI_start_transaction_my(const char *src);
+void standby_connected(Backend *backend);
+void standby_finished(Backend *backend);
 void standby_fini(void);
 void standby_init(void);
+void standby_reseted(Backend *backend);
 void standby_timeout(void);
 
 #define Q(name) #name

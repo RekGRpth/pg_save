@@ -4,6 +4,18 @@ extern char *hostname;
 extern int init_probe;
 extern queue_t backend_queue;
 
+static void backend_connected(Backend *backend) {
+    return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
+}
+
+static void backend_reseted(Backend *backend) {
+    return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
+}
+
+static void backend_finished(Backend *backend) {
+    return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
+}
+
 const char *backend_state(Backend *backend) {
     return backend->state ? backend->state : "primary";
 }
@@ -21,7 +33,7 @@ void backend_idle(Backend *backend) {
 void backend_finish(Backend *backend) {
     D1("%s:%s/%s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend));
     queue_remove(&backend->queue);
-    backend->finish(backend);
+    backend_finished(backend);
     PQfinish(backend->conn);
     if (backend->name) pfree(backend->name);
     if (backend->state) pfree(backend->state);
@@ -54,7 +66,7 @@ static void backend_connect_or_reset_socket(Backend *backend) {
         case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", PQhost(backend->conn), PQport(backend->conn), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) backend->connect(backend);
+    if (connected) backend_connected(backend);
 }
 
 static bool backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
@@ -63,9 +75,9 @@ static bool backend_connect_or_reset(Backend *backend, const char *host, const c
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend_reseted(backend); return false;
         case PQPING_OK: D1("%s:%s/%s PQPING_OK", host, port, backend_state(backend)); break;
-        case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend->reset(backend); return false;
+        case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->probe, init_probe); backend_reseted(backend); return false;
     }
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));

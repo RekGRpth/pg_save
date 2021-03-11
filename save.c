@@ -69,8 +69,7 @@ char *save_etcd_kv_range(const char *key) {
 }
 
 static void save_timeout(void) {
-    if (RecoveryInProgress()) standby_timeout();
-    else primary_timeout();
+    return RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 static void save_init(void) {
@@ -91,15 +90,14 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    if (RecoveryInProgress()) standby_init();
-    else primary_init();
+    RecoveryInProgress() ? standby_init() : primary_init();
+    init_connect();
     etcd_kv_put = save_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
     etcd_kv_range = save_get_function_oid("save", "etcd_kv_range", 1, (Oid []){TEXTOID});
 }
 
 static void save_fini(void) {
-    if (RecoveryInProgress()) standby_fini();
-    else primary_fini();
+    return RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
 static void save_reload(void) {

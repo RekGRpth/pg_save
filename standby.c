@@ -23,13 +23,13 @@ static void standby_promote(Backend *backend) {
     backend_finish(backend);
 }
 
-static void standby_connect(Backend *backend) {
+void standby_connected(Backend *backend) {
     backend->probe = 0;
     init_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
-static void standby_reset(Backend *backend) {
+void standby_reseted(Backend *backend) {
     if (backend->probe++ < init_probe) return;
     if (backend->state) backend_finish(backend);
     else if (queue_size(&backend_queue) <= 1) init_kill();
@@ -37,7 +37,7 @@ static void standby_reset(Backend *backend) {
     else standby_promote(backend);
 }
 
-static void standby_finish(Backend *backend) {
+void standby_finished(Backend *backend) {
     if (!backend->state) primary = NULL;
 }
 
@@ -71,9 +71,6 @@ static void standby_result(PGresult *result) {
             backend = palloc0(sizeof(*backend));
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            backend->connect = standby_connect;
-            backend->reset = standby_reset;
-            backend->finish = standby_finish;
             backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
         }
     }
@@ -134,9 +131,6 @@ static void standby_primary_connect(void) {
     if (primary_port && primary_host) {
         D1("primary_host = %s, primary_port = %s", primary_host, primary_port);
         primary = palloc0(sizeof(*primary));
-        primary->connect = standby_connect;
-        primary->reset = standby_reset;
-        primary->finish = standby_finish;
         backend_connect(primary, primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name);
     }
     PQconninfoFree(opts);
@@ -144,7 +138,6 @@ static void standby_primary_connect(void) {
 
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
-    init_connect(standby_connect, standby_reset, standby_finish);
 }
 
 void standby_timeout(void) {

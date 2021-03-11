@@ -33,19 +33,19 @@ static void primary_set_synchronous_standby_names(void) {
     pfree(buf.data);
 }
 
-static void primary_connect(Backend *backend) {
+void primary_connected(Backend *backend) {
     backend->probe = 0;
     primary_set_synchronous_standby_names();
     init_set_state(backend_state(backend), PQhost(backend->conn));
     backend_idle(backend);
 }
 
-static void primary_reset(Backend *backend) {
+void primary_reseted(Backend *backend) {
     if (backend->probe++ < init_probe) return;
     backend_finish(backend);
 }
 
-static void primary_finish(Backend *backend) {
+void primary_finished(Backend *backend) {
 }
 
 static void primary_standby(void) {
@@ -96,9 +96,6 @@ static void primary_standby(void) {
             backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
-            backend->connect = primary_connect;
-            backend->reset = primary_reset;
-            backend->finish = primary_finish;
             backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
         }
         pfree((void *)name);
@@ -174,7 +171,6 @@ void primary_init(void) {
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
-    init_connect(primary_connect, primary_reset, primary_finish);
 }
 
 void primary_fini(void) {
