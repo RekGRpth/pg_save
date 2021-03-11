@@ -25,16 +25,6 @@ const char *backend_db(Backend *backend) {
     return db ? db : "";
 }
 
-void backend_finish(Backend *backend) {
-    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
-    queue_remove(&backend->queue);
-    backend_finished(backend);
-    PQfinish(backend->conn);
-    if (backend->name) pfree(backend->name);
-    if (backend->state) pfree(backend->state);
-    pfree(backend);
-}
-
 const char *backend_hostaddr(Backend *backend) {
     const char *hostaddr = PQhostaddr(backend->conn);
     return hostaddr ? hostaddr : "";
@@ -43,16 +33,6 @@ const char *backend_hostaddr(Backend *backend) {
 const char *backend_host(Backend *backend) {
     const char *host = PQhost(backend->conn);
     return host ? host : "";
-}
-
-static void backend_idle_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
-    }
-}
-
-void backend_idle(Backend *backend) {
-    backend->socket = backend_idle_socket;
 }
 
 const char *backend_name(Backend *backend) {
@@ -71,6 +51,26 @@ const char *backend_state(Backend *backend) {
 const char *backend_user(Backend *backend) {
     const char *user = PQuser(backend->conn);
     return user ? user : "";
+}
+
+void backend_finish(Backend *backend) {
+    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
+    queue_remove(&backend->queue);
+    backend_finished(backend);
+    PQfinish(backend->conn);
+    if (backend->name) pfree(backend->name);
+    if (backend->state) pfree(backend->state);
+    pfree(backend);
+}
+
+static void backend_idle_socket(Backend *backend) {
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
+    }
+}
+
+void backend_idle(Backend *backend) {
+    backend->socket = backend_idle_socket;
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
