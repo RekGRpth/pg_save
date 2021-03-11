@@ -13,6 +13,51 @@ static char *init_quorum;
 static char *init_sync;
 static int init_restart;
 
+static Node *makeStringConst(char *str, int location) {
+    A_Const *n = makeNode(A_Const);
+    n->val.type = T_String;
+    n->val.val.str = str;
+    n->location = location;
+    return (Node *)n;
+}
+
+#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
+static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
+    LOCAL_FCINFO(fcinfo, 0);
+    Datum result;
+    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
+    result = (*func)(fcinfo);
+    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
+    return result;
+}
+
+void init_alter_system_reset(const char *name) {
+    AlterSystemStmt *stmt;
+    stmt = makeNode(AlterSystemStmt);
+    stmt->setstmt = makeNode(VariableSetStmt);
+    stmt->setstmt->name = (char *)name;
+    stmt->setstmt->kind = VAR_RESET;
+    AlterSystemSetConfigFile(stmt);
+    pfree(stmt->setstmt);
+    pfree(stmt);
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+}
+
+void init_alter_system_set(const char *name, const char *old, const char *new) {
+    AlterSystemStmt *stmt;
+    if (old && old[0] != '\0' && !strcmp(old, new)) return;
+    stmt = makeNode(AlterSystemStmt);
+    stmt->setstmt = makeNode(VariableSetStmt);
+    stmt->setstmt->name = (char *)name;
+    stmt->setstmt->kind = VAR_SET_VALUE;
+    stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
+    AlterSystemSetConfigFile(stmt);
+    list_free_deep(stmt->setstmt->args);
+    pfree(stmt->setstmt);
+    pfree(stmt);
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+}
+
 void init_kill(void) {
 #ifdef HAVE_SETSID
     if (kill(-PostmasterPid, SIGTERM))
@@ -85,51 +130,6 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     init_save();
-}
-
-static Node *makeStringConst(char *str, int location) {
-    A_Const *n = makeNode(A_Const);
-    n->val.type = T_String;
-    n->val.val.str = str;
-    n->location = location;
-    return (Node *)n;
-}
-
-#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
-static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
-    LOCAL_FCINFO(fcinfo, 0);
-    Datum result;
-    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
-    result = (*func)(fcinfo);
-    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
-    return result;
-}
-
-void init_alter_system_set(const char *name, const char *old, const char *new) {
-    AlterSystemStmt *stmt;
-    if (old && old[0] != '\0' && !strcmp(old, new)) return;
-    stmt = makeNode(AlterSystemStmt);
-    stmt->setstmt = makeNode(VariableSetStmt);
-    stmt->setstmt->name = (char *)name;
-    stmt->setstmt->kind = VAR_SET_VALUE;
-    stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
-    AlterSystemSetConfigFile(stmt);
-    list_free_deep(stmt->setstmt->args);
-    pfree(stmt->setstmt);
-    pfree(stmt);
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
-}
-
-void init_alter_system_reset(const char *name) {
-    AlterSystemStmt *stmt;
-    stmt = makeNode(AlterSystemStmt);
-    stmt->setstmt = makeNode(VariableSetStmt);
-    stmt->setstmt->name = (char *)name;
-    stmt->setstmt->kind = VAR_RESET;
-    AlterSystemSetConfigFile(stmt);
-    pfree(stmt->setstmt);
-    pfree(stmt);
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
 
 void init_set_state(const char *state, const char *host) {
