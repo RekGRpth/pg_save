@@ -21,20 +21,6 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
-static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
-    LOCAL_FCINFO(fcinfo, 0);
-    Datum result;
-    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
-    result = (*func)(fcinfo);
-    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
-    return result;
-}
-
-void init_reload(void) {
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
-}
-
 void init_alter_system_reset(const char *name) {
     AlterSystemStmt *stmt;
     stmt = makeNode(AlterSystemStmt);
@@ -81,6 +67,20 @@ void init_kill(void) {
     if (kill(PostmasterPid, SIGTERM))
 #endif
     E("kill");
+}
+
+#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
+static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
+    LOCAL_FCINFO(fcinfo, 0);
+    Datum result;
+    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
+    result = (*func)(fcinfo);
+    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
+    return result;
+}
+
+void init_reload(void) {
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
 
 void init_reset_state(const char *host) {
