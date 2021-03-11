@@ -4,22 +4,6 @@ extern char *hostname;
 extern int init_attempt;
 extern queue_t backend_queue;
 
-static void backend_connected(Backend *backend) {
-    return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
-}
-
-static void backend_reseted(Backend *backend) {
-    return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
-}
-
-static void backend_updated(Backend *backend) {
-    return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
-}
-
-static void backend_finished(Backend *backend) {
-    return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
-}
-
 const char *backend_db(Backend *backend) {
     const char *db = PQdb(backend->conn);
     return db ? db : "";
@@ -67,6 +51,10 @@ const char *backend_user(Backend *backend) {
     return user ? user : "";
 }
 
+static void backend_connected(Backend *backend) {
+    return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
+}
+
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
@@ -102,6 +90,10 @@ static void backend_reset_socket(Backend *backend) {
     backend_connect_or_reset_socket(backend, PQresetPoll);
 }
 
+static void backend_reseted(Backend *backend) {
+    return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
+}
+
 static void backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {host, port, user, dbname, hostname, NULL};
@@ -133,6 +125,10 @@ void backend_connect(const char *host, const char *port, const char *user, const
     backend_connect_or_reset(backend, host, port, user, dbname);
 }
 
+static void backend_finished(Backend *backend) {
+    return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
+}
+
 void backend_finish(Backend *backend) {
     D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
     queue_remove(&backend->queue);
@@ -162,6 +158,10 @@ void backend_idle(Backend *backend) {
 
 void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
+}
+
+static void backend_updated(Backend *backend) {
+    return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
 }
 
 void backend_update(Backend *backend, const char *state, const char *name) {
