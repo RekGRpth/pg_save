@@ -136,6 +136,10 @@ void backend_finish(Backend *backend) {
     PQfinish(backend->conn);
     if (backend->name) pfree(backend->name);
     if (backend->state) pfree(backend->state);
+    pfree(backend->data);
+    pfree(backend->host);
+    pfree(backend->port);
+    pfree(backend->user);
     pfree(backend);
 }
 
