@@ -35,8 +35,23 @@ const char *backend_host(Backend *backend) {
     return host ? host : "";
 }
 
+static void backend_idle_socket(Backend *backend) {
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
+    }
+}
+
+void backend_idle(Backend *backend) {
+    backend->socket = backend_idle_socket;
+}
+
 const char *backend_name(Backend *backend) {
     return backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
+}
+
+const char *backend_port(Backend *backend) {
+    const char *port = PQport(backend->conn);
+    return port ? port : "";
 }
 
 const char *backend_state(Backend *backend) {
@@ -46,21 +61,6 @@ const char *backend_state(Backend *backend) {
 const char *backend_user(Backend *backend) {
     const char *user = PQuser(backend->conn);
     return user ? user : "";
-}
-
-const char *backend_port(Backend *backend) {
-    const char *port = PQport(backend->conn);
-    return port ? port : "";
-}
-
-static void backend_idle_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
-    }
-}
-
-void backend_idle(Backend *backend) {
-    backend->socket = backend_idle_socket;
 }
 
 void backend_finish(Backend *backend) {
