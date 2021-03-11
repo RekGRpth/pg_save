@@ -25,6 +25,13 @@ const char *backend_db(Backend *backend) {
     return db ? db : "";
 }
 
+const char *backend_error(Backend *backend) {
+    const char *err = PQerrorMessage(backend->conn);
+    int len = err ? strlen(err) : 0;
+    if (len) ((char *)err)[len - 1] = '\0';
+    return err;
+}
+
 const char *backend_hostaddr(Backend *backend) {
     const char *hostaddr = PQhostaddr(backend->conn);
     return hostaddr ? hostaddr : "";
@@ -42,6 +49,13 @@ const char *backend_name(Backend *backend) {
 const char *backend_port(Backend *backend) {
     const char *port = PQport(backend->conn);
     return port ? port : "";
+}
+
+const char *backend_result_error(PGresult *result) {
+    const char *err = PQresultErrorMessage(result);
+    int len = err ? strlen(err) : 0;
+    if (len) ((char *)err)[len - 1] = '\0';
+    return err;
 }
 
 const char *backend_state(Backend *backend) {
@@ -119,10 +133,6 @@ void backend_connect(const char *host, const char *port, const char *user, const
     backend_connect_or_reset(backend, host, port, user, dbname);
 }
 
-void backend_reset(Backend *backend) {
-    backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
-}
-
 void backend_finish(Backend *backend) {
     D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
     queue_remove(&backend->queue);
@@ -131,6 +141,13 @@ void backend_finish(Backend *backend) {
     if (backend->name) pfree(backend->name);
     if (backend->state) pfree(backend->state);
     pfree(backend);
+}
+
+void backend_fini(void) {
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        backend_finish(backend);
+    }
 }
 
 static void backend_idle_socket(Backend *backend) {
@@ -143,11 +160,8 @@ void backend_idle(Backend *backend) {
     backend->socket = backend_idle_socket;
 }
 
-void backend_fini(void) {
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        backend_finish(backend);
-    }
+void backend_reset(Backend *backend) {
+    backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
 }
 
 void backend_update(Backend *backend, const char *state, const char *name) {
@@ -157,18 +171,4 @@ void backend_update(Backend *backend, const char *state, const char *name) {
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     backend_updated(backend);
-}
-
-const char *backend_error(Backend *backend) {
-    const char *err = PQerrorMessage(backend->conn);
-    int len = err ? strlen(err) : 0;
-    if (len) ((char *)err)[len - 1] = '\0';
-    return err;
-}
-
-const char *backend_result_error(PGresult *result) {
-    const char *err = PQresultErrorMessage(result);
-    int len = err ? strlen(err) : 0;
-    if (len) ((char *)err)[len - 1] = '\0';
-    return err;
 }
