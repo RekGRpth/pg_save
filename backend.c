@@ -60,7 +60,6 @@ void backend_finish(Backend *backend) {
 }
 
 static void backend_connect_or_reset_socket(Backend *backend) {
-    bool connected = false;
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
@@ -73,19 +72,18 @@ static void backend_connect_or_reset_socket(Backend *backend) {
         case CONNECTION_GSS_STARTUP: D1("%s:%s/%s CONNECTION_GSS_STARTUP", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_MADE: D1("%s:%s/%s CONNECTION_MADE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_NEEDED: D1("%s:%s/%s CONNECTION_NEEDED", backend_host(backend), backend_port(backend), backend_state(backend)); break;
-        case CONNECTION_OK: D1("%s:%s/%s CONNECTION_OK", backend_host(backend), backend_port(backend), backend_state(backend)); connected = true; break;
+        case CONNECTION_OK: D1("%s:%s/%s CONNECTION_OK", backend_host(backend), backend_port(backend), backend_state(backend)); backend_connected(backend); return;
         case CONNECTION_SETENV: D1("%s:%s/%s CONNECTION_SETENV", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_SSL_STARTUP: D1("%s:%s/%s CONNECTION_SSL_STARTUP", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_STARTED: D1("%s:%s/%s CONNECTION_STARTED", backend_host(backend), backend_port(backend), backend_state(backend)); break;
     }
-    if (!connected) switch (backend->poll(backend->conn)) {
+    switch (backend->poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn)); break;
-        case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", backend_host(backend), backend_port(backend), backend_state(backend)); connected = true; break;
+        case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", backend_host(backend), backend_port(backend), backend_state(backend)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
-    if (connected) backend_connected(backend);
 }
 
 static bool backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
