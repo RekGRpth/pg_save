@@ -69,7 +69,7 @@ void backend_finish(Backend *backend) {
     pfree(backend);
 }
 
-static void backend_connect_or_reset_socket(Backend *backend) {
+static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
@@ -87,13 +87,21 @@ static void backend_connect_or_reset_socket(Backend *backend) {
         case CONNECTION_SSL_STARTUP: D1("%s:%s/%s CONNECTION_SSL_STARTUP", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_STARTED: D1("%s:%s/%s CONNECTION_STARTED", backend_host(backend), backend_port(backend), backend_state(backend)); break;
     }
-    switch (backend->poll(backend->conn)) {
+    switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn)); break;
         case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", backend_host(backend), backend_port(backend), backend_state(backend)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
+}
+
+static void backend_connect_socket(Backend *backend) {
+    backend_connect_or_reset_socket(backend, PQconnectPoll);
+}
+
+static void backend_reset_socket(Backend *backend) {
+    backend_connect_or_reset_socket(backend, PQresetPoll);
 }
 
 static bool backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
@@ -120,8 +128,7 @@ static bool backend_connect_or_reset(Backend *backend, const char *host, const c
 void backend_reset(Backend *backend) {
     if (!backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend))) return;
     backend->events = WL_SOCKET_WRITEABLE;
-    backend->poll = PQresetPoll;
-    backend->socket = backend_connect_or_reset_socket;
+    backend->socket = backend_reset_socket;
 }
 
 void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
@@ -129,8 +136,7 @@ void backend_connect(const char *host, const char *port, const char *user, const
     if (!backend_connect_or_reset(backend, host, port, user, dbname)) return;
     backend->events = WL_SOCKET_WRITEABLE;
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
-    backend->poll = PQconnectPoll;
-    backend->socket = backend_connect_or_reset_socket;
+    backend->socket = backend_connect_socket;
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     queue_insert_tail(&backend_queue, &backend->queue);
 }

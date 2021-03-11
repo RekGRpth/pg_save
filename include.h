@@ -51,7 +51,6 @@ typedef struct Backend {
     int attempt;
     int events;
     PGconn *conn;
-    PostgresPollingStatusType (*poll) (PGconn *conn);
     queue_t queue;
     void (*socket) (struct Backend *backend);
 } Backend;
