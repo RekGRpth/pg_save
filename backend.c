@@ -107,7 +107,6 @@ static void backend_connect_or_reset(Backend *backend, const char *host, const c
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
         backend->socket = backend_connect_socket;
-        queue_insert_tail(&backend_queue, &backend->queue);
     } else {
         if (!(PQresetStart(backend->conn))) E("%s:%s/%s !PQresetStart and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
         backend->socket = backend_reset_socket;
@@ -123,6 +122,7 @@ void backend_connect(const char *host, const char *port, const char *user, const
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     backend_connect_or_reset(backend, host, port, user, dbname);
+    queue_insert_tail(&backend_queue, &backend->queue);
 }
 
 static void backend_finished(Backend *backend) {
