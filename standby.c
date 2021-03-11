@@ -25,7 +25,7 @@ static void standby_promote(Backend *backend) {
 
 void standby_connected(Backend *backend) {
     backend->probe = 0;
-    init_set_state(backend_state(backend), PQhost(backend->conn));
+    init_set_state(PQhost(backend->conn), backend_state(backend));
     backend_idle(backend);
 }
 
@@ -43,7 +43,7 @@ void standby_finished(Backend *backend) {
 
 static void standby_state(const char *state) {
     init_alter_system_set("pg_save.state", init_state, state);
-    init_set_state(state, hostname);
+    init_set_state(hostname, state);
 }
 
 static void standby_result(PGresult *result) {
@@ -66,7 +66,7 @@ static void standby_result(PGresult *result) {
             pfree(backend->state);
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            init_set_state(backend_state(backend), PQhost(backend->conn));
+            init_set_state(PQhost(backend->conn), backend_state(backend));
         } else {
             backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }

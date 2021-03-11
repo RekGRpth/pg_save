@@ -87,7 +87,7 @@ void init_reset_state(const char *host) {
     if (init_async && !strcmp(init_async, host)) init_alter_system_reset("pg_save.async");
 }
 
-void init_set_state(const char *state, const char *host) {
+void init_set_state(const char *host, const char *state) {
     char *old;
     StringInfoData buf;
     initStringInfo(&buf);
