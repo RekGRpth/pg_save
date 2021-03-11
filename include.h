@@ -66,6 +66,7 @@ const char *backend_hostaddr(Backend *backend);
 const char *backend_host(Backend *backend);
 const char *backend_name(Backend *backend);
 const char *backend_port(Backend *backend);
+const char *backend_result_error(PGresult *result);
 const char *backend_state(Backend *backend);
 const char *backend_user(Backend *backend);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
