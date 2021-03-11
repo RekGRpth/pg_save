@@ -54,6 +54,24 @@ void primary_reseted(Backend *backend) {
 void primary_finished(Backend *backend) {
 }
 
+static void primary_result(void) {
+    for (uint64 row = 0; row < SPI_processed; row++) {
+        Backend *backend = NULL;
+        const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
+        const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
+        const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
+        D1("name = %s, host = %s, state = %s", name, host, state);
+        queue_each(&backend_queue, queue) {
+            Backend *backend_ = queue_data(queue, Backend, queue);
+            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
+        }
+        backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
+        pfree((void *)name);
+        pfree((void *)host);
+        pfree((void *)state);
+    }
+}
+
 static void primary_standby(void) {
     int nargs = queue_size(&backend_queue);
     Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*argtypes)) : NULL;
@@ -77,21 +95,7 @@ static void primary_standby(void) {
     if (nargs) appendStringInfoString(&buf, ")");
     SPI_connect_my(buf.data);
     SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
-    for (uint64 row = 0; row < SPI_processed; row++) {
-        Backend *backend = NULL;
-        const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
-        const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
-        const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
-        D1("name = %s, host = %s, state = %s", name, host, state);
-        queue_each(&backend_queue, queue) {
-            Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
-        }
-        backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
-        pfree((void *)name);
-        pfree((void *)host);
-        pfree((void *)state);
-    }
+    primary_result();
     SPI_finish_my();
     for (int i = 0; i < nargs; i++) pfree((void *)values[i]);
     pfree(buf.data);
