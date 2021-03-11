@@ -4,9 +4,8 @@ extern char *hostname;
 extern int init_attempt;
 extern queue_t backend_queue;
 
-const char *backend_db(Backend *backend) {
-    const char *db = PQdb(backend->conn);
-    return db ? db : "";
+const char *backend_data(Backend *backend) {
+    return backend->data;
 }
 
 const char *backend_error(Backend *backend) {
@@ -22,8 +21,7 @@ const char *backend_hostaddr(Backend *backend) {
 }
 
 const char *backend_host(Backend *backend) {
-    const char *host = PQhost(backend->conn);
-    return host ? host : "";
+    return backend->host;
 }
 
 const char *backend_name(Backend *backend) {
@@ -31,8 +29,7 @@ const char *backend_name(Backend *backend) {
 }
 
 const char *backend_port(Backend *backend) {
-    const char *port = PQport(backend->conn);
-    return port ? port : "";
+    return backend->port;
 }
 
 const char *backend_result_error(PGresult *result) {
@@ -47,8 +44,7 @@ const char *backend_state(Backend *backend) {
 }
 
 const char *backend_user(Backend *backend) {
-    const char *user = PQuser(backend->conn);
-    return user ? user : "";
+    return backend->user;
 }
 
 static void backend_connected(Backend *backend) {
@@ -94,15 +90,15 @@ static void backend_reseted(Backend *backend) {
     return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }
 
-static void backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *data) {
+static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, port, user, data, hostname, NULL};
+    const char *values[] = {backend->host, backend->port, backend->user, backend->data, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
-        case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", host, port, backend_state(backend), backend->attempt, init_attempt); backend_reseted(backend); return;
-        case PQPING_OK: D1("%s:%s/%s PQPING_OK", host, port, backend_state(backend)); break;
-        case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->attempt, init_attempt); backend_reseted(backend); return;
+        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", backend_host(backend), backend_port(backend), backend_state(backend)); break;
+        case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", backend_host(backend), backend_port(backend), backend_state(backend), backend->attempt, init_attempt); backend_reseted(backend); return;
+        case PQPING_OK: D1("%s:%s/%s PQPING_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
+        case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", backend_host(backend), backend_port(backend), backend_state(backend), backend->attempt, init_attempt); backend_reseted(backend); return;
     }
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
@@ -119,9 +115,13 @@ static void backend_connect_or_reset(Backend *backend, const char *host, const c
 
 void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state, const char *name) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
+    backend->data = MemoryContextStrdup(TopMemoryContext, data);
+    backend->host = MemoryContextStrdup(TopMemoryContext, host);
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
+    backend->port = MemoryContextStrdup(TopMemoryContext, port);
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
-    backend_connect_or_reset(backend, host, port, user, data);
+    backend->user = MemoryContextStrdup(TopMemoryContext, user);
+    backend_connect_or_reset(backend);
     queue_insert_tail(&backend_queue, &backend->queue);
 }
 
@@ -157,7 +157,7 @@ void backend_idle(Backend *backend) {
 }
 
 void backend_reset(Backend *backend) {
-    backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
+    backend_connect_or_reset(backend);
 }
 
 static void backend_updated(Backend *backend) {

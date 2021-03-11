@@ -46,8 +46,12 @@
 #include "queue.h"
 
 typedef struct Backend {
+    char *data;
+    char *host;
     char *name;
+    char *port;
     char *state;
+    char *user;
     int attempt;
     int events;
     PGconn *conn;
@@ -60,7 +64,7 @@ typedef struct _SPI_plan SPI_plan;
 bool etcd_kv_put(const char *key, const char *value, int ttl);
 char *etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
-const char *backend_db(Backend *backend);
+const char *backend_data(Backend *backend);
 const char *backend_error(Backend *backend);
 const char *backend_hostaddr(Backend *backend);
 const char *backend_host(Backend *backend);
