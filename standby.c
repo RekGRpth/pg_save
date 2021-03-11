@@ -8,6 +8,20 @@ extern TimestampTz start;
 static Backend *primary = NULL;
 static int etcd_attempt = 0;
 
+void standby_connected(Backend *backend) {
+    backend->attempt = 0;
+    init_set_state(backend_host(backend), backend_state(backend));
+    backend_idle(backend);
+}
+
+void standby_finished(Backend *backend) {
+    if (!backend->state) primary = NULL;
+}
+
+void standby_fini(void) {
+    backend_fini();
+}
+
 static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state);
     queue_each(&backend_queue, queue) {
@@ -25,12 +39,6 @@ static void standby_promote(Backend *backend) {
     backend_finish(backend);
 }
 
-void standby_connected(Backend *backend) {
-    backend->attempt = 0;
-    init_set_state(backend_host(backend), backend_state(backend));
-    backend_idle(backend);
-}
-
 void standby_updated(Backend *backend) {
     init_set_state(backend_host(backend), backend_state(backend));
 }
@@ -41,10 +49,6 @@ void standby_reseted(Backend *backend) {
     else if (!queue_size(&backend_queue)) init_kill();
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else standby_promote(backend);
-}
-
-void standby_finished(Backend *backend) {
-    if (!backend->state) primary = NULL;
 }
 
 static void standby_state(const char *state) {
@@ -158,8 +162,4 @@ void standby_timeout(void) {
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
     else standby_primary(primary);
-}
-
-void standby_fini(void) {
-    backend_fini();
 }
