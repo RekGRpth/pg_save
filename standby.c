@@ -37,7 +37,7 @@ void standby_updated(Backend *backend) {
 void standby_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     if (backend->state) backend_finish(backend);
-    else if (queue_size(&backend_queue) <= 1) init_kill();
+    else if (!queue_size(&backend_queue)) init_kill();
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else standby_promote(backend);
 }
