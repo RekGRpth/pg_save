@@ -45,7 +45,7 @@
 
 #include "queue.h"
 
-typedef enum STATE {PRIMARY, SYNC, QUORUM, POTENTIAL, ASYNC};
+typedef enum STATE {PRIMARY, SYNC, QUORUM, POTENTIAL, ASYNC} STATE;
 
 typedef struct Backend {
     char *name;
