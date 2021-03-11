@@ -93,8 +93,7 @@ static void primary_standby(void) {
             primary_set_synchronous_standby_names();
             init_set_state(backend_state(backend), PQhost(backend->conn));
         } else {
-            backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
-            backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
+            backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }
         pfree((void *)name);
         pfree((void *)host);

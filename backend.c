@@ -97,7 +97,8 @@ void backend_reset(Backend *backend) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(Backend *backend, const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
+void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
+    Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     if (!backend_connect_or_reset(backend, host, port, user, dbname)) return;
     backend->events = WL_SOCKET_WRITEABLE;
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
