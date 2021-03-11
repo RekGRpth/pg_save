@@ -98,11 +98,6 @@ void primary_init(void) {
     primary_extension("save", "pg_save");
 }
 
-void primary_updated(Backend *backend) {
-    primary_set_synchronous_standby_names();
-    init_set_state(backend_host(backend), backend_state(backend));
-}
-
 void primary_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     backend_finish(backend);
@@ -169,4 +164,9 @@ void primary_timeout(void) {
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     primary_standby();
+}
+
+void primary_updated(Backend *backend) {
+    primary_set_synchronous_standby_names();
+    init_set_state(backend_host(backend), backend_state(backend));
 }
