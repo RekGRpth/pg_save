@@ -4,7 +4,7 @@ extern char *hostname;
 extern char *init_policy;
 extern char *init_primary;
 extern char *init_state;
-extern int init_probe;
+extern int init_attempt;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
@@ -34,14 +34,14 @@ static void primary_set_synchronous_standby_names(void) {
 }
 
 void primary_connected(Backend *backend) {
-    backend->probe = 0;
+    backend->attempt = 0;
     primary_set_synchronous_standby_names();
     init_set_state(backend_host(backend), backend_state(backend));
     backend_idle(backend);
 }
 
 void primary_reseted(Backend *backend) {
-    if (backend->probe++ < init_probe) return;
+    if (backend->attempt++ < init_attempt) return;
     backend_finish(backend);
 }
 

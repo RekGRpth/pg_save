@@ -48,8 +48,8 @@
 typedef struct Backend {
     char *name;
     char *state;
+    int attempt;
     int events;
-    int probe;
     PGconn *conn;
     PostgresPollingStatusType (*poll) (PGconn *conn);
     queue_t queue;

@@ -5,7 +5,7 @@ PG_MODULE_MAGIC;
 char *init_policy;
 char *init_primary;
 char *init_state;
-int init_probe;
+int init_attempt;
 int init_timeout;
 static char *init_async;
 static char *init_potential;
@@ -126,8 +126,8 @@ static void init_work(void) {
 }
 
 static void init_save(void) {
-    DefineCustomIntVariable("pg_save.probe", "pg_save probe", NULL, &init_probe, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    D1("probe = %i", init_probe);
+    DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    D1("attempt = %i", init_attempt);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     D1("restart = %i", init_restart);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);

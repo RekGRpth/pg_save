@@ -3,7 +3,7 @@
 Backend *primary = NULL;
 extern char *hostname;
 extern char *init_state;
-extern int init_probe;
+extern int init_attempt;
 extern queue_t backend_queue;
 extern TimestampTz start;
 
@@ -24,13 +24,13 @@ static void standby_promote(Backend *backend) {
 }
 
 void standby_connected(Backend *backend) {
-    backend->probe = 0;
+    backend->attempt = 0;
     init_set_state(backend_host(backend), backend_state(backend));
     backend_idle(backend);
 }
 
 void standby_reseted(Backend *backend) {
-    if (backend->probe++ < init_probe) return;
+    if (backend->attempt++ < init_attempt) return;
     if (backend->state) backend_finish(backend);
     else if (queue_size(&backend_queue) <= 1) init_kill();
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
