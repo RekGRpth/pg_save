@@ -24,6 +24,10 @@ const char *backend_host(Backend *backend) {
     return PQhost(backend->conn);
 }
 
+const char *backend_hostaddr(Backend *backend) {
+    return PQhostaddr(backend->conn);
+}
+
 const char *backend_port(Backend *backend) {
     return PQport(backend->conn);
 }

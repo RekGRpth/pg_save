@@ -96,7 +96,7 @@ static void standby_primary(Backend *backend) {
         if (nParams) appendStringInfoString(&buf, ", ");
         else appendStringInfoString(&buf, " WHERE (client_addr, sync_state) NOT IN (");
         paramTypes[nParams] = INETOID;
-        paramValues[nParams] = PQhostaddr(backend->conn);
+        paramValues[nParams] = (char *)backend_hostaddr(backend);
         nParams++;
         appendStringInfo(&buf, "($%i", nParams);
         paramTypes[nParams] = TEXTOID;

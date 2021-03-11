@@ -61,6 +61,7 @@ typedef struct _SPI_plan SPI_plan;
 bool save_etcd_kv_put(const char *key, const char *value, int ttl);
 char *save_etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
+const char *backend_hostaddr(Backend *backend);
 const char *backend_host(Backend *backend);
 const char *backend_port(Backend *backend);
 const char *backend_state(Backend *backend);
