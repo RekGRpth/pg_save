@@ -7,6 +7,7 @@ extern char *init_state;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern TimestampTz start;
+static int etcd_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
@@ -105,13 +106,13 @@ static void primary_standby(void) {
 }
 
 void primary_timeout(void) {
-    if (!save_etcd_kv_put(init_state, hostname, 0)) {
-        W("!save_etcd_kv_put");
-        init_kill();
+    if (etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
+        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
+        if (etcd_attempt++ >= init_attempt) init_kill();
     }
-    if (!save_etcd_kv_put(hostname, timestamptz_to_str(start), 0)) {
-        W("!save_etcd_kv_put");
-        init_kill();
+    if (etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
+        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
+        if (etcd_attempt++ >= init_attempt) init_kill();
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);

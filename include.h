@@ -58,8 +58,8 @@ typedef struct Backend {
 
 typedef struct _SPI_plan SPI_plan;
 
-bool save_etcd_kv_put(const char *key, const char *value, int ttl);
-char *save_etcd_kv_range(const char *key);
+bool etcd_kv_put(const char *key, const char *value, int ttl);
+char *etcd_kv_range(const char *key);
 char *TextDatumGetCStringMy(Datum datum);
 const char *backend_db(Backend *backend);
 const char *backend_hostaddr(Backend *backend);
@@ -76,6 +76,7 @@ void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
+void etcd_init(void);
 void init_alter_system_reset(const char *name);
 void init_alter_system_set(const char *name, const char *old, const char *new);
 void init_connect(void);
