@@ -13,6 +13,15 @@ static char *init_quorum;
 static char *init_sync;
 static int init_restart;
 
+void init_kill(void) {
+#ifdef HAVE_SETSID
+    if (kill(-PostmasterPid, SIGTERM))
+#else
+    if (kill(PostmasterPid, SIGTERM))
+#endif
+    E("kill");
+}
+
 static void init_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
@@ -68,15 +77,6 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     init_save();
-}
-
-void init_kill(void) {
-#ifdef HAVE_SETSID
-    if (kill(-PostmasterPid, SIGTERM))
-#else
-    if (kill(PostmasterPid, SIGTERM))
-#endif
-    E("kill");
 }
 
 void init_reset(Backend *backend) {
