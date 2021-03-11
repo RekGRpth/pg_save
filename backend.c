@@ -21,15 +21,18 @@ const char *backend_state(Backend *backend) {
 }
 
 const char *backend_host(Backend *backend) {
-    return PQhost(backend->conn);
+    const char *host = PQhost(backend->conn);
+    return host ? host : "";
 }
 
 const char *backend_hostaddr(Backend *backend) {
-    return PQhostaddr(backend->conn);
+    const char *hostaddr = PQhostaddr(backend->conn);
+    return hostaddr ? hostaddr : "";
 }
 
 const char *backend_port(Backend *backend) {
-    return PQport(backend->conn);
+    const char *port = PQport(backend->conn);
+    return port ? port : "";
 }
 
 static void backend_idle_socket(Backend *backend) {
