@@ -8,6 +8,10 @@ TimestampTz start;
 volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
+static void save_fini(void) {
+    return RecoveryInProgress() ? standby_fini() : primary_fini();
+}
+
 static void save_sighup(SIGNAL_ARGS) {
     int save_errno = errno;
     sighup = true;
@@ -20,10 +24,6 @@ static void save_sigterm(SIGNAL_ARGS) {
     sigterm = true;
     SetLatch(MyLatch);
     errno = save_errno;
-}
-
-static void save_timeout(void) {
-    return RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 static void save_init(void) {
@@ -49,10 +49,6 @@ static void save_init(void) {
     etcd_init();
 }
 
-static void save_fini(void) {
-    return RecoveryInProgress() ? standby_fini() : primary_fini();
-}
-
 static void save_reload(void) {
     sighup = false;
     ProcessConfigFile(PGC_SIGHUP);
@@ -70,6 +66,10 @@ static void save_socket(Backend *backend) {
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
+}
+
+static void save_timeout(void) {
+    return RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 void save_worker(Datum main_arg) {
