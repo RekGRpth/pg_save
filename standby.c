@@ -25,7 +25,7 @@ static void standby_promote(Backend *backend) {
 
 void standby_connected(Backend *backend) {
     backend->probe = 0;
-    init_set_state(PQhost(backend->conn), backend_state(backend));
+    init_set_state(backend_host(backend), backend_state(backend));
     backend_idle(backend);
 }
 
@@ -59,15 +59,15 @@ static void standby_result(PGresult *result) {
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
         }
         if (backend) {
-            init_reset_state(PQhost(backend->conn));
+            init_reset_state(backend_host(backend));
             if (backend->name) pfree(backend->name);
             pfree(backend->state);
             backend->name = pstrdup(name);
             backend->state = pstrdup(state);
-            init_set_state(PQhost(backend->conn), backend_state(backend));
+            init_set_state(backend_host(backend), backend_state(backend));
         } else {
             backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }
@@ -77,7 +77,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: E("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -105,7 +105,7 @@ static void standby_primary(Backend *backend) {
         appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
-    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", PQhost(backend->conn), PQport(backend->conn), backend_state(backend), PQerrorMessage(backend->conn));
+    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
     backend->socket = standby_primary_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);

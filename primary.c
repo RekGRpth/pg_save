@@ -36,7 +36,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     backend->probe = 0;
     primary_set_synchronous_standby_names();
-    init_set_state(PQhost(backend->conn), backend_state(backend));
+    init_set_state(backend_host(backend), backend_state(backend));
     backend_idle(backend);
 }
 
@@ -82,16 +82,16 @@ static void primary_standby(void) {
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
         }
         if (backend) {
-            init_reset_state(PQhost(backend->conn));
+            init_reset_state(backend_host(backend));
             if (backend->name) pfree(backend->name);
             pfree(backend->state);
             backend->name = MemoryContextStrdup(TopMemoryContext, name);
             backend->state = MemoryContextStrdup(TopMemoryContext, state);
             primary_set_synchronous_standby_names();
-            init_set_state(PQhost(backend->conn), backend_state(backend));
+            init_set_state(backend_host(backend), backend_state(backend));
         } else {
             backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         }
