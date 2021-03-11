@@ -72,7 +72,7 @@ const char *backend_user(Backend *backend);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
-void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name);
+void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state, const char *name);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

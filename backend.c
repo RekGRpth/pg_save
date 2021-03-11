@@ -94,9 +94,9 @@ static void backend_reseted(Backend *backend) {
     return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }
 
-static void backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *dbname) {
+static void backend_connect_or_reset(Backend *backend, const char *host, const char *port, const char *user, const char *data) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {host, port, user, dbname, hostname, NULL};
+    const char *values[] = {host, port, user, data, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", host, port, backend_state(backend)); break;
@@ -117,11 +117,11 @@ static void backend_connect_or_reset(Backend *backend, const char *host, const c
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
+void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state, const char *name) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
-    backend_connect_or_reset(backend, host, port, user, dbname);
+    backend_connect_or_reset(backend, host, port, user, data);
     queue_insert_tail(&backend_queue, &backend->queue);
 }
 
