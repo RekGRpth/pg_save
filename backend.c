@@ -29,6 +29,16 @@ const char *backend_host(Backend *backend) {
     return host ? host : "";
 }
 
+const char *backend_user(Backend *backend) {
+    const char *user = PQuser(backend->conn);
+    return user ? user : "";
+}
+
+const char *backend_db(Backend *backend) {
+    const char *db = PQdb(backend->conn);
+    return db ? db : "";
+}
+
 const char *backend_hostaddr(Backend *backend) {
     const char *hostaddr = PQhostaddr(backend->conn);
     return hostaddr ? hostaddr : "";
@@ -108,10 +118,10 @@ static bool backend_connect_or_reset(Backend *backend, const char *host, const c
 }
 
 void backend_reset(Backend *backend) {
-    if (!backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), PQuser(backend->conn), PQdb(backend->conn))) return;
+    if (!backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend))) return;
+    backend->events = WL_SOCKET_WRITEABLE;
     backend->poll = PQresetPoll;
     backend->socket = backend_connect_or_reset_socket;
-    backend->events = WL_SOCKET_WRITEABLE;
 }
 
 void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
