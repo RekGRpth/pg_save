@@ -25,6 +25,16 @@ const char *backend_db(Backend *backend) {
     return db ? db : "";
 }
 
+void backend_finish(Backend *backend) {
+    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
+    queue_remove(&backend->queue);
+    backend_finished(backend);
+    PQfinish(backend->conn);
+    if (backend->name) pfree(backend->name);
+    if (backend->state) pfree(backend->state);
+    pfree(backend);
+}
+
 const char *backend_hostaddr(Backend *backend) {
     const char *hostaddr = PQhostaddr(backend->conn);
     return hostaddr ? hostaddr : "";
@@ -61,16 +71,6 @@ const char *backend_state(Backend *backend) {
 const char *backend_user(Backend *backend) {
     const char *user = PQuser(backend->conn);
     return user ? user : "";
-}
-
-void backend_finish(Backend *backend) {
-    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
-    queue_remove(&backend->queue);
-    backend_finished(backend);
-    PQfinish(backend->conn);
-    if (backend->name) pfree(backend->name);
-    if (backend->state) pfree(backend->state);
-    pfree(backend);
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
