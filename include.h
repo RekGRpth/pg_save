@@ -94,6 +94,7 @@ void primary_init(void);
 void primary_reseted(Backend *backend);
 void primary_timeout(void);
 void primary_updated(Backend *backend);
+void save_worker(Datum main_arg);
 void SPI_commit_my(void);
 void SPI_connect_my(const char *src);
 void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit);

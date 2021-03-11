@@ -72,7 +72,7 @@ static void save_socket(Backend *backend) {
     backend->socket(backend);
 }
 
-void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
+void save_worker(Datum main_arg) {
     TimestampTz stop = (start = GetCurrentTimestamp());
     save_init();
     while (!sigterm) {
