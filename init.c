@@ -72,9 +72,9 @@ void _PG_init(void); void _PG_init(void) {
 
 void init_kill(void) {
 #ifdef HAVE_SETSID
-    if (kill(-PostmasterPid, SIGQUIT))
+    if (kill(-PostmasterPid, SIGTERM))
 #else
-    if (kill(PostmasterPid, SIGQUIT))
+    if (kill(PostmasterPid, SIGTERM))
 #endif
     E("kill");
 }
