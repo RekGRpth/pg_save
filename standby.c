@@ -73,7 +73,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: E("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
     }
     backend_idle(backend);
 }

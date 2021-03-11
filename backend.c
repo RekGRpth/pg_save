@@ -55,7 +55,7 @@ const char *backend_port(Backend *backend) {
 
 static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
     }
 }
 
@@ -161,6 +161,13 @@ void backend_update(Backend *backend, const char *state, const char *name) {
 
 const char *backend_error(Backend *backend) {
     const char *err = PQerrorMessage(backend->conn);
+    int len = err ? strlen(err) : 0;
+    if (len) ((char *)err)[len - 1] = '\0';
+    return err;
+}
+
+const char *backend_result_error(PGresult *result) {
+    const char *err = PQresultErrorMessage(result);
     int len = err ? strlen(err) : 0;
     if (len) ((char *)err)[len - 1] = '\0';
     return err;
