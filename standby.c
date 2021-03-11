@@ -107,7 +107,7 @@ static void standby_primary(Backend *backend) {
         nParams++;
         appendStringInfo(&buf, ", $%i)", nParams);
     }
-    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
+    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
     backend->socket = standby_primary_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);

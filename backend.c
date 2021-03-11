@@ -77,7 +77,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
-        case CONNECTION_BAD: E("%s:%s/%s CONNECTION_BAD and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case CONNECTION_BAD: E("%s:%s/%s CONNECTION_BAD and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend)); break;
 #if (PG_VERSION_NUM >= 130000)
         case CONNECTION_CHECK_TARGET: D1("%s:%s/%s CONNECTION_CHECK_TARGET", backend_host(backend), backend_port(backend), backend_state(backend)); break;
 #endif
@@ -93,7 +93,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", backend_host(backend), backend_port(backend), backend_state(backend)); break;
-        case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn)); break;
+        case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend)); break;
         case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", backend_host(backend), backend_port(backend), backend_state(backend)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", backend_host(backend), backend_port(backend), backend_state(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
@@ -119,15 +119,15 @@ static void backend_connect_or_reset(Backend *backend, const char *host, const c
         case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", host, port, backend_state(backend), backend->attempt, init_attempt); backend_reseted(backend); return;
     }
     if (!backend->conn) {
-        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
+        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
         backend->socket = backend_connect_socket;
         queue_insert_tail(&backend_queue, &backend->queue);
     } else {
-        if (!(PQresetStart(backend->conn))) E("%s:%s/%s !PQresetStart and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
+        if (!(PQresetStart(backend->conn))) E("%s:%s/%s !PQresetStart and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
         backend->socket = backend_reset_socket;
     }
-    if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
-    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
+    if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
+    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->events = WL_SOCKET_WRITEABLE;
 }
