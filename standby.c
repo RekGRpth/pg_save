@@ -80,8 +80,8 @@ static void standby_primary_socket(Backend *backend) {
 
 static void standby_primary(Backend *backend) {
     int nParams = queue_size(&backend_queue);
-    Oid *paramTypes = nParams ? palloc(2 * nParams * sizeof(*paramTypes)) : NULL;
-    char **paramValues = nParams ? palloc(2 * nParams * sizeof(*paramValues)) : NULL;
+    Oid *paramTypes = nParams ? MemoryContextAlloc(TopMemoryContext, 2 * nParams * sizeof(*paramTypes)) : NULL;
+    char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, 2 * nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");

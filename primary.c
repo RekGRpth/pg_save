@@ -56,8 +56,8 @@ void primary_finished(Backend *backend) {
 
 static void primary_standby(void) {
     int nargs = queue_size(&backend_queue);
-    Oid *argtypes = nargs ? palloc(2 * nargs * sizeof(*argtypes)) : NULL;
-    Datum *values = nargs ? palloc(2 * nargs * sizeof(*values)) : NULL;
+    Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*argtypes)) : NULL;
+    Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");

@@ -84,7 +84,7 @@ void save_worker(Datum main_arg); void save_worker(Datum main_arg) {
             if (PQsocket(backend->conn) < 0) continue;
             nevents++;
         }
-        events = palloc0(nevents * sizeof(*events));
+        events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
