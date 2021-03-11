@@ -22,6 +22,16 @@ void standby_fini(void) {
     backend_fini();
 }
 
+void standby_init(void) {
+    init_alter_system_reset("synchronous_standby_names");
+}
+
+static void standby_promote(Backend *backend) {
+    D1("state = %s", init_state);
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
+    backend_finish(backend);
+}
+
 static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state);
     queue_each(&backend_queue, queue) {
@@ -31,16 +41,6 @@ static void standby_reprimary(Backend *backend) {
         init_reload();
     }
     backend_finish(backend);
-}
-
-static void standby_promote(Backend *backend) {
-    D1("state = %s", init_state);
-    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
-    backend_finish(backend);
-}
-
-void standby_updated(Backend *backend) {
-    init_set_state(backend_host(backend), backend_state(backend));
 }
 
 void standby_reseted(Backend *backend) {
@@ -140,10 +140,6 @@ static void standby_primary_connect(void) {
     PQconninfoFree(opts);
 }
 
-void standby_init(void) {
-    init_alter_system_reset("synchronous_standby_names");
-}
-
 void standby_timeout(void) {
     if (etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
@@ -162,4 +158,8 @@ void standby_timeout(void) {
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
     else standby_primary(primary);
+}
+
+void standby_updated(Backend *backend) {
+    init_set_state(backend_host(backend), backend_state(backend));
 }
