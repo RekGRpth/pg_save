@@ -20,24 +20,6 @@ static void backend_finished(Backend *backend) {
     return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
 }
 
-const char *backend_state(Backend *backend) {
-    return backend->state ? backend->state : "primary";
-}
-
-const char *backend_name(Backend *backend) {
-    return backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
-}
-
-const char *backend_host(Backend *backend) {
-    const char *host = PQhost(backend->conn);
-    return host ? host : "";
-}
-
-const char *backend_user(Backend *backend) {
-    const char *user = PQuser(backend->conn);
-    return user ? user : "";
-}
-
 const char *backend_db(Backend *backend) {
     const char *db = PQdb(backend->conn);
     return db ? db : "";
@@ -46,6 +28,24 @@ const char *backend_db(Backend *backend) {
 const char *backend_hostaddr(Backend *backend) {
     const char *hostaddr = PQhostaddr(backend->conn);
     return hostaddr ? hostaddr : "";
+}
+
+const char *backend_host(Backend *backend) {
+    const char *host = PQhost(backend->conn);
+    return host ? host : "";
+}
+
+const char *backend_name(Backend *backend) {
+    return backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
+}
+
+const char *backend_state(Backend *backend) {
+    return backend->state ? backend->state : "primary";
+}
+
+const char *backend_user(Backend *backend) {
+    const char *user = PQuser(backend->conn);
+    return user ? user : "";
 }
 
 const char *backend_port(Backend *backend) {
