@@ -58,6 +58,20 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
 }
 
+static void init_connect_internal(const char *host, const char *state) {
+    Backend *backend = palloc0(sizeof(*backend));
+    backend->state = state ? pstrdup(state) : NULL;
+    backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
+}
+
+void init_connect(void) {
+    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, NULL);
+    if (init_sync && (!init_state || strcmp(init_state, "sync"))) init_connect_internal(init_sync, "sync");
+    if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) init_connect_internal(init_quorum, "quorum");
+    if (init_potential && (!init_state || strcmp(init_state, "potential"))) init_connect_internal(init_potential, "potential");
+    if (init_async && (!init_state || strcmp(init_state, "async"))) init_connect_internal(init_async, "async");
+}
+
 void init_kill(void) {
 #ifdef HAVE_SETSID
     if (kill(-PostmasterPid, SIGTERM))
@@ -141,18 +155,4 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     init_save();
-}
-
-static void init_connect_internal(const char *host, const char *state) {
-    Backend *backend = palloc0(sizeof(*backend));
-    backend->state = state ? pstrdup(state) : NULL;
-    backend_connect(backend, host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name);
-}
-
-void init_connect(void) {
-    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, NULL);
-    if (init_sync && (!init_state || strcmp(init_state, "sync"))) init_connect_internal(init_sync, "sync");
-    if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) init_connect_internal(init_quorum, "quorum");
-    if (init_potential && (!init_state || strcmp(init_state, "potential"))) init_connect_internal(init_potential, "potential");
-    if (init_async && (!init_state || strcmp(init_state, "async"))) init_connect_internal(init_async, "async");
 }
