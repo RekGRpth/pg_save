@@ -53,26 +53,6 @@ const char *backend_user(Backend *backend) {
     return user ? user : "";
 }
 
-void backend_finish(Backend *backend) {
-    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
-    queue_remove(&backend->queue);
-    backend_finished(backend);
-    PQfinish(backend->conn);
-    if (backend->name) pfree(backend->name);
-    if (backend->state) pfree(backend->state);
-    pfree(backend);
-}
-
-static void backend_idle_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
-    }
-}
-
-void backend_idle(Backend *backend) {
-    backend->socket = backend_idle_socket;
-}
-
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend_host(backend), backend_port(backend), backend_state(backend)); break;
@@ -132,15 +112,35 @@ static void backend_connect_or_reset(Backend *backend, const char *host, const c
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_reset(Backend *backend) {
-    backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
-}
-
 void backend_connect(const char *host, const char *port, const char *user, const char *dbname, const char *state, const char *name) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->state = state ? MemoryContextStrdup(TopMemoryContext, state) : NULL;
     backend_connect_or_reset(backend, host, port, user, dbname);
+}
+
+void backend_reset(Backend *backend) {
+    backend_connect_or_reset(backend, backend_host(backend), backend_port(backend), backend_user(backend), backend_db(backend));
+}
+
+void backend_finish(Backend *backend) {
+    D1("%s:%s/%s", backend_host(backend), backend_port(backend), backend_state(backend));
+    queue_remove(&backend->queue);
+    backend_finished(backend);
+    PQfinish(backend->conn);
+    if (backend->name) pfree(backend->name);
+    if (backend->state) pfree(backend->state);
+    pfree(backend);
+}
+
+static void backend_idle_socket(Backend *backend) {
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        default: D1("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
+    }
+}
+
+void backend_idle(Backend *backend) {
+    backend->socket = backend_idle_socket;
 }
 
 void backend_fini(void) {
