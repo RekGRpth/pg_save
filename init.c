@@ -31,6 +31,10 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
     return result;
 }
 
+void init_reload(void) {
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+}
+
 void init_alter_system_reset(const char *name) {
     AlterSystemStmt *stmt;
     stmt = makeNode(AlterSystemStmt);
@@ -40,7 +44,7 @@ void init_alter_system_reset(const char *name) {
     AlterSystemSetConfigFile(stmt);
     pfree(stmt->setstmt);
     pfree(stmt);
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+    init_reload();
 }
 
 void init_alter_system_set(const char *name, const char *old, const char *new) {
@@ -55,7 +59,7 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+    init_reload();
 }
 
 static void init_connect_internal(const char *host, const char *state) {

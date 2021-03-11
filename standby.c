@@ -14,7 +14,7 @@ static void standby_reprimary(Backend *backend) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (strcmp(backend->state, "sync")) continue;
         WriteRecoveryConfig(backend->conn, getenv("PGDATA"), GenerateRecoveryConfig(backend->conn, PrimarySlotName));
-        if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+        init_reload();
     }
     backend_finish(backend);
 }
