@@ -13,14 +13,6 @@ static char *init_quorum;
 static char *init_sync;
 static int init_restart;
 
-static Node *makeStringConst(char *str, int location) {
-    A_Const *n = makeNode(A_Const);
-    n->val.type = T_String;
-    n->val.val.str = str;
-    n->location = location;
-    return (Node *)n;
-}
-
 void init_alter_system_reset(const char *name) {
     AlterSystemStmt *stmt;
     stmt = makeNode(AlterSystemStmt);
@@ -31,6 +23,14 @@ void init_alter_system_reset(const char *name) {
     pfree(stmt->setstmt);
     pfree(stmt);
     init_reload();
+}
+
+static Node *makeStringConst(char *str, int location) {
+    A_Const *n = makeNode(A_Const);
+    n->val.type = T_String;
+    n->val.val.str = str;
+    n->location = location;
+    return (Node *)n;
 }
 
 void init_alter_system_set(const char *name, const char *old, const char *new) {
