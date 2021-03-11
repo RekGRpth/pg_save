@@ -84,12 +84,12 @@ static void standby_primary(Backend *backend) {
     char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, 2 * nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication");
+    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication WHERE true");
     nParams = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (!backend->state) continue;
-        appendStringInfoString(&buf, nParams ? ", " : " WHERE (client_addr, sync_state) NOT IN (");
+        appendStringInfoString(&buf, nParams ? ", " : " AND (client_addr, sync_state) NOT IN (");
         paramTypes[nParams] = INETOID;
         paramValues[nParams] = (char *)backend_hostaddr(backend);
         nParams++;

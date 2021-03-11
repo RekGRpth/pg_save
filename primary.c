@@ -78,11 +78,11 @@ static void primary_standby(void) {
     Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication");
+    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE true");
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        appendStringInfoString(&buf, nargs ? ", " : " WHERE (client_addr, sync_state) NOT IN (");
+        appendStringInfoString(&buf, nargs ? ", " : " AND (client_addr, sync_state) NOT IN (");
         argtypes[nargs] = INETOID;
         values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(backend_hostaddr(backend)));
         nargs++;
