@@ -79,9 +79,9 @@ static void standby_primary_socket(Backend *backend) {
 }
 
 static void standby_primary(Backend *backend) {
-    int nParams = queue_size(&backend_queue);
-    Oid *paramTypes = nParams ? MemoryContextAlloc(TopMemoryContext, 2 * nParams * sizeof(*paramTypes)) : NULL;
-    char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, 2 * nParams * sizeof(*paramValues)) : NULL;
+    int nParams = 2 * queue_size(&backend_queue) + (init_state ? 1 : 0);
+    Oid *paramTypes = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramTypes)) : NULL;
+    char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication WHERE true");
@@ -100,6 +100,13 @@ static void standby_primary(Backend *backend) {
         appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (nParams) appendStringInfoString(&buf, ")");
+    if (init_state) {
+        appendStringInfoString(&buf, " AND (client_addr, sync_state) IS DISTINCT FROM ((SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
+        paramTypes[nParams] = TEXTOID;
+        paramValues[nParams] = init_state;
+        nParams++;
+        appendStringInfo(&buf, ", $%i)", nParams);
+    }
     if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQerrorMessage(backend->conn));
     backend->socket = standby_primary_socket;
     backend->events = WL_SOCKET_WRITEABLE;
