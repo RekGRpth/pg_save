@@ -1,11 +1,11 @@
 #include "include.h"
 
-Backend *primary = NULL;
 extern char *hostname;
 extern char *init_state;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern TimestampTz start;
+static Backend *primary = NULL;
 static int etcd_attempt = 0;
 
 static void standby_reprimary(Backend *backend) {
