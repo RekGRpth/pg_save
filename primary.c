@@ -59,8 +59,7 @@ static void primary_standby(void) {
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (nargs) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " WHERE (client_addr, sync_state) NOT IN (");
+        appendStringInfoString(&buf, nargs ? ", " : " WHERE (client_addr, sync_state) NOT IN (");
         argtypes[nargs] = INETOID;
         values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(backend_hostaddr(backend)));
         nargs++;

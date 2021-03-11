@@ -94,8 +94,7 @@ static void standby_primary(Backend *backend) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (!backend->state) continue;
-        if (nParams) appendStringInfoString(&buf, ", ");
-        else appendStringInfoString(&buf, " WHERE (client_addr, sync_state) NOT IN (");
+        appendStringInfoString(&buf, nParams ? ", " : " WHERE (client_addr, sync_state) NOT IN (");
         paramTypes[nParams] = INETOID;
         paramValues[nParams] = (char *)backend_hostaddr(backend);
         nParams++;
