@@ -75,6 +75,17 @@ void init_reset(Backend *backend) {
     else if (init_sync && !strcmp(init_sync, PQhost(backend->conn))) init_alter_system_reset("pg_save.sync");
 }
 
+void init_set_state(const char *state, const char *host) {
+    char *old;
+    StringInfoData buf;
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "pg_save.%s", state);
+    old = GetConfigOptionByName(buf.data, NULL, false);
+    init_alter_system_set(buf.data, old, host);
+    pfree(old);
+    pfree(buf.data);
+}
+
 static void init_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
@@ -130,17 +141,6 @@ void _PG_init(void); void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     init_save();
-}
-
-void init_set_state(const char *state, const char *host) {
-    char *old;
-    StringInfoData buf;
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "pg_save.%s", state);
-    old = GetConfigOptionByName(buf.data, NULL, false);
-    init_alter_system_set(buf.data, old, host);
-    pfree(old);
-    pfree(buf.data);
 }
 
 static void init_connect_internal(const char *host, const char *state) {
