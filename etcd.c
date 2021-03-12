@@ -58,11 +58,7 @@ static char *etcd_kv_range(const char *key) {
 }
 
 void etcd_timeout(void) {
-    if (!init_state || etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
-        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) init_kill();
-    }
-    if (etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
+    if ((!init_state || etcd_kv_put(init_state, hostname, 0)) && etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
         if (etcd_attempt++ >= init_attempt) init_kill();
     }
