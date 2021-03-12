@@ -5,6 +5,7 @@ extern int init_attempt;
 extern queue_t backend_queue;
 
 static void backend_connected(Backend *backend) {
+    D1("%s:%s/%s", backend->host, backend->port, backend->state);
     return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
 }
 
@@ -28,7 +29,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s/%s PGRES_POLLING_ACTIVE", backend->host, backend->port, backend->state); break;
-        case PGRES_POLLING_FAILED: E("%s:%s/%s PGRES_POLLING_FAILED and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); break;
+        case PGRES_POLLING_FAILED: W("%s:%s/%s PGRES_POLLING_FAILED and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); break;
         case PGRES_POLLING_OK: D1("%s:%s/%s PGRES_POLLING_OK", backend->host, backend->port, backend->state); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s/%s PGRES_POLLING_READING", backend->host, backend->port, backend->state); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s/%s PGRES_POLLING_WRITING", backend->host, backend->port, backend->state); backend->events = WL_SOCKET_WRITEABLE; break;
@@ -44,6 +45,7 @@ static void backend_reset_socket(Backend *backend) {
 }
 
 static void backend_reseted(Backend *backend) {
+    D1("%s:%s/%s", backend->host, backend->port, backend->state);
     return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }
 
@@ -83,11 +85,11 @@ void backend_connect(const char *host, const char *port, const char *user, const
 }
 
 static void backend_finished(Backend *backend) {
+    D1("%s:%s/%s", backend->host, backend->port, backend->state);
     return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
 }
 
 void backend_finish(Backend *backend) {
-    D1("%s:%s/%s", backend->host, backend->port, backend->state);
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
@@ -122,6 +124,7 @@ void backend_reset(Backend *backend) {
 }
 
 static void backend_updated(Backend *backend) {
+    D1("%s:%s/%s", backend->host, backend->port, backend->state);
     return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
 }
 
