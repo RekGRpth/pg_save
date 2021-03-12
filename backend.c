@@ -112,6 +112,7 @@ static void backend_idle_socket(Backend *backend) {
 }
 
 void backend_idle(Backend *backend) {
+    D1("%s:%s", backend->host, backend->state);
     backend->socket = backend_idle_socket;
 }
 
