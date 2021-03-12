@@ -48,7 +48,6 @@
 typedef struct Backend {
     char *data;
     char *host;
-    char *name;
     char *port;
     char *state;
     char *user;
@@ -65,12 +64,12 @@ char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
-void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state, const char *name);
+void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
-void backend_update(Backend *backend, const char *state, const char *name);
+void backend_update(Backend *backend, const char *state);
 void etcd_init(void);
 void etcd_timeout(void);
 void init_alter_system_reset(const char *name, const char *old);

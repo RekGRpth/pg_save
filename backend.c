@@ -73,11 +73,10 @@ static void backend_connect_or_reset(Backend *backend) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state, const char *name) {
+void backend_connect(const char *host, const char *port, const char *user, const char *data, const char *state) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->data = MemoryContextStrdup(TopMemoryContext, data);
     backend->host = MemoryContextStrdup(TopMemoryContext, host);
-    backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     backend->port = MemoryContextStrdup(TopMemoryContext, port);
     backend->state = MemoryContextStrdup(TopMemoryContext, state);
     backend->user = MemoryContextStrdup(TopMemoryContext, user);
@@ -96,7 +95,6 @@ void backend_finish(Backend *backend) {
     PQfinish(backend->conn);
     pfree(backend->data);
     pfree(backend->host);
-    if (backend->name) pfree(backend->name);
     pfree(backend->port);
     pfree(backend->state);
     pfree(backend->user);
@@ -129,10 +127,8 @@ static void backend_updated(Backend *backend) {
     return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
 }
 
-void backend_update(Backend *backend, const char *state, const char *name) {
+void backend_update(Backend *backend, const char *state) {
     init_reset_state(backend->host);
-    if (backend->name) pfree(backend->name);
-    backend->name = name ? MemoryContextStrdup(TopMemoryContext, name) : NULL;
     pfree(backend->state);
     backend->state = MemoryContextStrdup(TopMemoryContext, state);
     backend_updated(backend);

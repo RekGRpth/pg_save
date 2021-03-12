@@ -15,7 +15,7 @@ static void primary_set_synchronous_standby_names(void) {
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        names[i++] = (char *)backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
+        names[i++] = (char *)backend->host;
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfo(&buf);
@@ -104,16 +104,14 @@ void primary_reseted(Backend *backend) {
 static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend = NULL;
-        const char *name = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "name", false));
         const char *host = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
         const char *state = TextDatumGetCStringMy(SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
-        D1("name = %s, host = %s, state = %s", name, host, state);
+        D1("host = %s, state = %s", host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
-        backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
-        pfree((void *)name);
+        backend ? backend_update(backend, state) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state);
         pfree((void *)host);
         pfree((void *)state);
     }
@@ -125,7 +123,7 @@ static void primary_standby(void) {
     Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
-    appendStringInfoString(&buf, "SELECT application_name AS name, coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
+    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
