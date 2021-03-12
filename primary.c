@@ -42,6 +42,7 @@ void primary_connected(Backend *backend) {
 }
 
 void primary_finished(Backend *backend) {
+    primary_set_synchronous_standby_names();
 }
 
 void primary_fini(void) {
