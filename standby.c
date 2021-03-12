@@ -29,7 +29,7 @@ void standby_init(void) {
 
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state);
-    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) E("!pg_promote");
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     backend_finish(backend);
 }
 
@@ -82,7 +82,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", backend->host, backend->port, backend->state, PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: W("%s:%s/%s PQresultStatus = %s and %s", backend->host, backend->port, backend->state, PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -116,9 +116,13 @@ static void standby_primary(Backend *backend) {
         nParams++;
         appendStringInfo(&buf, ", $%i)", nParams);
     }
-    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
-    backend->socket = standby_primary_socket;
-    backend->events = WL_SOCKET_WRITEABLE;
+    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) {
+        W("%s:%s/%s !PQsendQueryParams and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
+        backend_finish(backend);
+    } else {
+        backend->socket = standby_primary_socket;
+        backend->events = WL_SOCKET_WRITEABLE;
+    }
     if (paramTypes) pfree(paramTypes);
     if (paramValues) pfree(paramValues);
     pfree(buf.data);

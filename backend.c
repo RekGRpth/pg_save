@@ -13,7 +13,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s/%s CONNECTION_AUTH_OK", backend->host, backend->port, backend->state); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s/%s CONNECTION_AWAITING_RESPONSE", backend->host, backend->port, backend->state); break;
-        case CONNECTION_BAD: E("%s:%s/%s CONNECTION_BAD and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); break;
+        case CONNECTION_BAD: W("%s:%s/%s CONNECTION_BAD and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); break;
 #if (PG_VERSION_NUM >= 130000)
         case CONNECTION_CHECK_TARGET: D1("%s:%s/%s CONNECTION_CHECK_TARGET", backend->host, backend->port, backend->state); break;
 #endif
@@ -54,20 +54,20 @@ static void backend_connect_or_reset(Backend *backend) {
     const char *values[] = {backend->host, backend->port, backend->user, backend->data, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: E("%s:%s/%s PQPING_NO_ATTEMPT", backend->host, backend->port, backend->state); break;
+        case PQPING_NO_ATTEMPT: W("%s:%s/%s PQPING_NO_ATTEMPT", backend->host, backend->port, backend->state); backend_finish(backend); return;
         case PQPING_NO_RESPONSE: W("%s:%s/%s PQPING_NO_RESPONSE and %i < %i", backend->host, backend->port, backend->state, backend->attempt, init_attempt); backend_reseted(backend); return;
         case PQPING_OK: D1("%s:%s/%s PQPING_OK", backend->host, backend->port, backend->state); break;
         case PQPING_REJECT: W("%s:%s/%s PQPING_REJECT and %i < %i", backend->host, backend->port, backend->state, backend->attempt, init_attempt); backend_reseted(backend); return;
     }
     if (!backend->conn) {
-        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) E("%s:%s/%s !PQconnectStartParams and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
+        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s/%s !PQconnectStartParams and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
         backend->socket = backend_connect_socket;
     } else {
-        if (!(PQresetStart(backend->conn))) E("%s:%s/%s !PQresetStart and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
+        if (!(PQresetStart(backend->conn))) { W("%s:%s/%s !PQresetStart and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
         backend->socket = backend_reset_socket;
     }
-    if (PQstatus(backend->conn) == CONNECTION_BAD) E("%s:%s/%s PQstatus == CONNECTION_BAD and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
-    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) E("%s:%s/%s PQsetnonblocking == -1 and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
+    if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s/%s PQstatus == CONNECTION_BAD and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
+    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) { W("%s:%s/%s PQsetnonblocking == -1 and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->events = WL_SOCKET_WRITEABLE;
 }

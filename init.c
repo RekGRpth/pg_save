@@ -81,7 +81,7 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
 }
 
 void init_reload(void) {
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) E("!pg_reload_conf");
+    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) W("!pg_reload_conf");
 }
 
 void init_reset_state(const char *host) {
