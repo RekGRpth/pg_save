@@ -24,6 +24,7 @@ void standby_fini(void) {
 
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
+    if (init_state && !strcmp(init_state, "primary")) init_alter_system_reset("pg_save.state", init_state);
 }
 
 static void standby_promote(Backend *backend) {
