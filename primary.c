@@ -17,7 +17,7 @@ static void primary_set_synchronous_standby_names(void) {
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        names[i++] = (char *)backend_name(backend);
+        names[i++] = (char *)backend->name ? backend->name : cluster_name ? cluster_name : "walreceiver";
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfo(&buf);
@@ -37,7 +37,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     backend->attempt = 0;
     primary_set_synchronous_standby_names();
-    init_set_state(backend_host(backend), backend_state(backend));
+    init_set_state(backend->host, backend->state);
     backend_idle(backend);
 }
 
@@ -112,7 +112,7 @@ static void primary_result(void) {
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
+            if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
         backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
         pfree((void *)name);
@@ -133,7 +133,7 @@ static void primary_standby(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         appendStringInfoString(&buf, nargs ? ", " : " AND (client_addr, sync_state) NOT IN (");
         argtypes[nargs] = INETOID;
-        values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(backend_hostaddr(backend)));
+        values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(PQhostaddr(backend->conn)));
         nargs++;
         appendStringInfo(&buf, "($%i", nargs);
         argtypes[nargs] = TEXTOID;
@@ -168,5 +168,5 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
-    init_set_state(backend_host(backend), backend_state(backend));
+    init_set_state(backend->host, backend->state);
 }

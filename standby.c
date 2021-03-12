@@ -10,12 +10,12 @@ static int etcd_attempt = 0;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
-    init_set_state(backend_host(backend), backend_state(backend));
+    init_set_state(backend->host, backend->state);
     backend_idle(backend);
 }
 
 void standby_finished(Backend *backend) {
-    if (!backend->state) primary = NULL;
+    if (!strcmp(backend->state, "primary")) primary = NULL;
 }
 
 void standby_fini(void) {
@@ -45,7 +45,7 @@ static void standby_reprimary(Backend *backend) {
 
 void standby_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
-    if (backend->state) backend_finish(backend);
+    if (strcmp(backend->state, "primary")) backend_finish(backend);
     else if (!queue_size(&backend_queue)) init_kill();
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else standby_promote(backend);
@@ -69,7 +69,7 @@ static void standby_result(PGresult *result) {
         D1("name = %s, host = %s, state = %s", name, host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, backend_host(backend_))) { backend = backend_; break; }
+            if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
         backend ? backend_update(backend, state, name) : backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state, name);
     }
@@ -78,7 +78,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: E("%s:%s/%s PQresultStatus = %s and %s", backend_host(backend), backend_port(backend), backend_state(backend), PQresStatus(PQresultStatus(result)), backend_result_error(result)); break;
+        default: E("%s:%s/%s PQresultStatus = %s and %s", backend->host, backend->port, backend->state, PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -93,10 +93,10 @@ static void standby_primary(Backend *backend) {
     nParams = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (!backend->state) continue;
+        if (!strcmp(backend->state, "primary")) continue;
         appendStringInfoString(&buf, nParams ? ", " : " AND (client_addr, sync_state) NOT IN (");
         paramTypes[nParams] = INETOID;
-        paramValues[nParams] = (char *)backend_hostaddr(backend);
+        paramValues[nParams] = (char *)PQhostaddr(backend->conn);
         nParams++;
         appendStringInfo(&buf, "($%i", nParams);
         paramTypes[nParams] = TEXTOID;
@@ -112,7 +112,7 @@ static void standby_primary(Backend *backend) {
         nParams++;
         appendStringInfo(&buf, ", $%i)", nParams);
     }
-    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend_host(backend), backend_port(backend), backend_state(backend), backend_error(backend));
+    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) E("%s:%s/%s !PQsendQueryParams and %s", backend->host, backend->port, backend->state, PQerrorMessage(backend->conn));
     backend->socket = standby_primary_socket;
     backend->events = WL_SOCKET_WRITEABLE;
     if (paramTypes) pfree(paramTypes);
@@ -151,7 +151,7 @@ void standby_timeout(void) {
     }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (!primary && !backend->state) primary = backend;
+        if (!primary && !strcmp(backend->state, "primary")) primary = backend;
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     if (!primary) standby_primary_connect();
@@ -161,5 +161,5 @@ void standby_timeout(void) {
 }
 
 void standby_updated(Backend *backend) {
-    init_set_state(backend_host(backend), backend_state(backend));
+    init_set_state(backend->host, backend->state);
 }

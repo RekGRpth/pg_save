@@ -53,7 +53,7 @@ static void init_connect_internal(const char *host, const char *state) {
 }
 
 void init_connect(void) {
-    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, NULL);
+    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, "primary");
     if (init_sync && (!init_state || strcmp(init_state, "sync"))) init_connect_internal(init_sync, "sync");
     if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) init_connect_internal(init_quorum, "quorum");
     if (init_potential && (!init_state || strcmp(init_state, "potential"))) init_connect_internal(init_potential, "potential");
