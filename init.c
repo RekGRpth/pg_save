@@ -82,6 +82,12 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
 void init_reload(void) {
     if (!sighup) return;
     if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) W("!pg_reload_conf");
+    if (init_async) D1("async = %s", init_async);
+    if (init_potential) D1("potential = %s", init_potential);
+    if (init_primary) D1("primary = %s", init_primary);
+    if (init_quorum) D1("quorum = %s", init_quorum);
+    if (init_state) D1("state = %s", init_state);
+    if (init_sync) D1("sync = %s", init_sync);
     sighup = false;
 }
 
