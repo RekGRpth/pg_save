@@ -16,6 +16,7 @@ static int init_restart;
 void init_alter_system_reset(const char *name, const char *old) {
     AlterSystemStmt *stmt;
     if (!old || old[0] == '\0') return;
+    D1("name = %s, old = %s", name, old);
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
@@ -37,6 +38,7 @@ static Node *makeStringConst(char *str, int location) {
 void init_alter_system_set(const char *name, const char *old, const char *new) {
     AlterSystemStmt *stmt;
     if (old && old[0] != '\0' && !strcmp(old, new)) return;
+    D1("name = %s, old = %s, new = %s", name, old ? old : "(null)", new);
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
@@ -81,6 +83,7 @@ void init_reload(void) {
 }
 
 void init_reset_state(const char *host) {
+    D1("host = %s", host);
     if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary", init_primary);
     if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync", init_sync);
     if (init_quorum && !strcmp(init_quorum, host)) init_alter_system_reset("pg_save.quorum", init_quorum);
@@ -91,6 +94,7 @@ void init_reset_state(const char *host) {
 void init_set_state(const char *host, const char *state) {
     char *old;
     StringInfoData buf;
+    D1("host = %s, state = %s", host, state);
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", state);
     old = GetConfigOptionByName(buf.data, NULL, false);
