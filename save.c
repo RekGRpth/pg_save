@@ -5,18 +5,9 @@ char *hostname;
 extern int init_timeout;
 queue_t backend_queue;
 TimestampTz start;
-volatile sig_atomic_t sigterm = false;
 
 static void save_fini(void) {
     return RecoveryInProgress() ? standby_fini() : primary_fini();
-}
-
-static void save_sigterm(SIGNAL_ARGS) {
-    int save_errno = errno;
-    sigterm = true;
-    SetLatch(MyLatch);
-    if (!proc_exit_inprogress) ProcDiePending = true;
-    errno = save_errno;
 }
 
 static void save_init(void) {
@@ -32,7 +23,7 @@ static void save_init(void) {
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
-    pqsignal(SIGTERM, save_sigterm);
+    pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
@@ -70,7 +61,7 @@ static void save_timeout(void) {
 void save_worker(Datum main_arg) {
     TimestampTz stop = (start = GetCurrentTimestamp());
     save_init();
-    while (!sigterm) {
+    while (!ShutdownRequestPending) {
         WaitEvent *events;
         WaitEventSet *set;
         int nevents = 2;
