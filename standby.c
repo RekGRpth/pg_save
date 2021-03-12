@@ -36,9 +36,12 @@ static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state);
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
+        StringInfoData buf;
         if (strcmp(backend->state, "sync")) continue;
-        WriteRecoveryConfig(backend->conn, ".", GenerateRecoveryConfig(backend->conn, PrimarySlotName));
-        init_reload();
+        initStringInfo(&buf);
+        appendStringInfo(&buf, "host=%s application_name=%s", backend->host, hostname);
+        init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
+        pfree(buf.data);
     }
     backend_finish(backend);
 }
