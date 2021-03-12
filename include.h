@@ -74,6 +74,7 @@ void etcd_timeout(void);
 void init_alter_system_reset(const char *name, const char *old);
 void init_alter_system_set(const char *name, const char *old, const char *new);
 void init_connect(void);
+void init_debug(void);
 void init_reload(void);
 void init_reset_state(const char *host);
 void init_set_state(const char *host, const char *state);

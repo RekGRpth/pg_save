@@ -52,6 +52,18 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     reload = true;
 }
 
+void init_debug(void) {
+    if (init_async) D1("async = %s", init_async);
+    if (init_potential) D1("potential = %s", init_potential);
+    if (init_primary) D1("primary = %s", init_primary);
+    if (init_quorum) D1("quorum = %s", init_quorum);
+    if (init_state) D1("state = %s", init_state);
+    if (init_sync) D1("sync = %s", init_sync);
+    if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
+    if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
+    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
+}
+
 void init_connect(void) {
     if (init_primary && (!init_state || strcmp(init_state, "primary"))) backend_connect(init_primary, "primary");
     if (init_sync && (!init_state || strcmp(init_state, "sync"))) backend_connect(init_sync, "sync");
@@ -62,16 +74,7 @@ void init_connect(void) {
 
 void init_reload(void) {
     if (!reload) return;
-    ProcessConfigFile(PGC_SIGHUP);
-    if (init_async) D1("async = %s", init_async);
-    if (init_potential) D1("potential = %s", init_potential);
-    if (init_primary) D1("primary = %s", init_primary);
-    if (init_quorum) D1("quorum = %s", init_quorum);
-    if (init_state) D1("state = %s", init_state);
-    if (init_sync) D1("sync = %s", init_sync);
-    if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
-    if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
-    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
+    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
     reload = false;
 }
 

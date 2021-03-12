@@ -37,6 +37,7 @@ static void save_init(void) {
 static void save_reload(void) {
     ConfigReloadPending = false;
     ProcessConfigFile(PGC_SIGHUP);
+    init_debug();
 }
 
 static void save_latch(void) {
