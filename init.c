@@ -154,7 +154,6 @@ static void init_save(void) {
 void init_sighup(void) {
     if (!reload) return;
     if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
-    reload = false;
 }
 
 void _PG_init(void) {
