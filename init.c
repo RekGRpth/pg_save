@@ -151,6 +151,12 @@ static void init_save(void) {
     init_work();
 }
 
+void init_sighup(void) {
+    if (!reload) return;
+    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
+    reload = false;
+}
+
 void _PG_init(void) {
     if (IsBinaryUpgrade) { W("IsBinaryUpgrade"); return; }
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");

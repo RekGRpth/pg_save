@@ -78,6 +78,7 @@ void init_debug(void);
 void init_reload(void);
 void init_reset_state(const char *host);
 void init_set_state(const char *host, const char *state);
+void init_sighup(void);
 void _PG_init(void);
 void primary_connected(Backend *backend);
 void primary_finished(Backend *backend);

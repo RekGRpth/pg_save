@@ -30,7 +30,7 @@ static void primary_set_synchronous_standby_names(void) {
     appendStringInfoString(&buf, ")");
     init_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
     pfree(buf.data);
-    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
+    init_sighup();
 }
 
 void primary_connected(Backend *backend) {
