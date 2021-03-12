@@ -69,25 +69,18 @@ void init_kill(void) {
     E("kill");
 }
 
-#define DirectFunctionCall0(func) DirectFunctionCall0Coll(func, InvalidOid)
-static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
-    LOCAL_FCINFO(fcinfo, 0);
-    Datum result;
-    InitFunctionCallInfoData(*fcinfo, NULL, 0, collation, NULL, NULL);
-    result = (*func)(fcinfo);
-    if (fcinfo->isnull) E("function %p returned NULL", (void *)func);
-    return result;
-}
-
 void init_reload(void) {
     if (!sighup) return;
-    if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) W("!pg_reload_conf");
+    ProcessConfigFile(PGC_SIGHUP);
     if (init_async) D1("async = %s", init_async);
     if (init_potential) D1("potential = %s", init_potential);
     if (init_primary) D1("primary = %s", init_primary);
     if (init_quorum) D1("quorum = %s", init_quorum);
     if (init_state) D1("state = %s", init_state);
     if (init_sync) D1("sync = %s", init_sync);
+    if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
+    if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
+    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
     sighup = false;
 }
 

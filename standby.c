@@ -24,8 +24,8 @@ void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
     if (init_state && !strcmp(init_state, "primary")) init_alter_system_reset("pg_save.state", init_state);
     else if (init_state) init_set_state(hostname, init_state);
-    if (SyncRepStandbyNames) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
-    if (SyncRepStandbyNames) D1("PrimarySlotName = %s", PrimarySlotName);
+    if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
+    if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
 }
 
 static void standby_promote(Backend *backend) {
