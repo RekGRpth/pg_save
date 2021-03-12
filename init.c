@@ -59,8 +59,8 @@ void init_debug(void) {
     if (init_quorum) D1("quorum = %s", init_quorum);
     if (init_state) D1("state = %s", init_state);
     if (init_sync) D1("sync = %s", init_sync);
-    if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
-    if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
+    if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
+    if (PrimarySlotName && PrimarySlotName[0] != '\0') D1("PrimarySlotName = %s", PrimarySlotName);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
