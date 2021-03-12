@@ -7,7 +7,7 @@ queue_t backend_queue;
 TimestampTz start;
 
 static void save_fini(void) {
-    return RecoveryInProgress() ? standby_fini() : primary_fini();
+    RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
 static void save_init(void) {
@@ -56,7 +56,7 @@ static void save_socket(Backend *backend) {
 
 static void save_timeout(void) {
     etcd_timeout();
-    return RecoveryInProgress() ? standby_timeout() : primary_timeout();
+    RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 void save_worker(Datum main_arg) {

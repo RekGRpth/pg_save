@@ -6,7 +6,7 @@ extern queue_t backend_queue;
 
 static void backend_connected(Backend *backend) {
     D1("%s:%s", backend->host, backend->state);
-    return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
+    RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
 }
 
@@ -48,7 +48,7 @@ static void backend_reset_socket(Backend *backend) {
 static void backend_reseted(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     D1("%s:%s", backend->host, backend->state);
-    return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
+    RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }
 
 static void backend_connect_or_reset(Backend *backend) {
@@ -84,7 +84,7 @@ void backend_connect(const char *host, const char *state) {
 
 static void backend_finished(Backend *backend) {
     D1("%s:%s", backend->host, backend->state);
-    return RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
+    RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
 }
 
 void backend_finish(Backend *backend) {
