@@ -61,7 +61,7 @@ char *TextDatumGetCStringMy(Datum datum);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
-void backend_connect(const char *host, const char *user, const char *data, const char *state);
+void backend_connect(const char *host, const char *data, const char *state);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

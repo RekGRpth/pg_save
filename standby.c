@@ -72,7 +72,7 @@ static void standby_result(PGresult *result) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
-        backend ? backend_update(backend, state) : backend_connect(host, MyProcPort->user_name, MyProcPort->database_name, state);
+        backend ? backend_update(backend, state) : backend_connect(host, MyProcPort->database_name, state);
     }
 }
 
@@ -128,7 +128,6 @@ static void standby_primary(Backend *backend) {
 static void standby_primary_connect(void) {
     const char *data = MyProcPort->database_name;
     const char *host = NULL;
-    const char *user = MyProcPort->user_name;
     char *err;
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(PrimaryConnInfo, &err))) E("!PQconninfoParse and %s", err);
@@ -137,12 +136,11 @@ static void standby_primary_connect(void) {
         D1("%s = %s", opt->keyword, opt->val);
         if (!strcmp(opt->keyword, "dbname")) { data = opt->val; continue; }
         if (!strcmp(opt->keyword, "host")) { host = opt->val; continue; }
-        if (!strcmp(opt->keyword, "user")) { user = opt->val; continue; }
     }
     if (err) PQfreemem(err);
     if (host) {
-        D1("host = %s, user = %s, data = %s", host, user, data);
-        backend_connect(host, user, data, "primary");
+        D1("host = %s, data = %s", host, data);
+        backend_connect(host, data, "primary");
     }
     PQconninfoFree(opts);
 }
