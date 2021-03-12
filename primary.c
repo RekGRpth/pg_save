@@ -157,5 +157,4 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
-    init_set_state(backend->host, backend->state);
 }

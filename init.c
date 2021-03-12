@@ -83,6 +83,7 @@ void init_reload(void) {
 }
 
 void init_reset_state(const char *host) {
+    if (ProcDiePending) return;
     D1("host = %s", host);
     if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary", init_primary);
     if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync", init_sync);

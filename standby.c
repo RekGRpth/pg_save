@@ -156,5 +156,4 @@ void standby_timeout(void) {
 }
 
 void standby_updated(Backend *backend) {
-    init_set_state(backend->host, backend->state);
 }

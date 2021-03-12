@@ -88,6 +88,7 @@ static void backend_finished(Backend *backend) {
 
 void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
+    init_reset_state(backend->host);
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend->host);
@@ -118,6 +119,7 @@ void backend_reset(Backend *backend) {
 
 static void backend_updated(Backend *backend) {
     D1("%s:%s", backend->host, backend->state);
+    init_set_state(backend->host, backend->state);
     return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
 }
 
