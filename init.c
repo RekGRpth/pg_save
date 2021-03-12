@@ -83,14 +83,14 @@ void init_reload(void) {
     init_debug();
 }
 
-void init_reset_state(const char *host) {
+void init_reset_state(const char *host, const char *state) {
+    StringInfoData buf;
     if (ShutdownRequestPending) return;
-    D1("host = %s", host);
-    if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary", init_primary);
-    if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync", init_sync);
-    if (init_quorum && !strcmp(init_quorum, host)) init_alter_system_reset("pg_save.quorum", init_quorum);
-    if (init_potential && !strcmp(init_potential, host)) init_alter_system_reset("pg_save.potential", init_potential);
-    if (init_async && !strcmp(init_async, host)) init_alter_system_reset("pg_save.async", init_async);
+    D1("host = %s, state = %s", host, state);
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "pg_save.%s", state);
+    init_alter_system_reset(buf.data, host);
+    pfree(buf.data);
 }
 
 void init_set_state(const char *host, const char *state) {

@@ -89,7 +89,7 @@ static void backend_finished(Backend *backend) {
 
 void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
-    init_reset_state(backend->host);
+    init_reset_state(backend->host, backend->state);
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend->host);
@@ -127,7 +127,7 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_update(Backend *backend, const char *state) {
-    init_reset_state(backend->host);
+    init_reset_state(backend->host, backend->state);
     pfree(backend->state);
     backend->state = MemoryContextStrdup(TopMemoryContext, state);
     backend_updated(backend);

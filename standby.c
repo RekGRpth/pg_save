@@ -55,7 +55,7 @@ void standby_reseted(Backend *backend) {
 }
 
 static void standby_state(const char *state) {
-    init_reset_state(hostname);
+    init_reset_state(hostname, init_state);
     init_alter_system_set("pg_save.state", init_state, state);
     init_set_state(hostname, state);
     init_reload();
