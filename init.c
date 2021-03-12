@@ -49,16 +49,12 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     init_reload();
 }
 
-static void init_connect_internal(const char *host, const char *state) {
-    backend_connect(host, MyProcPort->database_name, state);
-}
-
 void init_connect(void) {
-    if (init_primary && (!init_state || strcmp(init_state, "primary"))) init_connect_internal(init_primary, "primary");
-    if (init_sync && (!init_state || strcmp(init_state, "sync"))) init_connect_internal(init_sync, "sync");
-    if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) init_connect_internal(init_quorum, "quorum");
-    if (init_potential && (!init_state || strcmp(init_state, "potential"))) init_connect_internal(init_potential, "potential");
-    if (init_async && (!init_state || strcmp(init_state, "async"))) init_connect_internal(init_async, "async");
+    if (init_primary && (!init_state || strcmp(init_state, "primary"))) backend_connect(init_primary, "primary");
+    if (init_sync && (!init_state || strcmp(init_state, "sync"))) backend_connect(init_sync, "sync");
+    if (init_quorum && (!init_state || strcmp(init_state, "quorum"))) backend_connect(init_quorum, "quorum");
+    if (init_potential && (!init_state || strcmp(init_state, "potential"))) backend_connect(init_potential, "potential");
+    if (init_async && (!init_state || strcmp(init_state, "async"))) backend_connect(init_async, "async");
 }
 
 void init_kill(void) {

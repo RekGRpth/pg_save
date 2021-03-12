@@ -52,7 +52,7 @@ static void backend_reseted(Backend *backend) {
 
 static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-    const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, backend->data, hostname, NULL};
+    const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT", backend->host, backend->state); backend_finish(backend); return;
@@ -73,9 +73,8 @@ static void backend_connect_or_reset(Backend *backend) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(const char *host, const char *data, const char *state) {
+void backend_connect(const char *host, const char *state) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
-    backend->data = MemoryContextStrdup(TopMemoryContext, data);
     backend->host = MemoryContextStrdup(TopMemoryContext, host);
     backend->state = MemoryContextStrdup(TopMemoryContext, state);
     backend_connect_or_reset(backend);
@@ -91,7 +90,6 @@ void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
-    pfree(backend->data);
     pfree(backend->host);
     pfree(backend->state);
     pfree(backend);

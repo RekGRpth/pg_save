@@ -111,7 +111,7 @@ static void primary_result(void) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
-        backend ? backend_update(backend, state) : backend_connect(host, MyProcPort->database_name, state);
+        backend ? backend_update(backend, state) : backend_connect(host, state);
         pfree((void *)host);
         pfree((void *)state);
     }
