@@ -7,7 +7,7 @@ char *init_primary;
 char *init_state;
 int init_attempt;
 int init_timeout;
-static bool sighup = false;
+static bool reload = false;
 static char *init_async;
 static char *init_potential;
 static char *init_quorum;
@@ -25,7 +25,7 @@ void init_alter_system_reset(const char *name, const char *old) {
     AlterSystemSetConfigFile(stmt);
     pfree(stmt->setstmt);
     pfree(stmt);
-    sighup = true;
+    reload = true;
 }
 
 static Node *makeStringConst(char *str, int location) {
@@ -49,7 +49,7 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    sighup = true;
+    reload = true;
 }
 
 void init_connect(void) {
@@ -70,7 +70,7 @@ void init_kill(void) {
 }
 
 void init_reload(void) {
-    if (!sighup) return;
+    if (!reload) return;
     ProcessConfigFile(PGC_SIGHUP);
     if (init_async) D1("async = %s", init_async);
     if (init_potential) D1("potential = %s", init_potential);
@@ -81,7 +81,7 @@ void init_reload(void) {
     if (PrimaryConnInfo) D1("PrimaryConnInfo = %s", PrimaryConnInfo);
     if (PrimarySlotName) D1("PrimarySlotName = %s", PrimarySlotName);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
-    sighup = false;
+    reload = false;
 }
 
 void init_reset_state(const char *host) {
