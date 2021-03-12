@@ -38,7 +38,7 @@ static Node *makeStringConst(char *str, int location) {
 void init_alter_system_set(const char *name, const char *old, const char *new) {
     AlterSystemStmt *stmt;
     if (old && old[0] != '\0' && !strcmp(old, new)) return;
-    D1("name = %s, old = %s, new = %s", name, old ? old : "(null)", new);
+    D1("name = %s, old = %s, new = %s", name, (old && old[0] != '\0') ? old : "(null)", new);
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
