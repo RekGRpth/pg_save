@@ -58,7 +58,7 @@ static bool etcd_kv_put(const char *key, const char *value, int ttl) {
 }*/
 
 void etcd_timeout(void) {
-    if ((!init_state || etcd_kv_put(init_state, hostname, 0)) && etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
+    if ((!init_state || init_state[0] == '\0' || etcd_kv_put(init_state, hostname, 0)) && etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
         if (etcd_attempt++ >= init_attempt) if (kill(PostmasterPid, SIGTERM)) W("kill and %m");
     }
