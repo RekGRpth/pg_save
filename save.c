@@ -23,6 +23,7 @@ static void save_sigterm(SIGNAL_ARGS) {
     int save_errno = errno;
     sigterm = true;
     SetLatch(MyLatch);
+    if (!proc_exit_inprogress) ProcDiePending = true;
     errno = save_errno;
 }
 

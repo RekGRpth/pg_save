@@ -40,6 +40,7 @@ void primary_connected(Backend *backend) {
 }
 
 void primary_finished(Backend *backend) {
+    if (ProcDiePending) return;
     primary_set_synchronous_standby_names();
 }
 
