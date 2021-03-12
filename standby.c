@@ -23,7 +23,7 @@ void standby_fini(void) {
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
     if (init_state && !strcmp(init_state, "primary")) init_alter_system_reset("pg_save.state", init_state);
-    if (init_state) init_set_state(hostname, init_state);
+    else if (init_state) init_set_state(hostname, init_state);
 }
 
 static void standby_promote(Backend *backend) {
@@ -141,7 +141,7 @@ static void standby_primary_connect(void) {
     if (err) PQfreemem(err);
     if (primary_port && primary_host) {
         D1("primary_host = %s, primary_port = %s", primary_host, primary_port);
-        backend_connect(primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, NULL, NULL);
+        backend_connect(primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, "primary", hostname);
     }
     PQconninfoFree(opts);
 }
