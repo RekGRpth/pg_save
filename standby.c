@@ -145,7 +145,7 @@ static void standby_primary_connect(void) {
 }
 
 void standby_timeout(void) {
-    if (init_state && etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
+    if (!init_state || etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
         if (etcd_attempt++ >= init_attempt) init_kill();
     }
