@@ -97,7 +97,6 @@ void primary_init(void) {
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
-    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
 void primary_reseted(Backend *backend) {
