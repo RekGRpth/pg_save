@@ -44,14 +44,14 @@ static void standby_reprimary(Backend *backend) {
         appendStringInfo(&buf, "host=%s application_name=%s", backend->host, hostname);
         init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
         pfree(buf.data);
-        if (kill(PostmasterPid, SIGHUP)) W("!kill and %m");
+        if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
     }
     backend_finish(backend);
 }
 
 void standby_reseted(Backend *backend) {
     if (strcmp(backend->state, "primary")) backend_finish(backend);
-    else if (!queue_size(&backend_queue)) init_kill();
+    else if (!queue_size(&backend_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
     else standby_promote(backend);
 }

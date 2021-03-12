@@ -60,15 +60,6 @@ void init_connect(void) {
     if (init_async && (!init_state || strcmp(init_state, "async"))) backend_connect(init_async, "async");
 }
 
-void init_kill(void) {
-#ifdef HAVE_SETSID
-    if (kill(-PostmasterPid, SIGTERM))
-#else
-    if (kill(PostmasterPid, SIGTERM))
-#endif
-    E("kill");
-}
-
 void init_reload(void) {
     if (!reload) return;
     ProcessConfigFile(PGC_SIGHUP);
