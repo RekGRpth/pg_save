@@ -50,7 +50,7 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
 }
 
 static void init_connect_internal(const char *host, const char *state) {
-    backend_connect(host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, state);
+    backend_connect(host, MyProcPort->user_name, MyProcPort->database_name, state);
 }
 
 void init_connect(void) {
