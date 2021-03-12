@@ -23,7 +23,7 @@ void standby_fini(void) {
 }
 
 void standby_init(void) {
-    init_alter_system_reset("synchronous_standby_names");
+    init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
 }
 
 static void standby_promote(Backend *backend) {

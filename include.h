@@ -74,7 +74,7 @@ void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void backend_update(Backend *backend, const char *state, const char *name);
 void etcd_init(void);
-void init_alter_system_reset(const char *name);
+void init_alter_system_reset(const char *name, const char *old);
 void init_alter_system_set(const char *name, const char *old, const char *new);
 void init_connect(void);
 void init_kill(void);

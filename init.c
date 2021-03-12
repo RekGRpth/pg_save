@@ -13,8 +13,9 @@ static char *init_quorum;
 static char *init_sync;
 static int init_restart;
 
-void init_alter_system_reset(const char *name) {
+void init_alter_system_reset(const char *name, const char *old) {
     AlterSystemStmt *stmt;
+    if (!old || old[0] == '\0') return;
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
@@ -84,11 +85,11 @@ void init_reload(void) {
 }
 
 void init_reset_state(const char *host) {
-    if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary");
-    if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync");
-    if (init_quorum && !strcmp(init_quorum, host)) init_alter_system_reset("pg_save.quorum");
-    if (init_potential && !strcmp(init_potential, host)) init_alter_system_reset("pg_save.potential");
-    if (init_async && !strcmp(init_async, host)) init_alter_system_reset("pg_save.async");
+    if (init_primary && !strcmp(init_primary, host)) init_alter_system_reset("pg_save.primary", init_primary);
+    if (init_sync && !strcmp(init_sync, host)) init_alter_system_reset("pg_save.sync", init_sync);
+    if (init_quorum && !strcmp(init_quorum, host)) init_alter_system_reset("pg_save.quorum", init_quorum);
+    if (init_potential && !strcmp(init_potential, host)) init_alter_system_reset("pg_save.potential", init_potential);
+    if (init_async && !strcmp(init_async, host)) init_alter_system_reset("pg_save.async", init_async);
 }
 
 void init_set_state(const char *host, const char *state) {
