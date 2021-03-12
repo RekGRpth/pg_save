@@ -118,9 +118,9 @@ static void primary_result(void) {
 }
 
 static void primary_standby(void) {
-    int nargs = queue_size(&backend_queue);
-    Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*argtypes)) : NULL;
-    Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, 2 * nargs * sizeof(*values)) : NULL;
+    int nargs = 2 * queue_size(&backend_queue);
+    Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*argtypes)) : NULL;
+    Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfo(&buf);
     appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
