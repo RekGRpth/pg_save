@@ -127,21 +127,27 @@ static void standby_primary(Backend *backend) {
 }
 
 static void standby_primary_connect(void) {
-    const char *primary_host = NULL;
-    const char *primary_port = NULL;
+    const char *data = MyProcPort->database_name;
+    const char *host = NULL;
+    const char *name = hostname;
+    const char *port = getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR;
+    const char *user = MyProcPort->user_name;
     char *err;
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(PrimaryConnInfo, &err))) E("!PQconninfoParse and %s", err);
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
-        if (!strcmp(opt->keyword, "host")) { primary_host = opt->val; continue; }
-        if (!strcmp(opt->keyword, "port")) { primary_port = opt->val; continue; }
+        if (!strcmp(opt->keyword, "application_name")) { name = opt->val; continue; }
+        if (!strcmp(opt->keyword, "dbname")) { data = opt->val; continue; }
+        if (!strcmp(opt->keyword, "host")) { host = opt->val; continue; }
+        if (!strcmp(opt->keyword, "port")) { port = opt->val; continue; }
+        if (!strcmp(opt->keyword, "user")) { user = opt->val; continue; }
     }
     if (err) PQfreemem(err);
-    if (primary_port && primary_host) {
-        D1("primary_host = %s, primary_port = %s", primary_host, primary_port);
-        backend_connect(primary_host, primary_port, MyProcPort->user_name, MyProcPort->database_name, "primary", hostname);
+    if (host) {
+        D1("host = %s, port = %s, user = %s, data = %s, name = %s", host, port, user, data, name);
+        backend_connect(host, port, user, data, "primary", name);
     }
     PQconninfoFree(opts);
 }
