@@ -7,6 +7,7 @@ char *init_primary;
 char *init_state;
 int init_attempt;
 int init_timeout;
+static bool sighup = false;
 static char *init_async;
 static char *init_potential;
 static char *init_quorum;
@@ -24,7 +25,7 @@ void init_alter_system_reset(const char *name, const char *old) {
     AlterSystemSetConfigFile(stmt);
     pfree(stmt->setstmt);
     pfree(stmt);
-    init_reload();
+    sighup = true;
 }
 
 static Node *makeStringConst(char *str, int location) {
@@ -48,7 +49,7 @@ void init_alter_system_set(const char *name, const char *old, const char *new) {
     list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    init_reload();
+    sighup = true;
 }
 
 void init_connect(void) {
@@ -79,7 +80,9 @@ static Datum DirectFunctionCall0Coll(PGFunction func, Oid collation) {
 }
 
 void init_reload(void) {
+    if (!sighup) return;
     if (!DatumGetBool(DirectFunctionCall0(pg_reload_conf))) W("!pg_reload_conf");
+    sighup = false;
 }
 
 void init_reset_state(const char *host) {

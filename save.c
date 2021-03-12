@@ -48,6 +48,7 @@ static void save_init(void) {
     RecoveryInProgress() ? standby_init() : primary_init();
     init_connect();
     etcd_init();
+    init_reload();
 }
 
 static void save_reload(void) {

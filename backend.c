@@ -7,6 +7,7 @@ extern queue_t backend_queue;
 static void backend_connected(Backend *backend) {
     D1("%s:%s", backend->host, backend->state);
     return RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
+    init_reload();
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
@@ -94,6 +95,7 @@ void backend_finish(Backend *backend) {
     pfree(backend->host);
     pfree(backend->state);
     pfree(backend);
+    init_reload();
 }
 
 void backend_fini(void) {
@@ -120,7 +122,8 @@ void backend_reset(Backend *backend) {
 static void backend_updated(Backend *backend) {
     D1("%s:%s", backend->host, backend->state);
     init_set_state(backend->host, backend->state);
-    return RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    init_reload();
 }
 
 void backend_update(Backend *backend, const char *state) {
@@ -128,4 +131,5 @@ void backend_update(Backend *backend, const char *state) {
     pfree(backend->state);
     backend->state = MemoryContextStrdup(TopMemoryContext, state);
     backend_updated(backend);
+    init_reload();
 }

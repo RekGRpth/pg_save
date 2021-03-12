@@ -41,6 +41,7 @@ static void standby_reprimary(Backend *backend) {
         initStringInfo(&buf);
         appendStringInfo(&buf, "host=%s application_name=%s", backend->host, hostname);
         init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
+        init_reload();
         pfree(buf.data);
     }
     backend_finish(backend);
@@ -57,6 +58,7 @@ static void standby_state(const char *state) {
     init_reset_state(hostname);
     init_alter_system_set("pg_save.state", init_state, state);
     init_set_state(hostname, state);
+    init_reload();
 }
 
 static void standby_result(PGresult *result) {
