@@ -86,6 +86,7 @@ void init_reload(void) {
 void init_reset_state(const char *host, const char *state) {
     StringInfoData buf;
     if (ShutdownRequestPending) return;
+    if (!state) return
     D1("host = %s, state = %s", host, state);
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", state);
