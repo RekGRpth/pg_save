@@ -28,6 +28,7 @@
 #include <pgstat.h>
 //#include <postgresql/internal/pqexpbuffer.h>
 #include <postmaster/bgworker.h>
+#include <postmaster/interrupt.h>
 #include <replication/slot.h>
 #include <replication/syncrep.h>
 //#include <replication/syncrep.h>

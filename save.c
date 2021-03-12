@@ -5,18 +5,10 @@ char *hostname;
 extern int init_timeout;
 queue_t backend_queue;
 TimestampTz start;
-volatile sig_atomic_t sighup = false;
 volatile sig_atomic_t sigterm = false;
 
 static void save_fini(void) {
     return RecoveryInProgress() ? standby_fini() : primary_fini();
-}
-
-static void save_sighup(SIGNAL_ARGS) {
-    int save_errno = errno;
-    sighup = true;
-    SetLatch(MyLatch);
-    errno = save_errno;
 }
 
 static void save_sigterm(SIGNAL_ARGS) {
@@ -39,7 +31,7 @@ static void save_init(void) {
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
-    pqsignal(SIGHUP, save_sighup);
+    pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, save_sigterm);
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
@@ -52,14 +44,14 @@ static void save_init(void) {
 }
 
 static void save_reload(void) {
-    sighup = false;
+    ConfigReloadPending = false;
     ProcessConfigFile(PGC_SIGHUP);
 }
 
 static void save_latch(void) {
     ResetLatch(MyLatch);
     CHECK_FOR_INTERRUPTS();
-    if (sighup) save_reload();
+    if (ConfigReloadPending) save_reload();
 }
 
 static void save_socket(Backend *backend) {
