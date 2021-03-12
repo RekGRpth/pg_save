@@ -69,6 +69,7 @@ static void save_socket(Backend *backend) {
 }
 
 static void save_timeout(void) {
+    etcd_timeout();
     return RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 

@@ -6,8 +6,6 @@ extern char *init_primary;
 extern char *init_state;
 extern int init_attempt;
 extern queue_t backend_queue;
-extern TimestampTz start;
-static int etcd_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
@@ -100,7 +98,6 @@ void primary_init(void) {
 }
 
 void primary_reseted(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
     backend_finish(backend);
 }
 
@@ -152,14 +149,6 @@ static void primary_standby(void) {
 }
 
 void primary_timeout(void) {
-    if (etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
-        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) init_kill();
-    }
-    if (etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
-        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) init_kill();
-    }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);

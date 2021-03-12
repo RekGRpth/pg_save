@@ -45,6 +45,7 @@ static void backend_reset_socket(Backend *backend) {
 }
 
 static void backend_reseted(Backend *backend) {
+    if (backend->attempt++ < init_attempt) return;
     D1("%s:%s/%s", backend->host, backend->port, backend->state);
     return RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
 }

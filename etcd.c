@@ -1,5 +1,10 @@
 #include "include.h"
 
+extern char *hostname;
+extern char *init_state;
+extern int init_attempt;
+extern TimestampTz start;
+static int etcd_attempt = 0;
 static Oid etcd_kv_put_oid;
 static Oid etcd_kv_range_oid;
 
@@ -23,7 +28,12 @@ static Oid etcd_get_function_oid(const char *schema, const char *function, int n
     return oid;
 }
 
-bool etcd_kv_put(const char *key, const char *value, int ttl) {
+void etcd_init(void) {
+    etcd_kv_put_oid = etcd_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
+    etcd_kv_range_oid = etcd_get_function_oid("save", "etcd_kv_range", 1, (Oid []){TEXTOID});
+}
+
+static bool etcd_kv_put(const char *key, const char *value, int ttl) {
     Datum key_datum = CStringGetTextDatum(key);
     Datum value_datum = CStringGetTextDatum(value);
     Datum ok;
@@ -36,7 +46,7 @@ bool etcd_kv_put(const char *key, const char *value, int ttl) {
     return DatumGetBool(ok);
 }
 
-char *etcd_kv_range(const char *key) {
+static char *etcd_kv_range(const char *key) {
     Datum key_datum = CStringGetTextDatum(key);
     Datum value;
     SPI_connect_my("etcd_kv_range");
@@ -47,7 +57,13 @@ char *etcd_kv_range(const char *key) {
     return TextDatumGetCStringMy(value);
 }
 
-void etcd_init(void) {
-    etcd_kv_put_oid = etcd_get_function_oid("save", "etcd_kv_put", 3, (Oid []){TEXTOID, TEXTOID, INT4OID});
-    etcd_kv_range_oid = etcd_get_function_oid("save", "etcd_kv_range", 1, (Oid []){TEXTOID});
+void etcd_timeout(void) {
+    if (!init_state || etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
+        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
+        if (etcd_attempt++ >= init_attempt) init_kill();
+    }
+    if (etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
+        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
+        if (etcd_attempt++ >= init_attempt) init_kill();
+    }
 }

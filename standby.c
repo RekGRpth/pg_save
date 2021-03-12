@@ -4,9 +4,7 @@ extern char *hostname;
 extern char *init_state;
 extern int init_attempt;
 extern queue_t backend_queue;
-extern TimestampTz start;
 static Backend *primary = NULL;
-static int etcd_attempt = 0;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
@@ -48,7 +46,6 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_reseted(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
     if (strcmp(backend->state, "primary")) backend_finish(backend);
     else if (!queue_size(&backend_queue)) init_kill();
     else if (strcmp(init_state, "sync")) standby_reprimary(backend);
@@ -149,14 +146,6 @@ static void standby_primary_connect(void) {
 }
 
 void standby_timeout(void) {
-    if (!init_state || etcd_kv_put(init_state, hostname, 0)) etcd_attempt = 0; else {
-        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) init_kill();
-    }
-    if (etcd_kv_put(hostname, timestamptz_to_str(start), 0)) etcd_attempt = 0; else {
-        W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) init_kill();
-    }
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (!primary && !strcmp(backend->state, "primary")) primary = backend;
