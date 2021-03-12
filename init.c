@@ -80,6 +80,7 @@ void init_reload(void) {
     if (!reload) return;
     ProcessConfigFile(PGC_SIGHUP);
     reload = false;
+    init_debug();
 }
 
 void init_reset_state(const char *host) {
