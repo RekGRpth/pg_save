@@ -74,7 +74,7 @@ void init_connect(void) {
 
 void init_reload(void) {
     if (!reload) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
+    ProcessConfigFile(PGC_SIGHUP);
     reload = false;
 }
 
