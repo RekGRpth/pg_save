@@ -43,8 +43,8 @@ static void standby_reprimary(Backend *backend) {
         initStringInfo(&buf);
         appendStringInfo(&buf, "host=%s application_name=%s", backend->host, hostname);
         init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
-        init_reload();
         pfree(buf.data);
+        if (kill(PostmasterPid, SIGHUP)) W("!kill and %m");
     }
     backend_finish(backend);
 }
