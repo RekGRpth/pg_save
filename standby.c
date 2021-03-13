@@ -4,7 +4,6 @@ extern char *hostname;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern STATE init_state;
-static Backend *primary = NULL;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
@@ -13,7 +12,6 @@ void standby_connected(Backend *backend) {
 }
 
 void standby_finished(Backend *backend) {
-    if (backend->state == PRIMARY) primary = NULL;
 }
 
 void standby_fini(void) {
@@ -146,9 +144,10 @@ static void standby_primary_connect(void) {
 }
 
 void standby_timeout(void) {
+    Backend *primary = NULL;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (!primary && backend->state == PRIMARY) primary = backend;
+        if (backend->state == PRIMARY) primary = backend;
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     if (!primary) standby_primary_connect();
