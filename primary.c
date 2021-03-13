@@ -91,7 +91,7 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo", PrimaryConnInfo);
     init_alter_system_reset("primary_slot_name", PrimarySlotName);
-    init_alter_system_set("pg_save.primary", init_primary, hostname);
+    init_set_host_state(hostname, PRIMARY);
     init_set_local_state(PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
