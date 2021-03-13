@@ -95,14 +95,11 @@ void init_reset_state(const char *host, const char *state) {
 }
 
 void init_set_state(const char *host, const char *state) {
-    char *old;
     StringInfoData buf;
     D1("host = %s, state = %s", host, state);
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", state);
-    old = GetConfigOptionByName(buf.data, NULL, false);
-    init_alter_system_set(buf.data, old, host);
-    if (old) pfree(old);
+    init_alter_system_set(buf.data, GetConfigOption(buf.data, false, true), host);
     pfree(buf.data);
 }
 
