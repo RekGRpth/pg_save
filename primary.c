@@ -36,7 +36,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     backend->attempt = 0;
     primary_set_synchronous_standby_names();
-    init_set_state(backend->host, backend->state);
+    init_set_host_state(backend->host, backend->state);
     backend_idle(backend);
 }
 
