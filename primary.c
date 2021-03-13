@@ -3,9 +3,9 @@
 extern char *hostname;
 extern char *init_policy;
 extern char *init_primary;
-extern char *init_state;
 extern int init_attempt;
 extern queue_t backend_queue;
+extern STATE init_state;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
@@ -92,7 +92,7 @@ void primary_init(void) {
     init_alter_system_reset("primary_conninfo", PrimaryConnInfo);
     init_alter_system_reset("primary_slot_name", PrimarySlotName);
     init_alter_system_set("pg_save.primary", init_primary, hostname);
-    init_alter_system_set("pg_save.state", init_state, "primary");
+    init_alter_system_set("pg_save.state", init_state2char(init_state), "primary");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
@@ -113,7 +113,7 @@ static void primary_result(void) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, backend_->host)) { backend = backend_; break; }
         }
-        backend ? backend_update(backend, state) : backend_connect(host, state);
+        backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
         pfree((void *)host);
         pfree((void *)state);
     }
@@ -135,7 +135,7 @@ static void primary_standby(void) {
         nargs++;
         appendStringInfo(&buf, "($%i", nargs);
         argtypes[nargs] = TEXTOID;
-        values[nargs] = CStringGetTextDatum(backend->state);
+        values[nargs] = CStringGetTextDatum(init_state2char(backend->state));
         nargs++;
         appendStringInfo(&buf, ", $%i)", nargs);
     }

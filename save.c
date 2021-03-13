@@ -48,7 +48,7 @@ static void save_latch(void) {
 
 static void save_socket(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", backend->host, backend->state, PQerrorMessage(backend->conn)); return; }
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); return; }
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);

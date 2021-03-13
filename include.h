@@ -47,28 +47,32 @@
 
 #include "queue.h"
 
+typedef enum STATE {UNKNOWN, PRIMARY, SYNC, POTENTIAL, QUORUM, ASYNC} STATE;
+
 typedef struct Backend {
     char *host;
-    char *state;
     int attempt;
     int events;
     PGconn *conn;
     queue_t queue;
+    STATE state;
     void (*socket) (struct Backend *backend);
 } Backend;
 
 typedef struct _SPI_plan SPI_plan;
 
 char *TextDatumGetCStringMy(Datum datum);
+const char *init_state2char(STATE state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+STATE init_char2state(const char *state);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
-void backend_connect(const char *host, const char *state);
+void backend_connect(const char *host, STATE state);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
-void backend_update(Backend *backend, const char *state);
+void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);
 void init_alter_system_reset(const char *name, const char *old);
@@ -76,8 +80,8 @@ void init_alter_system_set(const char *name, const char *old, const char *new);
 void init_connect(void);
 void init_debug(void);
 void init_reload(void);
-void init_reset_state(const char *host, const char *state);
-void init_set_state(const char *host, const char *state);
+void init_reset_state(const char *host, STATE state);
+void init_set_state(const char *host, STATE state);
 void init_sighup(void);
 void _PG_init(void);
 void primary_connected(Backend *backend);
