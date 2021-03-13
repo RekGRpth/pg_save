@@ -14,7 +14,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", backend->host, init_state2char(backend->state)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s CONNECTION_AWAITING_RESPONSE", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); break;
+        case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return;
 #if (PG_VERSION_NUM >= 130000)
         case CONNECTION_CHECK_TARGET: D1("%s:%s CONNECTION_CHECK_TARGET", backend->host, init_state2char(backend->state)); break;
 #endif
@@ -30,7 +30,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", backend->host, init_state2char(backend->state)); break;
-        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); break;
+        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return;
         case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_WRITEABLE; break;
