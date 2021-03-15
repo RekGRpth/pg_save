@@ -104,21 +104,21 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_reset_host_state(const char *host, STATE state) {
-    StringInfoData buf;
-    if (ShutdownRequestPending) return;
-    if (state == UNKNOWN) return;
-    D1("host = %s, state = %s", host, init_state2char(state));
-    initStringInfo(&buf);
-    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_alter_system_reset(buf.data);
-    pfree(buf.data);
-}
-
 void init_reset_local_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_alter_system_reset("pg_save.state");
     init_state = UNKNOWN;
+}
+
+void init_reset_state(STATE state) {
+    StringInfoData buf;
+    if (ShutdownRequestPending) return;
+    if (state == UNKNOWN) return;
+    D1("state = %s", init_state2char(state));
+    initStringInfo(&buf);
+    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
+    init_alter_system_reset(buf.data);
+    pfree(buf.data);
 }
 
 void init_set_host_state(const char *host, STATE state) {

@@ -52,7 +52,7 @@ void standby_init(void) {
 }
 
 static void standby_state(STATE state) {
-    init_reset_host_state(hostname, init_state);
+    init_reset_state(init_state);
     init_set_local_state(state);
     init_set_host_state(hostname, state);
     init_reload();
