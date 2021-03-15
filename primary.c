@@ -2,7 +2,6 @@
 
 extern char *hostname;
 extern char *init_policy;
-extern char *init_primary;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern STATE init_state;
