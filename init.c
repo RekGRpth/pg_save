@@ -98,7 +98,7 @@ void init_connect(void) {
 
 void init_reload(void) {
     if (!reload) return;
-    ProcessConfigFile(PGC_SIGHUP);
+    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
     reload = false;
     init_debug();
 }
@@ -117,6 +117,7 @@ void init_reset_host_state(const char *host, STATE state) {
 void init_reset_local_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_alter_system_reset("pg_save.state", init_state2char(state));
+    init_state = UNKNOWN;
 }
 
 void init_set_host_state(const char *host, STATE state) {
@@ -131,6 +132,7 @@ void init_set_host_state(const char *host, STATE state) {
 void init_set_local_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_alter_system_set("pg_save.state", init_state2char(init_state), init_state2char(state));
+    init_state = state;
 }
 
 static void init_work(void) {
@@ -182,11 +184,6 @@ static void init_save(void) {
     DefineCustomStringVariable("pg_save.sync", "pg_save sync", NULL, &init_sync, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     init_debug();
     init_work();
-}
-
-void init_sighup(void) {
-    if (!reload) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
 }
 
 void _PG_init(void) {

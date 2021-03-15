@@ -27,7 +27,6 @@ static void standby_reprimary(Backend *backend) {
         appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), hostname);
         init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
         pfree(buf.data);
-        init_sighup();
     }
     backend_finish(backend);
 }

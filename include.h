@@ -83,7 +83,6 @@ void init_reset_host_state(const char *host, STATE state);
 void init_reset_local_state(STATE state);
 void init_set_host_state(const char *host, STATE state);
 void init_set_local_state(STATE state);
-void init_sighup(void);
 void _PG_init(void);
 void primary_connected(Backend *backend);
 void primary_failed(Backend *backend);

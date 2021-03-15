@@ -14,6 +14,7 @@ static void backend_failed(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+    init_reload();
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
@@ -78,6 +79,7 @@ void backend_connect(const char *host, STATE state) {
 static void backend_finished(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
+    init_reload();
 }
 
 void backend_finish(Backend *backend) {
@@ -86,7 +88,6 @@ void backend_finish(Backend *backend) {
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend);
-    init_reload();
 }
 
 void backend_fini(void) {
@@ -121,5 +122,4 @@ void backend_update(Backend *backend, STATE state) {
     init_reset_host_state(PQhost(backend->conn), backend->state);
     backend->state = state;
     backend_updated(backend);
-    init_reload();
 }
