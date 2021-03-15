@@ -7,7 +7,7 @@ extern STATE init_state;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
-    init_set_host_state(backend->host, backend->state);
+    init_set_host_state(PQhost(backend->conn), backend->state);
     backend_idle(backend);
 }
 
@@ -24,7 +24,7 @@ static void standby_reprimary(Backend *backend) {
         StringInfoData buf;
         if (backend->state != SYNC) continue;
         initStringInfo(&buf);
-        appendStringInfo(&buf, "host=%s application_name=%s", backend->host, hostname);
+        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), hostname);
         init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
         pfree(buf.data);
         init_sighup();
@@ -70,7 +70,7 @@ static void standby_result(PGresult *result) {
         D1("host = %s, state = %s", host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, backend_->host)) { backend = backend_; break; }
+            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
     }
@@ -79,7 +79,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
+        default: W("%s:%s PQresultStatus = %s and %s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
@@ -114,7 +114,7 @@ static void standby_primary(Backend *backend) {
         appendStringInfo(&buf, ", $%i)", nParams);
     }
     if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn));
+        W("%s:%s !PQsendQueryParams and %s", PQhost(backend->conn), init_state2char(backend->state), PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->socket = standby_primary_socket;

@@ -50,7 +50,6 @@
 typedef enum STATE {UNKNOWN, PRIMARY, SYNC, POTENTIAL, QUORUM, ASYNC} STATE;
 
 typedef struct Backend {
-    char *host;
     int attempt;
     int events;
     PGconn *conn;

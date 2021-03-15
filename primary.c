@@ -15,7 +15,7 @@ static void primary_set_synchronous_standby_names(void) {
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        names[i++] = (char *)backend->host;
+        names[i++] = (char *)PQhost(backend->conn);
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfo(&buf);
@@ -36,7 +36,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     backend->attempt = 0;
     primary_set_synchronous_standby_names();
-    init_set_host_state(backend->host, backend->state);
+    init_set_host_state(PQhost(backend->conn), backend->state);
     backend_idle(backend);
 }
 
@@ -111,7 +111,7 @@ static void primary_result(void) {
         D1("host = %s, state = %s", host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, backend_->host)) { backend = backend_; break; }
+            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
         pfree((void *)host);
