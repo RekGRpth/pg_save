@@ -110,7 +110,7 @@ void init_reset_local_state(STATE state) {
     init_state = UNKNOWN;
 }
 
-void init_reset_state(STATE state) {
+void init_reset_remote_state(STATE state) {
     StringInfoData buf;
     if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;

@@ -80,7 +80,7 @@ void init_connect(void);
 void init_debug(void);
 void init_reload(void);
 void init_reset_local_state(STATE state);
-void init_reset_state(STATE state);
+void init_reset_remote_state(STATE state);
 void init_set_host_state(const char *host, STATE state);
 void init_set_local_state(STATE state);
 void _PG_init(void);
