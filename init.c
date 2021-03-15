@@ -127,9 +127,9 @@ void init_set_local_state(STATE state) {
     init_state = state;
 }
 
-void init_set_remote_state(const char *host, STATE state) {
+void init_set_remote_state(STATE state, const char *host) {
     StringInfoData buf;
-    D1("host = %s, state = %s", host, init_state2char(state));
+    D1("state = %s, host = %s", init_state2char(state), host);
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_set(buf.data, host);

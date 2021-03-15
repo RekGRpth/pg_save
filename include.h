@@ -82,7 +82,7 @@ void init_reload(void);
 void init_reset_local_state(STATE state);
 void init_reset_remote_state(STATE state);
 void init_set_local_state(STATE state);
-void init_set_remote_state(const char *host, STATE state);
+void init_set_remote_state(STATE state, const char *host);
 void _PG_init(void);
 void primary_connected(Backend *backend);
 void primary_failed(Backend *backend);

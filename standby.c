@@ -7,7 +7,7 @@ extern STATE init_state;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
-    init_set_remote_state(PQhost(backend->conn), backend->state);
+    init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -48,13 +48,13 @@ void standby_fini(void) {
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
     if (init_state == PRIMARY) init_reset_local_state(init_state);
-    if (init_state != UNKNOWN) init_set_remote_state(hostname, init_state);
+    if (init_state != UNKNOWN) init_set_remote_state(init_state, hostname);
 }
 
 static void standby_state(STATE state) {
     init_reset_remote_state(init_state);
     init_set_local_state(state);
-    init_set_remote_state(hostname, state);
+    init_set_remote_state(state, hostname);
     init_reload();
 }
 
