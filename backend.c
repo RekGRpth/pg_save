@@ -113,7 +113,6 @@ void backend_reset(Backend *backend) {
 
 static void backend_updated(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    init_set_host_state(PQhost(backend->conn), backend->state);
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
     init_reload();
 }
@@ -121,5 +120,6 @@ static void backend_updated(Backend *backend) {
 void backend_update(Backend *backend, STATE state) {
     init_reset_host_state(PQhost(backend->conn), backend->state);
     backend->state = state;
+    init_set_host_state(PQhost(backend->conn), backend->state);
     backend_updated(backend);
 }

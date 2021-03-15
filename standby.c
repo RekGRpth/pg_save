@@ -48,7 +48,7 @@ void standby_fini(void) {
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
     if (init_state == PRIMARY) init_reset_local_state(init_state);
-    else if (init_state != UNKNOWN) init_set_host_state(hostname, init_state);
+    if (init_state != UNKNOWN) init_set_host_state(hostname, init_state);
 }
 
 static void standby_state(STATE state) {
