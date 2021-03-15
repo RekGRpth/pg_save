@@ -11,19 +11,6 @@ void standby_connected(Backend *backend) {
     backend_idle(backend);
 }
 
-void standby_finished(Backend *backend) {
-}
-
-void standby_fini(void) {
-    backend_fini();
-}
-
-void standby_init(void) {
-    init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
-    if (init_state == PRIMARY) init_reset_local_state(init_state);
-    else if (init_state != UNKNOWN) init_set_host_state(hostname, init_state);
-}
-
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
@@ -45,11 +32,24 @@ static void standby_reprimary(Backend *backend) {
     backend_finish(backend);
 }
 
-void standby_reseted(Backend *backend) {
+void standby_failed(Backend *backend) {
     if (backend->state != PRIMARY) backend_finish(backend);
     else if (!queue_size(&backend_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
     else if (init_state != SYNC) standby_reprimary(backend);
     else standby_promote(backend);
+}
+
+void standby_finished(Backend *backend) {
+}
+
+void standby_fini(void) {
+    backend_fini();
+}
+
+void standby_init(void) {
+    init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
+    if (init_state == PRIMARY) init_reset_local_state(init_state);
+    else if (init_state != UNKNOWN) init_set_host_state(hostname, init_state);
 }
 
 static void standby_state(STATE state) {

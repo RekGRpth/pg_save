@@ -87,10 +87,10 @@ void init_set_local_state(STATE state);
 void init_sighup(void);
 void _PG_init(void);
 void primary_connected(Backend *backend);
+void primary_failed(Backend *backend);
 void primary_finished(Backend *backend);
 void primary_fini(void);
 void primary_init(void);
-void primary_reseted(Backend *backend);
 void primary_timeout(void);
 void primary_updated(Backend *backend);
 void save_worker(Datum main_arg);
@@ -101,10 +101,10 @@ void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *
 void SPI_finish_my(void);
 void SPI_start_transaction_my(const char *src);
 void standby_connected(Backend *backend);
+void standby_failed(Backend *backend);
 void standby_finished(Backend *backend);
 void standby_fini(void);
 void standby_init(void);
-void standby_reseted(Backend *backend);
 void standby_timeout(void);
 void standby_updated(Backend *backend);
 

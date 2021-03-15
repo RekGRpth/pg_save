@@ -40,6 +40,10 @@ void primary_connected(Backend *backend) {
     backend_idle(backend);
 }
 
+void primary_failed(Backend *backend) {
+    backend_finish(backend);
+}
+
 void primary_finished(Backend *backend) {
     if (ShutdownRequestPending) return;
     primary_set_synchronous_standby_names();
@@ -97,10 +101,6 @@ void primary_init(void) {
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
-}
-
-void primary_reseted(Backend *backend) {
-    backend_finish(backend);
 }
 
 static void primary_result(void) {

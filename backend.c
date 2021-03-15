@@ -10,6 +10,12 @@ static void backend_connected(Backend *backend) {
     init_reload();
 }
 
+static void backend_failed(Backend *backend) {
+    if (backend->attempt++ < init_attempt) return;
+    D1("%s:%s", backend->host, init_state2char(backend->state));
+    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+}
+
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", backend->host, init_state2char(backend->state)); break;
@@ -30,7 +36,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", backend->host, init_state2char(backend->state)); break;
-        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return;
+        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessage(backend->conn)); backend_failed(backend); return;
         case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_WRITEABLE; break;
@@ -45,22 +51,10 @@ static void backend_reset_socket(Backend *backend) {
     backend_connect_or_reset_socket(backend, PQresetPoll);
 }
 
-static void backend_reseted(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
-    D1("%s:%s", backend->host, init_state2char(backend->state));
-    RecoveryInProgress() ? standby_reseted(backend) : primary_reseted(backend);
-}
-
 static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
     const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT", backend->host, init_state2char(backend->state)); backend_finish(backend); return;
-        case PQPING_NO_RESPONSE: W("%s:%s PQPING_NO_RESPONSE and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_reseted(backend); return;
-        case PQPING_OK: D1("%s:%s PQPING_OK", backend->host, init_state2char(backend->state)); break;
-        case PQPING_REJECT: W("%s:%s PQPING_REJECT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_reseted(backend); return;
-    }
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return; }
         backend->socket = backend_connect_socket;
