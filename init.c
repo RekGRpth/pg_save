@@ -100,7 +100,6 @@ void init_reload(void) {
     if (!reload) return;
     if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
     reload = false;
-    init_debug();
 }
 
 void init_reset_host_state(const char *host, STATE state) {
