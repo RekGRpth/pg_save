@@ -34,8 +34,9 @@ STATE init_char2state(const char *state) {
     return UNKNOWN;
 }
 
-void init_alter_system_reset(const char *name, const char *old) {
+void init_alter_system_reset(const char *name) {
     AlterSystemStmt *stmt;
+    const char *old = GetConfigOption(name, false, true);
     if (!old || old[0] == '\0') return;
     D1("name = %s, old = %s", name, old);
     stmt = makeNode(AlterSystemStmt);
@@ -56,8 +57,9 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-void init_alter_system_set(const char *name, const char *old, const char *new) {
+void init_alter_system_set(const char *name, const char *new) {
     AlterSystemStmt *stmt;
+    const char *old = GetConfigOption(name, false, true);
     if (old && old[0] != '\0' && !strcmp(old, new)) return;
     D1("name = %s, old = %s, new = %s", name, (old && old[0] != '\0') ? old : "(null)", new);
     stmt = makeNode(AlterSystemStmt);
@@ -109,13 +111,13 @@ void init_reset_host_state(const char *host, STATE state) {
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_alter_system_reset(buf.data, host);
+    init_alter_system_reset(buf.data);
     pfree(buf.data);
 }
 
 void init_reset_local_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_alter_system_reset("pg_save.state", init_state2char(state));
+    init_alter_system_reset("pg_save.state");
     init_state = UNKNOWN;
 }
 
@@ -124,13 +126,13 @@ void init_set_host_state(const char *host, STATE state) {
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_alter_system_set(buf.data, GetConfigOption(buf.data, false, true), host);
+    init_alter_system_set(buf.data, host);
     pfree(buf.data);
 }
 
 void init_set_local_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", init_state2char(init_state), init_state2char(state));
+    init_alter_system_set("pg_save.state", init_state2char(state));
     init_state = state;
 }
 

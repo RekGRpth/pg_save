@@ -27,7 +27,7 @@ static void primary_set_synchronous_standby_names(void) {
     }
     pfree(names);
     appendStringInfoString(&buf, ")");
-    init_alter_system_set("synchronous_standby_names", SyncRepStandbyNames, buf.data);
+    init_alter_system_set("synchronous_standby_names", buf.data);
     pfree(buf.data);
 }
 
@@ -91,8 +91,8 @@ static void primary_schema(const char *schema) {
 }
 
 void primary_init(void) {
-    init_alter_system_reset("primary_conninfo", PrimaryConnInfo);
-    init_alter_system_reset("primary_slot_name", PrimarySlotName);
+    init_alter_system_reset("primary_conninfo");
+    init_alter_system_reset("primary_slot_name");
     init_set_host_state(hostname, PRIMARY);
     init_set_local_state(PRIMARY);
     primary_schema("curl");

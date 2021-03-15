@@ -25,7 +25,7 @@ static void standby_reprimary(Backend *backend) {
         if (backend->state != SYNC) continue;
         initStringInfo(&buf);
         appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), hostname);
-        init_alter_system_set("primary_conninfo", PrimaryConnInfo, buf.data);
+        init_alter_system_set("primary_conninfo", buf.data);
         pfree(buf.data);
     }
     backend_finish(backend);
@@ -46,7 +46,7 @@ void standby_fini(void) {
 }
 
 void standby_init(void) {
-    init_alter_system_reset("synchronous_standby_names", SyncRepStandbyNames);
+    init_alter_system_reset("synchronous_standby_names");
     if (init_state == PRIMARY) init_reset_local_state(init_state);
     if (init_state != UNKNOWN) init_set_host_state(hostname, init_state);
 }
