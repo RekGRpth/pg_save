@@ -121,19 +121,19 @@ void init_reset_remote_state(STATE state) {
     pfree(buf.data);
 }
 
-void init_set_host_state(const char *host, STATE state) {
+void init_set_local_state(STATE state) {
+    D1("state = %s", init_state2char(state));
+    init_alter_system_set("pg_save.state", init_state2char(state));
+    init_state = state;
+}
+
+void init_set_remote_state(const char *host, STATE state) {
     StringInfoData buf;
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfo(&buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_set(buf.data, host);
     pfree(buf.data);
-}
-
-void init_set_local_state(STATE state) {
-    D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", init_state2char(state));
-    init_state = state;
 }
 
 static void init_work(void) {

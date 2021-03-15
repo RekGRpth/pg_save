@@ -120,6 +120,6 @@ static void backend_updated(Backend *backend) {
 void backend_update(Backend *backend, STATE state) {
     init_reset_remote_state(backend->state);
     backend->state = state;
-    init_set_host_state(PQhost(backend->conn), backend->state);
+    init_set_remote_state(PQhost(backend->conn), backend->state);
     backend_updated(backend);
 }

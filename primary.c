@@ -34,7 +34,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     backend->attempt = 0;
     primary_set_synchronous_standby_names();
-    init_set_host_state(PQhost(backend->conn), backend->state);
+    init_set_remote_state(PQhost(backend->conn), backend->state);
     backend_idle(backend);
 }
 
@@ -93,7 +93,7 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo");
     init_alter_system_reset("primary_slot_name");
-    init_set_host_state(hostname, PRIMARY);
+    init_set_remote_state(hostname, PRIMARY);
     init_set_local_state(PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
