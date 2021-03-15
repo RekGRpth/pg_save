@@ -63,6 +63,11 @@ void save_worker(Datum main_arg) {
     TimestampTz stop = (start = GetCurrentTimestamp());
     save_init();
     while (!ShutdownRequestPending) {
+        fsec_t fsec;
+        int hour;
+        int min;
+        int sec;
+        int timeout = init_timeout * 1000;
         WaitEvent *events;
         WaitEventSet *set;
         int nevents = 2;
@@ -86,7 +91,12 @@ void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        nevents = WaitEventSetWait(set, init_timeout, events, nevents, PG_WAIT_EXTENSION);
+        dt2time(GetCurrentTimestamp(), &hour, &min, &sec, &fsec);
+        timeout -= fsec;
+        if (init_timeout > 1000 && timeout > sec * 1000 * 1000) timeout -= sec * 1000 * 1000;
+        if (init_timeout > 60 * 1000 && timeout > min * 60 * 1000 * 1000) timeout -= min * 60 * 1000 * 1000;
+        if (init_timeout > 60 * 60 * 1000 && timeout > hour * 60 * 60 * 1000 * 1000) timeout -= hour * 60 * 60 * 1000 * 1000;
+        nevents = WaitEventSetWait(set, timeout / 1000, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
