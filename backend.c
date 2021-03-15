@@ -56,10 +56,10 @@ static void backend_connect_or_reset(Backend *backend) {
     const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     if (!backend->conn) {
-        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return; }
+        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessage(backend->conn)); backend_failed(backend); return; }
         backend->socket = backend_connect_socket;
     } else {
-        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return; }
+        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessage(backend->conn)); backend_failed(backend); return; }
         backend->socket = backend_reset_socket;
     }
     if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s PQstatus == CONNECTION_BAD and %s", backend->host, init_state2char(backend->state), PQerrorMessage(backend->conn)); backend_finish(backend); return; }
