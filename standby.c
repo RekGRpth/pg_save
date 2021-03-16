@@ -61,8 +61,8 @@ static void standby_state(STATE state) {
 static void standby_result(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         Backend *backend = NULL;
-        const char *host = PQgetvalue(result, row, PQfnumber(result, "host"));
-        const char *state = PQgetvalue(result, row, PQfnumber(result, "state"));
+        const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
+        const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (me) { standby_state(init_char2state(state)); continue; }
@@ -89,7 +89,7 @@ static void standby_primary(Backend *backend) {
     char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication WHERE state = 'streaming'");
+    appendStringInfoString(&buf, "SELECT application_name, sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication WHERE state = 'streaming'");
     nParams = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
