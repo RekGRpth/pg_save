@@ -14,7 +14,7 @@ static Oid etcd_get_function_oid(const char *schema, const char *function, int n
     const char *function_quote = quote_identifier(function);
     List *funcname;
     StringInfoData buf;
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     if (schema) appendStringInfo(&buf, "%s.", schema_quote);
     appendStringInfoString(&buf, function_quote);
     funcname = stringToQualifiedNameList(buf.data);

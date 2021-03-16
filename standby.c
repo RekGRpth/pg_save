@@ -23,7 +23,7 @@ static void standby_reprimary(Backend *backend) {
         Backend *backend = queue_data(queue, Backend, queue);
         StringInfoData buf;
         if (backend->state != SYNC) continue;
-        initStringInfo(&buf);
+        initStringInfoMy(TopMemoryContext, &buf);
         appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), hostname);
         init_alter_system_set("primary_conninfo", buf.data);
         pfree(buf.data);
@@ -88,7 +88,7 @@ static void standby_primary(Backend *backend) {
     Oid *paramTypes = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramTypes)) : NULL;
     char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramValues)) : NULL;
     StringInfoData buf;
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
     nParams = 0;
     queue_each(&backend_queue, queue) {

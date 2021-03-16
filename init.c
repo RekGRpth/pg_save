@@ -115,7 +115,7 @@ void init_reset_remote_state(STATE state) {
     if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;
     D1("state = %s", init_state2char(state));
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_reset(buf.data);
     pfree(buf.data);
@@ -130,7 +130,7 @@ void init_set_local_state(STATE state) {
 void init_set_remote_state(STATE state, const char *host) {
     StringInfoData buf;
     D1("state = %s, host = %s", init_state2char(state), host);
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_set(buf.data, host);
     pfree(buf.data);
@@ -143,7 +143,7 @@ static void init_work(void) {
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
     worker.bgw_start_time = BgWorkerStart_ConsistentState;
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "pg_save");
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_library_name, buf.data, buf.len);

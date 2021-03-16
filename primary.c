@@ -17,7 +17,7 @@ static void primary_set_synchronous_standby_names(void) {
         names[i++] = (char *)PQhost(backend->conn);
     }
     pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "%s (", init_policy);
     for (int i = 0; i < queue_size(&backend_queue); i++) {
         const char *name_quote = quote_identifier(names[i]);
@@ -57,7 +57,7 @@ static void primary_extension(const char *schema, const char *extension) {
     const char *schema_quote = schema ? quote_identifier(schema) : NULL;
     const char *extension_quote = quote_identifier(extension);
     D1("schema = %s, extension = %s", schema ? schema : "(null)", extension);
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "CREATE EXTENSION %s", extension_quote);
     if (schema) appendStringInfo(&buf, " SCHEMA %s", schema_quote);
     names = stringToQualifiedNameList(extension_quote);
@@ -77,7 +77,7 @@ static void primary_schema(const char *schema) {
     List *names;
     const char *schema_quote = quote_identifier(schema);
     D1("schema = %s", schema);
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "CREATE SCHEMA %s", schema_quote);
     names = stringToQualifiedNameList(schema_quote);
     SPI_connect_my(buf.data);
@@ -122,7 +122,7 @@ static void primary_standby(void) {
     Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*argtypes)) : NULL;
     Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
-    initStringInfo(&buf);
+    initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
     nargs = 0;
     queue_each(&backend_queue, queue) {
