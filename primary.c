@@ -104,16 +104,16 @@ void primary_init(void) {
 static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend = NULL;
-        const char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
-        const char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
+        char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "host", false));
+        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "state", false));
         D1("host = %s, state = %s", host, state);
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
         backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
-        pfree((void *)host);
-        pfree((void *)state);
+        pfree(host);
+        pfree(state);
     }
 }
 
