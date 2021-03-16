@@ -123,7 +123,7 @@ static void primary_standby(void) {
     Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_get_wal_senders() AS w INNER JOIN pg_stat_get_activity(pid) AS a USING (pid) WHERE w.state = 'streaming'");
+    appendStringInfoString(&buf, "SELECT coalesce(client_hostname, client_addr::text) AS host, sync_state AS state FROM pg_stat_replication WHERE state = 'streaming'");
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
