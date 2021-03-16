@@ -54,7 +54,7 @@ static bool etcd_kv_put(const char *key, const char *value, int ttl) {
     SPI_commit_my();
     SPI_finish_my();
     pfree((void *)key_datum);
-    return TextDatumGetCStringMy(value);
+    return TextDatumGetCStringMy(TopMemoryContext, value);
 }*/
 
 void etcd_timeout(void) {
