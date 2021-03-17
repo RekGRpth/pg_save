@@ -114,7 +114,7 @@ static void primary_result(void) {
 }
 
 static void primary_standby(void) {
-    static Oid argtypes[] = {TEXTARRAYOID};
+    static Oid argtypes[] = {TEXTOID};
     Datum values[] = {save ? CStringGetTextDatum(save) : (Datum)NULL};
     char nulls[] = {save ? ' ' : 'n'};
     static SPI_plan *plan = NULL;

@@ -80,7 +80,7 @@ static void standby_primary_socket(Backend *backend) {
 }
 
 static void standby_primary(Backend *backend) {
-    static Oid paramTypes[] = {TEXTARRAYOID};
+    static Oid paramTypes[] = {TEXTOID};
     const char *paramValues[] = {save};
     static char *command = NULL;
     StaticAssertStmt(countof(paramTypes) == countof(paramValues), "countof(paramTypes) == countof(paramValues)");
