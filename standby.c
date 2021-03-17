@@ -14,25 +14,19 @@ static void standby_save(void) {
     save = NULL;
     if (!nelems) return;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "array[");
+    appendStringInfoString(&buf, "{");
     nelems = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        char *host = quote_literal_cstr(PQhost(backend->conn));
-        char *state = quote_literal_cstr(init_state2char(backend->state));
         if (nelems) appendStringInfoString(&buf, ", ");
-        appendStringInfo(&buf, "(%s, %s)", host, state);
+        appendStringInfo(&buf, "\"(%s, %s)\"", PQhost(backend->conn), init_state2char(backend->state));
         nelems++;
-        pfree(host);
-        pfree(state);
     }
-    if (init_state != UNKNOWN) {
-        char *host = quote_literal_cstr(hostname);
-        char *state = quote_literal_cstr(init_state2char(init_state));
+    if (init_state != UNKNOWN && init_state != PRIMARY) {
         if (nelems) appendStringInfoString(&buf, ", ");
-        appendStringInfo(&buf, "(%s, %s)", host, state);
+        appendStringInfo(&buf, "\"(%s, %s)\"", hostname, init_state2char(init_state));
     }
-    appendStringInfoString(&buf, "]");
+    appendStringInfoString(&buf, "}");
     save = buf.data;
 }
 
@@ -105,7 +99,7 @@ static void standby_result(PGresult *result) {
 static void standby_primary_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)), PQresultErrorMessage(result)); break;
+        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
     backend_idle(backend);
 }
