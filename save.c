@@ -2,12 +2,39 @@
 #include <sys/utsname.h>
 
 char *hostname;
+char *schema_type;
 extern int init_timeout;
+Oid type = InvalidOid;
 queue_t backend_queue;
 TimestampTz start;
 
 static void save_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
+}
+
+static void save_type(const char *schema, const char *name) {
+    StringInfoData buf;
+    int32 typmod;
+    const char *schema_quote = schema ? quote_identifier(schema) : NULL;
+    const char *name_quote = quote_identifier(name);
+    D1("schema = %s, name = %s", schema ? schema : "(null)", name);
+    initStringInfoMy(TopMemoryContext, &buf);
+    if (schema) appendStringInfo(&buf, "%s.", schema_quote);
+    appendStringInfoString(&buf, "state");
+    schema_type = buf.data;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "CREATE TYPE %s AS (application_name text, sync_state text)", schema_type);
+    SPI_connect_my(buf.data);
+    parseTypeString(schema_type, &type, &typmod, true);
+    if (OidIsValid(type)) D1("type %s already exists", schema_type); else {
+        if (RecoveryInProgress()) E("!OidIsValid and RecoveryInProgress");
+        else SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
+    }
+    SPI_commit_my();
+    SPI_finish_my();
+    if (schema && schema_quote != schema) pfree((void *)schema_quote);
+    if (name_quote != name) pfree((void *)name_quote);
+    pfree(buf.data);
 }
 
 static void save_init(void) {
@@ -29,6 +56,7 @@ static void save_init(void) {
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
     RecoveryInProgress() ? standby_init() : primary_init();
+    save_type("save", "save");
     init_connect();
     etcd_init();
     init_reload();
