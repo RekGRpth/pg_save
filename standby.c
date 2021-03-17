@@ -71,7 +71,7 @@ static void standby_result(PGresult *result) {
     }
 }
 
-static void standby_primary_socket(Backend *backend) {
+static void standby_prepare_socket2(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
@@ -79,11 +79,23 @@ static void standby_primary_socket(Backend *backend) {
     backend_idle(backend);
 }
 
-static void standby_primary(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
+static void standby_prepare_socket(Backend *backend) {
     const char *paramValues[] = {save};
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        default: D1("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    }
+    if (!PQsendQueryPrepared(backend->conn, "standby_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
+        W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+        backend_finish(backend);
+    } else {
+        backend->socket = standby_prepare_socket2;
+        backend->events = WL_SOCKET_WRITEABLE;
+    }
+}
+
+static void standby_prepare(Backend *backend) {
+    static Oid paramTypes[] = {TEXTOID};
     static char *command = NULL;
-    StaticAssertStmt(countof(paramTypes) == countof(paramValues), "countof(paramTypes) == countof(paramValues)");
     if (!command) {
         StringInfoData buf;
         initStringInfoMy(TopMemoryContext, &buf);
@@ -93,11 +105,11 @@ static void standby_primary(Backend *backend) {
             "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
         command = buf.data;
     }
-    if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+    if (!PQsendPrepare(backend->conn, "standby_prepare", command, countof(paramTypes), paramTypes)) {
+        W("%s:%s !PQsendPrepare and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->socket = standby_primary_socket;
+        backend->socket = standby_prepare_socket;
         backend->events = WL_SOCKET_WRITEABLE;
     }
 }
@@ -130,7 +142,7 @@ void standby_timeout(void) {
     if (!primary) standby_primary_connect();
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
-    else standby_primary(primary);
+    else standby_prepare(primary);
 }
 
 void standby_updated(Backend *backend) {
