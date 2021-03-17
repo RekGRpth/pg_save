@@ -1,13 +1,47 @@
 #include "include.h"
 
-extern ArrayType *save;
 extern char *hostname;
 extern char *init_policy;
 extern char *schema_type;
 extern int init_attempt;
+extern Oid type;
 extern Oid type_array;
 extern queue_t backend_queue;
 extern STATE init_state;
+static ArrayType *save;
+
+static void primary_save(void) {
+    Datum *elems;
+    TupleDescData *tupdesc;
+    int nelems = queue_size(&backend_queue);
+    if (save) pfree(save);
+    save = NULL;
+    if (!nelems) return;
+    SPI_connect_my("TypeGetTupleDesc");
+    tupdesc = TypeGetTupleDesc(type, NULL);
+    SPI_commit_my();
+    SPI_finish_my();
+    elems = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*elems));
+    nelems = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        Datum values[] = {CStringGetTextDatum(PQhost(backend->conn)), CStringGetTextDatum(init_state2char(backend->state))};
+        bool isnull[] = {false, false};
+        HeapTupleData *tuple = heap_form_tuple(tupdesc, values, isnull);
+        D1("state = %s, host = %s", init_state2char(backend->state), PQhost(backend->conn));
+        elems[nelems] = HeapTupleGetDatum(tuple);
+        for (int i = 0; i < countof(values); i++) pfree((void *)values[i]);
+        nelems++;
+    }
+    if (nelems) {
+        MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
+        save = construct_array(elems, nelems, type_array, -1, false, TYPALIGN_INT);
+        MemoryContextSwitchTo(oldMemoryContext);
+//        for (int i = 0; i < nelems; i++) heap_freetuple(elems[i]);
+    }
+//    FreeTupleDesc(tupdesc);
+    pfree(elems);
+}
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
@@ -39,6 +73,7 @@ void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
+    primary_save();
 }
 
 void primary_failed(Backend *backend) {
@@ -48,6 +83,7 @@ void primary_failed(Backend *backend) {
 void primary_finished(Backend *backend) {
     if (ShutdownRequestPending) return;
     primary_set_synchronous_standby_names();
+    primary_save();
 }
 
 void primary_fini(void) {
@@ -159,4 +195,5 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
+    primary_save();
 }
