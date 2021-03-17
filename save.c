@@ -4,6 +4,7 @@
 char *hostname;
 char *schema_type;
 extern int init_timeout;
+Oid type_array = InvalidOid;
 Oid type = InvalidOid;
 queue_t backend_queue;
 TimestampTz start;
@@ -30,6 +31,7 @@ static void save_type(const char *schema, const char *name) {
         if (RecoveryInProgress()) E("!OidIsValid and RecoveryInProgress");
         else SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
     }
+    type_array = get_array_type(type);
     SPI_commit_my();
     SPI_finish_my();
     if (schema && schema_quote != schema) pfree((void *)schema_quote);

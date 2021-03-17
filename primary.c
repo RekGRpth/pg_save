@@ -1,8 +1,11 @@
 #include "include.h"
 
+extern ArrayType *save;
 extern char *hostname;
 extern char *init_policy;
+extern char *schema_type;
 extern int init_attempt;
+extern Oid type_array;
 extern queue_t backend_queue;
 extern STATE init_state;
 
@@ -105,45 +108,45 @@ static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         Backend *backend = NULL;
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
-        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", false));
-        D1("host = %s, state = %s", host, state);
+        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", true));
+        D1("host = %s, state = %s", host, state ? state : "(null)");
         queue_each(&backend_queue, queue) {
             Backend *backend_ = queue_data(queue, Backend, queue);
             if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
         }
-        backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
+        if (backend) {
+            if (state) backend_update(backend, init_char2state(state));
+            else backend_fail(backend);
+        } else if (state) {
+            backend_connect(host, init_char2state(state));
+        }
         pfree(host);
-        pfree(state);
+        if (state) pfree(state);
     }
 }
 
 static void primary_standby(void) {
-    int nargs = 2 * queue_size(&backend_queue);
-    Oid *argtypes = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*argtypes)) : NULL;
-    Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*values)) : NULL;
-    StringInfoData buf;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "SELECT application_name, sync_state FROM pg_stat_replication WHERE state = 'streaming'"); // with s as (SELECT application_name, s.sync_state, s.sync_state is distinct from v.sync_state as manage FROM pg_stat_replication as s full outer join (values ('pg_save2.docker', 'sync'), ('pg_save3.docker', 'potential1')) as v (application_name, sync_state) using (application_name)) select * from s where manage;
-    nargs = 0;
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        appendStringInfoString(&buf, nargs ? ", " : " AND (client_addr, sync_state) NOT IN (");
-        argtypes[nargs] = INETOID;
-        values[nargs] = DirectFunctionCall1(inet_in, CStringGetDatum(PQhostaddr(backend->conn)));
-        nargs++;
-        appendStringInfo(&buf, "($%i", nargs);
-        argtypes[nargs] = TEXTOID;
-        values[nargs] = CStringGetTextDatum(init_state2char(backend->state));
-        nargs++;
-        appendStringInfo(&buf, ", $%i)", nargs);
+    Oid argtypes[] = {type_array};
+    Datum values[] = {save ? PointerGetDatum(save) : (Datum)NULL};
+    char nulls[] = {save ? ' ' : 'n'};
+    static SPI_plan *plan = NULL;
+    static char *command = NULL;
+    StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
+    StaticAssertStmt(countof(argtypes) == countof(nulls), "countof(argtypes) == countof(values)");
+    if (!command) {
+        StringInfoData buf;
+        initStringInfoMy(TopMemoryContext, &buf);
+        appendStringInfo(&buf,
+            "SELECT application_name, s.sync_state\n"
+            "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
+            "WHERE s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
+        command = buf.data;
     }
-    if (nargs) appendStringInfoString(&buf, ")");
-    SPI_connect_my(buf.data);
-    SPI_execute_with_args_my(buf.data, nargs, argtypes, values, NULL, SPI_OK_SELECT, true);
+    SPI_connect_my(command);
+    if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
+    SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, true);
     primary_result();
     SPI_finish_my();
-    for (int i = 0; i < nargs; i++) pfree((void *)values[i]);
-    pfree(buf.data);
 }
 
 void primary_timeout(void) {

@@ -17,6 +17,7 @@
 #include <executor/spi.h>
 #include <fe_utils/recovery_gen.h>
 //#include <fe_utils/string_utils.h>
+#include <funcapi.h>
 //#include <jit/jit.h>
 #include <libpq-fe.h>
 #include <libpq/libpq-be.h>
@@ -39,11 +40,12 @@
 #include <tcop/utility.h>
 //#include <utils/acl.h>
 #include <utils/builtins.h>
-//#include <utils/lsyscache.h>
+#include <utils/lsyscache.h>
 //#include <utils/ps_status.h>
 #include <utils/regproc.h>
 //#include <utils/snapmgr.h>
 #include <utils/timeout.h>
+//#include <utils/typcache.h>
 
 #include "queue.h"
 
@@ -67,6 +69,7 @@ SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 STATE init_char2state(const char *state);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_connect(const char *host, STATE state);
+void backend_fail(Backend *backend);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);

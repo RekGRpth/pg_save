@@ -1,19 +1,49 @@
 #include "include.h"
 
+ArrayType *save = NULL;
 extern char *hostname;
 extern int init_attempt;
+extern Oid type_array;
+extern Oid type;
 extern queue_t backend_queue;
+
+static void backend_save(void) {
+    Datum *elems;
+    TupleDescData *tupdesc;
+    int nelems = queue_size(&backend_queue);
+    if (save) pfree(save);
+    save = NULL;
+    if (!nelems) return;
+    SPI_connect_my("TypeGetTupleDesc");
+    tupdesc = TypeGetTupleDesc(type, NULL);
+    SPI_commit_my();
+    SPI_finish_my();
+    elems = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*elems));
+    nelems = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        Datum values[] = {CStringGetTextDatum(PQhost(backend->conn)), CStringGetTextDatum(init_state2char(backend->state))};
+        bool isnull[] = {false, false};
+        HeapTupleData *tuple = heap_form_tuple(tupdesc, values, isnull);
+        D1("state = %s, host = %s", init_state2char(backend->state), PQhost(backend->conn));
+        elems[nelems] = HeapTupleGetDatum(tuple);
+        for (int i = 0; i < countof(values); i++) pfree((void *)values[i]);
+        nelems++;
+    }
+    if (nelems) {
+        MemoryContext oldMemoryContext = MemoryContextSwitchTo(TopMemoryContext);
+        save = construct_array(elems, nelems, type_array, -1, false, TYPALIGN_INT);
+        MemoryContextSwitchTo(oldMemoryContext);
+//        for (int i = 0; i < nelems; i++) heap_freetuple(elems[i]);
+    }
+//    FreeTupleDesc(tupdesc);
+    pfree(elems);
+}
 
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
-    init_reload();
-}
-
-static void backend_failed(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
-    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+    backend_save();
     init_reload();
 }
 
@@ -37,7 +67,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", PQhost(backend->conn), init_state2char(backend->state)); break;
-        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_failed(backend); return;
+        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
         case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", PQhost(backend->conn), init_state2char(backend->state)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", PQhost(backend->conn), init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", PQhost(backend->conn), init_state2char(backend->state)); backend->events = WL_SOCKET_WRITEABLE; break;
@@ -57,10 +87,10 @@ static void backend_connect_or_reset(Backend *backend, const char *host) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
         const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_failed(backend); return; }
+        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_connect_socket;
     } else {
-        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_failed(backend); return; }
+        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_reset_socket;
     }
     if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s PQstatus == CONNECTION_BAD and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
@@ -83,11 +113,19 @@ static void backend_finished(Backend *backend) {
     init_reload();
 }
 
+void backend_fail(Backend *backend) {
+    if (backend->attempt++ < init_attempt) return;
+    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+    init_reload();
+}
+
 void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend);
+    backend_save();
 }
 
 void backend_fini(void) {
@@ -114,6 +152,7 @@ void backend_reset(Backend *backend) {
 static void backend_updated(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    backend_save();
     init_reload();
 }
 
