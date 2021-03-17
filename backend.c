@@ -111,6 +111,21 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
 
+void backend_result(const char *state, const char *host) {
+    Backend *backend = NULL;
+    D1("state = %s, host = %s", state ? state : "(null)", host);
+    queue_each(&backend_queue, queue) {
+        Backend *backend_ = queue_data(queue, Backend, queue);
+        if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+    }
+    if (backend) {
+        if (state) backend_update(backend, init_char2state(state));
+        else backend_fail(backend);
+    } else if (state) {
+        backend_connect(host, init_char2state(state));
+    }
+}
+
 static void backend_updated(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);

@@ -142,20 +142,9 @@ void primary_init(void) {
 
 static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
-        Backend *backend = NULL;
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
         char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", true));
-        D1("host = %s, state = %s", host, state ? state : "(null)");
-        queue_each(&backend_queue, queue) {
-            Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
-        }
-        if (backend) {
-            if (state) backend_update(backend, init_char2state(state));
-            else backend_fail(backend);
-        } else if (state) {
-            backend_connect(host, init_char2state(state));
-        }
+        backend_result(state, host);
         pfree(host);
         if (state) pfree(state);
     }
