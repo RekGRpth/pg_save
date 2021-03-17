@@ -6,6 +6,7 @@ extern char *schema_type;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern STATE init_state;
+static bool prepared = false;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
@@ -71,7 +72,7 @@ static void standby_result(PGresult *result) {
     }
 }
 
-static void standby_prepare_socket2(Backend *backend) {
+static void standby_query_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
@@ -79,18 +80,24 @@ static void standby_prepare_socket2(Backend *backend) {
     backend_idle(backend);
 }
 
-static void standby_prepare_socket(Backend *backend) {
+static void standby_query(Backend *backend) {
     const char *paramValues[] = {save};
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
-    }
     if (!PQsendQueryPrepared(backend->conn, "standby_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->socket = standby_prepare_socket2;
+        prepared = true;
+        backend->socket = standby_query_socket;
         backend->events = WL_SOCKET_WRITEABLE;
     }
+}
+
+static void standby_prepare_socket(Backend *backend) {
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_COMMAND_OK: break;
+        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    }
+    standby_query(backend);
 }
 
 static void standby_prepare(Backend *backend) {
@@ -142,6 +149,7 @@ void standby_timeout(void) {
     if (!primary) standby_primary_connect();
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
+    else if (prepared) standby_query(primary);
     else standby_prepare(primary);
 }
 
