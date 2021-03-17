@@ -1,14 +1,46 @@
 #include "include.h"
 
 extern char *hostname;
+extern char *schema_type;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern STATE init_state;
+static char *save = NULL;
+
+static void standby_save(void) {
+    StringInfoData buf;
+    int nelems = queue_size(&backend_queue);
+    if (save) pfree(save);
+    save = NULL;
+    if (!nelems) return;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfoString(&buf, "array[");
+    nelems = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        char *host = quote_literal_cstr(PQhost(backend->conn));
+        char *state = quote_literal_cstr(init_state2char(backend->state));
+        if (nelems) appendStringInfoString(&buf, ", ");
+        appendStringInfo(&buf, "(%s, %s)", host, state);
+        nelems++;
+        pfree(host);
+        pfree(state);
+    }
+    if (init_state != UNKNOWN) {
+        char *host = quote_literal_cstr(hostname);
+        char *state = quote_literal_cstr(init_state2char(init_state));
+        if (nelems) appendStringInfoString(&buf, ", ");
+        appendStringInfo(&buf, "(%s, %s)", host, state);
+    }
+    appendStringInfoString(&buf, "]");
+    save = buf.data;
+}
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
+    standby_save();
 }
 
 static void standby_promote(Backend *backend) {
@@ -39,6 +71,7 @@ void standby_failed(Backend *backend) {
 }
 
 void standby_finished(Backend *backend) {
+    standby_save();
 }
 
 void standby_fini(void) {
@@ -60,18 +93,12 @@ static void standby_state(STATE state) {
 
 static void standby_result(PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
-        Backend *backend = NULL;
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
         if (me) { standby_state(init_char2state(state)); continue; }
-        D1("host = %s, state = %s", host, state);
-        queue_each(&backend_queue, queue) {
-            Backend *backend_ = queue_data(queue, Backend, queue);
-            if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
-        }
-        backend ? backend_update(backend, init_char2state(state)) : backend_connect(host, init_char2state(state));
+        backend_result(state, host);
     }
 }
 
@@ -84,44 +111,26 @@ static void standby_primary_socket(Backend *backend) {
 }
 
 static void standby_primary(Backend *backend) {
-    int nParams = 2 * queue_size(&backend_queue) + (init_state != UNKNOWN ? 1 : 0);
-    Oid *paramTypes = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramTypes)) : NULL;
-    char **paramValues = nParams ? MemoryContextAlloc(TopMemoryContext, nParams * sizeof(*paramValues)) : NULL;
-    StringInfoData buf;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "SELECT application_name, sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me FROM pg_stat_replication WHERE state = 'streaming'");
-    nParams = 0;
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == PRIMARY) continue;
-        appendStringInfoString(&buf, nParams ? ", " : " AND (client_addr, sync_state) NOT IN (");
-        paramTypes[nParams] = INETOID;
-        paramValues[nParams] = (char *)PQhostaddr(backend->conn);
-        nParams++;
-        appendStringInfo(&buf, "($%i", nParams);
-        paramTypes[nParams] = TEXTOID;
-        paramValues[nParams] = (char *)init_state2char(backend->state);
-        nParams++;
-        appendStringInfo(&buf, ", $%i)", nParams);
+    static const Oid paramTypes[] = {TEXTARRAYOID};
+    const char *paramValues[] = {save};
+    static char *command = NULL;
+    StaticAssertStmt(countof(paramTypes) == countof(paramValues), "countof(paramTypes) == countof(paramValues)");
+    if (!command) {
+        StringInfoData buf;
+        initStringInfoMy(TopMemoryContext, &buf);
+        appendStringInfo(&buf,
+            "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
+            "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
+            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
+        command = buf.data;
     }
-    if (nParams) appendStringInfoString(&buf, ")");
-    if (init_state != UNKNOWN) {
-        appendStringInfoString(&buf, " AND (client_addr, sync_state) IS DISTINCT FROM ((SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid())");
-        paramTypes[nParams] = TEXTOID;
-        paramValues[nParams] = (char *)init_state2char(init_state);
-        nParams++;
-        appendStringInfo(&buf, ", $%i)", nParams);
-    }
-    if (!PQsendQueryParams(backend->conn, buf.data, nParams, paramTypes, (const char * const*)paramValues, NULL, NULL, false)) {
+    if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->socket = standby_primary_socket;
         backend->events = WL_SOCKET_WRITEABLE;
     }
-    if (paramTypes) pfree(paramTypes);
-    if (paramValues) pfree(paramValues);
-    pfree(buf.data);
 }
 
 static void standby_primary_connect(void) {
@@ -156,4 +165,5 @@ void standby_timeout(void) {
 }
 
 void standby_updated(Backend *backend) {
+    standby_save();
 }

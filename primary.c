@@ -164,7 +164,7 @@ static void primary_standby(void) {
         appendStringInfo(&buf,
             "SELECT application_name, s.sync_state\n"
             "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
-            "WHERE s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
+            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
         command = buf.data;
     }
     SPI_connect_my(command);
