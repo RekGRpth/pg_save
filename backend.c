@@ -1,13 +1,40 @@
 #include "include.h"
 
+char *save = NULL;
 extern char *hostname;
 extern int init_attempt;
 extern queue_t backend_queue;
+extern STATE init_state;
+
+static void backend_save(void) {
+    StringInfoData buf;
+    int nelems = queue_size(&backend_queue);
+    if (save) pfree(save);
+    save = NULL;
+    if (!nelems) return;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfoString(&buf, "{");
+    nelems = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (nelems) appendStringInfoString(&buf, ",");
+        appendStringInfo(&buf, "\"(%s,%s)\"", PQhost(backend->conn), init_state2char(backend->state));
+        nelems++;
+    }
+    if (init_state != UNKNOWN && init_state != PRIMARY) {
+        if (nelems) appendStringInfoString(&buf, ",");
+        appendStringInfo(&buf, "\"(%s,%s)\"", hostname, init_state2char(init_state));
+    }
+    appendStringInfoString(&buf, "}");
+    save = buf.data;
+    D1("save = %s", save);
+}
 
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
+    backend_save();
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
@@ -88,6 +115,7 @@ void backend_finish(Backend *backend) {
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend);
+    backend_save();
 }
 
 void backend_fini(void) {
@@ -137,4 +165,5 @@ void backend_update(Backend *backend, STATE state) {
     backend->state = state;
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_updated(backend);
+    backend_save();
 }

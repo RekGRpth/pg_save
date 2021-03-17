@@ -1,40 +1,16 @@
 #include "include.h"
 
 extern char *hostname;
+extern char *save;
 extern char *schema_type;
 extern int init_attempt;
 extern queue_t backend_queue;
 extern STATE init_state;
-static char *save = NULL;
-
-static void standby_save(void) {
-    StringInfoData buf;
-    int nelems = queue_size(&backend_queue);
-    if (save) pfree(save);
-    save = NULL;
-    if (!nelems) return;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "{");
-    nelems = 0;
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (nelems) appendStringInfoString(&buf, ", ");
-        appendStringInfo(&buf, "\"(%s, %s)\"", PQhost(backend->conn), init_state2char(backend->state));
-        nelems++;
-    }
-    if (init_state != UNKNOWN && init_state != PRIMARY) {
-        if (nelems) appendStringInfoString(&buf, ", ");
-        appendStringInfo(&buf, "\"(%s, %s)\"", hostname, init_state2char(init_state));
-    }
-    appendStringInfoString(&buf, "}");
-    save = buf.data;
-}
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
-    standby_save();
 }
 
 static void standby_promote(Backend *backend) {
@@ -65,7 +41,6 @@ void standby_failed(Backend *backend) {
 }
 
 void standby_finished(Backend *backend) {
-    standby_save();
 }
 
 void standby_fini(void) {
@@ -105,7 +80,7 @@ static void standby_primary_socket(Backend *backend) {
 }
 
 static void standby_primary(Backend *backend) {
-    static const Oid paramTypes[] = {TEXTARRAYOID};
+    static Oid paramTypes[] = {TEXTARRAYOID};
     const char *paramValues[] = {save};
     static char *command = NULL;
     StaticAssertStmt(countof(paramTypes) == countof(paramValues), "countof(paramTypes) == countof(paramValues)");
@@ -159,5 +134,4 @@ void standby_timeout(void) {
 }
 
 void standby_updated(Backend *backend) {
-    standby_save();
 }
