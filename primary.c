@@ -123,7 +123,7 @@ static void primary_standby(void) {
     Datum *values = nargs ? MemoryContextAlloc(TopMemoryContext, nargs * sizeof(*values)) : NULL;
     StringInfoData buf;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "SELECT application_name, sync_state FROM pg_stat_replication WHERE state = 'streaming'");
+    appendStringInfoString(&buf, "SELECT application_name, sync_state FROM pg_stat_replication WHERE state = 'streaming'"); // with s as (SELECT application_name, s.sync_state, s.sync_state is distinct from v.sync_state as manage FROM pg_stat_replication as s full outer join (values ('pg_save2.docker', 'sync'), ('pg_save3.docker', 'potential1')) as v (application_name, sync_state) using (application_name)) select * from s where manage;
     nargs = 0;
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
