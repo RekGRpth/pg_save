@@ -12,6 +12,7 @@ void standby_connected(Backend *backend) {
     backend->attempt = 0;
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
+    prepared = false;
 }
 
 static void standby_promote(Backend *backend) {
