@@ -20,7 +20,7 @@ static void save_type(const char *schema, const char *name) {
     D1("schema = %s, name = %s", schema ? schema : "(null)", name);
     initStringInfoMy(TopMemoryContext, &buf);
     if (schema) appendStringInfo(&buf, "%s.", schema_quote);
-    appendStringInfoString(&buf, "state");
+    appendStringInfoString(&buf, name);
     schema_type = buf.data;
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "CREATE TYPE %s AS (application_name text, sync_state text)", schema_type);
