@@ -19,6 +19,7 @@ static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
     backend_finish(backend);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
+    else primary_init();
 }
 
 static void standby_reprimary(Backend *backend) {
