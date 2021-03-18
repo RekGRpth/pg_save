@@ -39,7 +39,7 @@ static void standby_select_slot_socket(Backend *backend) {
 static void standby_select_slot(Backend *backend) {
     static Oid paramTypes[] = {NAMEOID};
     const char *paramValues[] = {PrimarySlotName};
-    static const char *command = "select * FROM pg_replication_slots WHERE slot_name = $1";
+    static const char *command = "SELECT * FROM pg_replication_slots WHERE slot_name = $1";
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
