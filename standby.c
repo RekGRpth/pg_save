@@ -53,8 +53,8 @@ void standby_connected(Backend *backend) {
     backend->attempt = 0;
     if (backend->state == PRIMARY) standby_prepared = false;
     init_set_remote_state(backend->state, PQhost(backend->conn));
-    if (backend->state == PRIMARY) backend_idle(backend);
-    else standby_select_slot(backend);
+    if (backend->state == PRIMARY) standby_select_slot(backend);
+    else backend_idle(backend);
 }
 
 static void standby_promote(Backend *backend) {
