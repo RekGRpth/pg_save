@@ -101,8 +101,8 @@ void save_worker(Datum main_arg) {
         int nevents = 2;
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
-            if (PQsocket(backend->conn) < 0) continue;
-            nevents++;
+            if (PQsocket(backend->conn) < 0) D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+            else nevents++;
         }
         events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         set = CreateWaitEventSet(TopMemoryContext, nevents);
