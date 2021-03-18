@@ -32,6 +32,7 @@ static void standby_reprimary(Backend *backend) {
         initStringInfoMy(TopMemoryContext, &buf);
         appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
         init_alter_system_set("primary_conninfo", buf.data);
+//        CREATE_REPLICATION_SLOT "pg_save3_docker" PHYSICAL RESERVE_WAL
         pfree(buf.data);
     }
 }
@@ -61,7 +62,7 @@ static void standby_state(STATE state) {
     init_set_local_state(state);
     init_set_remote_state(state, save_hostname);
     init_reload();
-    backend_save();
+    backend_array();
 }
 
 static void standby_result(PGresult *result) {

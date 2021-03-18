@@ -68,6 +68,7 @@ Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bo
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 STATE init_char2state(const char *state);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
+void backend_array(void);
 void backend_connect(const char *host, STATE state);
 void backend_fail(Backend *backend);
 void backend_finish(Backend *backend);
@@ -75,7 +76,6 @@ void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void backend_result(const char *state, const char *host);
-void backend_save(void);
 void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);
