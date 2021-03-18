@@ -20,8 +20,7 @@ static void standby_create_slot(Backend *backend) {
     static Oid paramTypes[] = {NAMEOID};
     const char *paramValues[] = {PrimarySlotName};
     static const char *command = "SELECT pg_create_physical_replication_slot($1)";
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
@@ -41,8 +40,7 @@ static void standby_select_slot(Backend *backend) {
     static Oid paramTypes[] = {NAMEOID};
     const char *paramValues[] = {PrimarySlotName};
     static const char *command = "select * FROM pg_replication_slots WHERE slot_name = $1";
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
@@ -129,8 +127,7 @@ static void standby_query_socket(Backend *backend) {
 
 static void standby_query(Backend *backend) {
     const char *paramValues[] = {backend_save};
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    if (!PQsendQueryPrepared(backend->conn, "standby_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryPrepared(backend->conn, "standby_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
@@ -160,8 +157,7 @@ static void standby_prepare(Backend *backend) {
             "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
         command = buf.data;
     }
-    if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    if (!PQsendPrepare(backend->conn, "standby_prepare", command, countof(paramTypes), paramTypes)) {
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendPrepare(backend->conn, "standby_prepare", command, countof(paramTypes), paramTypes)) {
         W("%s:%s !PQsendPrepare and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
@@ -196,8 +192,7 @@ void standby_timeout(void) {
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     if (!primary) standby_primary_connect();
-    else if (PQstatus(primary->conn) != CONNECTION_OK) ;
-    else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
+    else if (PQstatus(primary->conn) != CONNECTION_OK);
     else if (standby_prepared) standby_query(primary);
     else standby_prepare(primary);
 }
