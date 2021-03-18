@@ -17,12 +17,13 @@ void standby_connected(Backend *backend) {
 
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
-    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     backend_finish(backend);
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
 }
 
 static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
+    backend_finish(backend);
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         StringInfoData buf;
@@ -32,7 +33,6 @@ static void standby_reprimary(Backend *backend) {
         init_alter_system_set("primary_conninfo", buf.data);
         pfree(buf.data);
     }
-    backend_finish(backend);
 }
 
 void standby_failed(Backend *backend) {
