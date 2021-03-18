@@ -2,7 +2,7 @@
 #include <sys/utsname.h>
 
 char *save_hostname;
-char *schema_type;
+char *save_schema_type;
 extern int init_timeout;
 queue_t save_queue;
 TimestampTz save_start;
@@ -21,12 +21,12 @@ static void save_type(const char *schema, const char *name) {
     initStringInfoMy(TopMemoryContext, &buf);
     if (schema) appendStringInfo(&buf, "%s.", schema_quote);
     appendStringInfoString(&buf, name);
-    schema_type = buf.data;
+    save_schema_type = buf.data;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "CREATE TYPE %s AS (application_name text, sync_state text)", schema_type);
+    appendStringInfo(&buf, "CREATE TYPE %s AS (application_name text, sync_state text)", save_schema_type);
     SPI_connect_my(buf.data);
-    parseTypeString(schema_type, &type, &typmod, true);
-    if (OidIsValid(type)) D1("type %s already exists", schema_type); else {
+    parseTypeString(save_schema_type, &type, &typmod, true);
+    if (OidIsValid(type)) D1("type %s already exists", save_schema_type); else {
         if (RecoveryInProgress()) E("!OidIsValid and RecoveryInProgress");
         else SPI_execute_with_args_my(buf.data, 0, NULL, NULL, NULL, SPI_OK_UTILITY, false);
     }

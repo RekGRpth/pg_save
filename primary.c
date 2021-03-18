@@ -3,7 +3,7 @@
 extern char *backend_save;
 extern char *init_policy;
 extern char *save_hostname;
-extern char *schema_type;
+extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -12,7 +12,7 @@ static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     char **names;
     int i = 0;
-    if (!queue_size(&save_queue)) return;
+    if (!queue_size(&save_queue)) return init_alter_system_reset("synchronous_standby_names");
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&save_queue) * sizeof(*names));
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -127,7 +127,7 @@ static void primary_standby(void) {
         appendStringInfo(&buf,
             "SELECT application_name, s.sync_state\n"
             "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
-            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", schema_type);
+            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", save_schema_type);
         command = buf.data;
     }
     SPI_connect_my(command);
