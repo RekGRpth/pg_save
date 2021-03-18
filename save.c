@@ -1,11 +1,11 @@
 #include "include.h"
 #include <sys/utsname.h>
 
-char *hostname;
+char *save_hostname;
 char *schema_type;
 extern int init_timeout;
-queue_t backend_queue;
-TimestampTz start;
+queue_t save_queue;
+TimestampTz save_start;
 
 static void save_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
@@ -41,9 +41,9 @@ static void save_init(void) {
     struct utsname buf;
     if (!EnableHotStandby) E("!EnableHotStandby");
     if (uname(&buf)) E("uname");
-    queue_init(&backend_queue);
-    hostname = pstrdup(buf.nodename);
-    D1("hostname = %s, timeout = %i", hostname, init_timeout);
+    queue_init(&save_queue);
+    save_hostname = pstrdup(buf.nodename);
+    D1("hostname = %s, timeout = %i", save_hostname, init_timeout);
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
@@ -88,7 +88,7 @@ static void save_timeout(void) {
 }
 
 void save_worker(Datum main_arg) {
-    TimestampTz stop = (start = GetCurrentTimestamp());
+    TimestampTz stop = (save_start = GetCurrentTimestamp());
     save_init();
     while (!ShutdownRequestPending) {
         fsec_t fsec;
@@ -99,7 +99,7 @@ void save_worker(Datum main_arg) {
         WaitEvent *events;
         WaitEventSet *set;
         int nevents = 2;
-        queue_each(&backend_queue, queue) {
+        queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             if (PQsocket(backend->conn) < 0) continue;
             nevents++;
@@ -108,7 +108,7 @@ void save_worker(Datum main_arg) {
         set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
-        queue_each(&backend_queue, queue) {
+        queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             int fd = PQsocket(backend->conn);
             if (fd < 0) continue;
@@ -131,9 +131,9 @@ void save_worker(Datum main_arg) {
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
         stop = GetCurrentTimestamp();
-        if (init_timeout > 0 && (TimestampDifferenceExceeds(start, stop, init_timeout) || !nevents)) {
+        if (init_timeout > 0 && (TimestampDifferenceExceeds(save_start, stop, init_timeout) || !nevents)) {
             save_timeout();
-            start = stop;
+            save_start = stop;
         }
         FreeWaitEventSet(set);
         pfree(events);

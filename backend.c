@@ -1,9 +1,9 @@
 #include "include.h"
 
-char *save = NULL;
-extern char *hostname;
+char *backend_save = NULL;
+extern char *save_hostname;
 extern int init_attempt;
-extern queue_t backend_queue;
+extern queue_t save_queue;
 extern STATE init_state;
 
 static void backend_connected(Backend *backend) {
@@ -51,7 +51,7 @@ static void backend_reset_socket(Backend *backend) {
 static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, NULL};
+        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, save_hostname, NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_connect_socket;
@@ -69,7 +69,7 @@ void backend_connect(const char *host, STATE state) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
     backend_connect_or_reset(backend, host);
-    queue_insert_tail(&backend_queue, &backend->queue);
+    queue_insert_tail(&save_queue, &backend->queue);
 }
 
 static void backend_finished(Backend *backend) {
@@ -95,7 +95,7 @@ void backend_finish(Backend *backend) {
 }
 
 void backend_fini(void) {
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         backend_finish(backend);
     }
@@ -118,7 +118,7 @@ void backend_reset(Backend *backend) {
 void backend_result(const char *state, const char *host) {
     Backend *backend = NULL;
     D1("state = %s, host = %s", state ? state : "(null)", host);
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend_ = queue_data(queue, Backend, queue);
         if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
     }
@@ -132,14 +132,14 @@ void backend_result(const char *state, const char *host) {
 
 void backend_save(void) {
     StringInfoData buf;
-    int nelems = queue_size(&backend_queue);
-    if (save) pfree(save);
-    save = NULL;
+    int nelems = queue_size(&save_queue);
+    if (backend_save) pfree(backend_save);
+    backend_save = NULL;
     if (!nelems) return;
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "{");
     nelems = 0;
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state == PRIMARY) continue;
         if (nelems) appendStringInfoString(&buf, ",");
@@ -148,11 +148,11 @@ void backend_save(void) {
     }
     if (init_state != UNKNOWN && init_state != PRIMARY) {
         if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "\"(%s,%s)\"", hostname, init_state2char(init_state));
+        appendStringInfo(&buf, "\"(%s,%s)\"", save_hostname, init_state2char(init_state));
     }
     appendStringInfoString(&buf, "}");
-    save = buf.data;
-    D1("save = %s", save);
+    backend_save = buf.data;
+    D1("save = %s", backend_save);
 }
 
 static void backend_updated(Backend *backend) {

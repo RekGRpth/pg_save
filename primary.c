@@ -1,27 +1,27 @@
 #include "include.h"
 
-extern char *hostname;
+extern char *backend_save;
 extern char *init_policy;
-extern char *save;
+extern char *save_hostname;
 extern char *schema_type;
 extern int init_attempt;
-extern queue_t backend_queue;
+extern queue_t save_queue;
 extern STATE init_state;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     char **names;
     int i = 0;
-    if (!queue_size(&backend_queue)) return;
-    names = MemoryContextAlloc(TopMemoryContext, queue_size(&backend_queue) * sizeof(*names));
-    queue_each(&backend_queue, queue) {
+    if (!queue_size(&save_queue)) return;
+    names = MemoryContextAlloc(TopMemoryContext, queue_size(&save_queue) * sizeof(*names));
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         names[i++] = (char *)PQhost(backend->conn);
     }
-    pg_qsort(names, queue_size(&backend_queue), sizeof(*names), pg_qsort_strcmp);
+    pg_qsort(names, queue_size(&save_queue), sizeof(*names), pg_qsort_strcmp);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "%s (", init_policy);
-    for (int i = 0; i < queue_size(&backend_queue); i++) {
+    for (int i = 0; i < queue_size(&save_queue); i++) {
         const char *name_quote = quote_identifier(names[i]);
         if (i) appendStringInfoString(&buf, ", ");
         appendStringInfoString(&buf, name_quote);
@@ -95,7 +95,7 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo");
     init_alter_system_reset("primary_slot_name");
-    init_set_remote_state(PRIMARY, hostname);
+    init_set_remote_state(PRIMARY, save_hostname);
     init_set_local_state(PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
@@ -115,8 +115,8 @@ static void primary_result(void) {
 
 static void primary_standby(void) {
     static Oid argtypes[] = {TEXTOID};
-    Datum values[] = {save ? CStringGetTextDatum(save) : (Datum)NULL};
-    char nulls[] = {save ? ' ' : 'n'};
+    Datum values[] = {backend_save ? CStringGetTextDatum(backend_save) : (Datum)NULL};
+    char nulls[] = {backend_save ? ' ' : 'n'};
     static SPI_plan *plan = NULL;
     static char *command = NULL;
     StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
@@ -135,11 +135,11 @@ static void primary_standby(void) {
     SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, true);
     primary_result();
     SPI_finish_my();
-    if (save) pfree((void *)values[0]);
+    if (backend_save) pfree((void *)values[0]);
 }
 
 void primary_timeout(void) {
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }

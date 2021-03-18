@@ -1,18 +1,18 @@
 #include "include.h"
 
-extern char *hostname;
-extern char *save;
+extern char *backend_save;
+extern char *save_hostname;
 extern char *schema_type;
 extern int init_attempt;
-extern queue_t backend_queue;
+extern queue_t save_queue;
 extern STATE init_state;
-static bool prepared = false;
+static bool standby_prepared = false;
 
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
     init_set_remote_state(backend->state, PQhost(backend->conn));
     backend_idle(backend);
-    if (backend->state == PRIMARY) prepared = false;
+    if (backend->state == PRIMARY) standby_prepared = false;
 }
 
 static void standby_promote(Backend *backend) {
@@ -25,12 +25,12 @@ static void standby_promote(Backend *backend) {
 static void standby_reprimary(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
     backend_finish(backend);
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         StringInfoData buf;
         if (backend->state != SYNC) continue;
         initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), hostname);
+        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
         init_alter_system_set("primary_conninfo", buf.data);
         pfree(buf.data);
     }
@@ -38,7 +38,7 @@ static void standby_reprimary(Backend *backend) {
 
 void standby_failed(Backend *backend) {
     if (backend->state != PRIMARY) backend_finish(backend);
-    else if (!queue_size(&backend_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
+    else if (!queue_size(&save_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
     else if (init_state != SYNC) standby_reprimary(backend);
     else standby_promote(backend);
 }
@@ -53,13 +53,13 @@ void standby_fini(void) {
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
     if (init_state == PRIMARY) init_reset_local_state(init_state);
-    if (init_state != UNKNOWN) init_set_remote_state(init_state, hostname);
+    if (init_state != UNKNOWN) init_set_remote_state(init_state, save_hostname);
 }
 
 static void standby_state(STATE state) {
     init_reset_remote_state(init_state);
     init_set_local_state(state);
-    init_set_remote_state(state, hostname);
+    init_set_remote_state(state, save_hostname);
     init_reload();
     backend_save();
 }
@@ -84,12 +84,12 @@ static void standby_query_socket(Backend *backend) {
 }
 
 static void standby_query(Backend *backend) {
-    const char *paramValues[] = {save};
+    const char *paramValues[] = {backend_save};
     if (!PQsendQueryPrepared(backend->conn, "standby_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        prepared = true;
+        standby_prepared = true;
         backend->socket = standby_query_socket;
         backend->events = WL_SOCKET_WRITEABLE;
     }
@@ -144,7 +144,7 @@ static void standby_primary_connect(void) {
 
 void standby_timeout(void) {
     Backend *primary = NULL;
-    queue_each(&backend_queue, queue) {
+    queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state == PRIMARY) primary = backend;
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
@@ -152,7 +152,7 @@ void standby_timeout(void) {
     if (!primary) standby_primary_connect();
     else if (PQstatus(primary->conn) != CONNECTION_OK) ;
     else if (PQisBusy(primary->conn)) primary->events = WL_SOCKET_READABLE;
-    else if (prepared) standby_query(primary);
+    else if (standby_prepared) standby_query(primary);
     else standby_prepare(primary);
 }
 
