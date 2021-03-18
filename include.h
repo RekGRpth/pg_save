@@ -75,6 +75,7 @@ void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_reset(Backend *backend);
 void backend_result(const char *state, const char *host);
+void backend_save(void);
 void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);

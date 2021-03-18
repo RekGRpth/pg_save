@@ -60,6 +60,7 @@ static void standby_state(STATE state) {
     init_set_local_state(state);
     init_set_remote_state(state, hostname);
     init_reload();
+    backend_save();
 }
 
 static void standby_result(PGresult *result) {
