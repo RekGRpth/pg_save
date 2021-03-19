@@ -7,6 +7,10 @@ extern int init_timeout;
 queue_t save_queue;
 TimestampTz save_start;
 
+static void save_fini(void) {
+    backend_fini();
+}
+
 static void save_type(const char *schema, const char *name) {
     StringInfoData buf;
     int32 typmod;
@@ -78,6 +82,10 @@ static void save_socket(Backend *backend) {
     backend->socket(backend);
 }
 
+static void save_timeout(void) {
+    backend_timeout();
+}
+
 void save_worker(Datum main_arg) {
     TimestampTz stop = (save_start = GetCurrentTimestamp());
     save_init();
@@ -125,11 +133,11 @@ void save_worker(Datum main_arg) {
         }
         stop = GetCurrentTimestamp();
         if (init_timeout > 0 && (TimestampDifferenceExceeds(save_start, stop, init_timeout) || !nevents)) {
-            backend_timeout();
+            save_timeout();
             save_start = stop;
         }
         FreeWaitEventSet(set);
         pfree(events);
     }
-    backend_fini();
+    save_fini();
 }
