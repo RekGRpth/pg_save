@@ -87,16 +87,15 @@ static void standby_promote(Backend *backend) {
 }
 
 static void standby_reprimary(Backend *backend) {
+    StringInfoData buf;
     Backend *sync = backend_state(SYNC);
-    D1("state = %s", init_state2char(init_state));
+    D1("state = %s, sync = %s", init_state2char(init_state), sync ? "true" : "false");
     backend_finish(backend);
-    if (!sync) E("!backend_state"); else {
-        StringInfoData buf;
-        initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(sync->conn), save_hostname);
-        init_alter_system_set("primary_conninfo", buf.data);
-        pfree(buf.data);
-    }
+    if (!sync) E("!backend_state");
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(sync->conn), save_hostname);
+    init_alter_system_set("primary_conninfo", buf.data);
+    pfree(buf.data);
 }
 
 void standby_failed(Backend *backend) {
