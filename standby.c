@@ -40,8 +40,8 @@ static void standby_query(Backend *backend) {
         W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->socket = standby_query_socket;
         backend->events = WL_SOCKET_WRITEABLE;
+        backend->socket = standby_query_socket;
     }
 }
 
@@ -70,8 +70,8 @@ static void standby_prepare(Backend *backend) {
         W("%s:%s !PQsendPrepare and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->socket = standby_prepare_socket;
         backend->events = WL_SOCKET_WRITEABLE;
+        backend->socket = standby_prepare_socket;
     }
 }
 
