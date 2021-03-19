@@ -79,30 +79,29 @@ void standby_connected(Backend *backend) {
     backend->state == PRIMARY ? standby_prepare(standby_primary = backend) : backend_idle(backend);
 }
 
-static void standby_promote(Backend *backend) {
+static void standby_promote(void) {
     D1("state = %s", init_state2char(init_state));
-    backend_finish(backend);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     else primary_init();
 }
 
-static void standby_reprimary(Backend *backend) {
+static void standby_reprimary(void) {
     StringInfoData buf;
-    Backend *sync = backend_state(SYNC);
-    D1("state = %s, sync = %s", init_state2char(init_state), sync ? "true" : "false");
-    backend_finish(backend);
-    if (!sync) E("!backend_state");
+    Backend *backend = backend_state(SYNC);
+    D1("state = %s, found = %s", init_state2char(init_state), backend ? "true" : "false");
+    if (!backend) E("!backend_state");
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(sync->conn), save_hostname);
+    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
     init_alter_system_set("primary_conninfo", buf.data);
     pfree(buf.data);
 }
 
 void standby_failed(Backend *backend) {
-    if (backend->state != PRIMARY) backend_finish(backend);
+    backend_finish(backend);
+    if (backend->state != PRIMARY);
     else if (!queue_size(&save_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
-    else if (init_state != SYNC) standby_reprimary(backend);
-    else standby_promote(backend);
+    else if (init_state != SYNC) standby_reprimary();
+    else standby_promote();
 }
 
 void standby_finished(Backend *backend) {
