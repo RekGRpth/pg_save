@@ -131,7 +131,6 @@ void backend_fini(void) {
 
 void backend_init(void) {
     RecoveryInProgress() ? standby_init() : primary_init();
-    init_connect();
     etcd_init();
     init_reload();
 }

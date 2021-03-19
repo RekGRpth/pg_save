@@ -89,14 +89,6 @@ void init_debug(void) {
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
-void init_connect(void) {
-    if (init_primary && init_state != PRIMARY) backend_connect(init_primary, PRIMARY);
-    if (init_sync && init_state != SYNC) backend_connect(init_sync, SYNC);
-    if (init_quorum && init_state != QUORUM) backend_connect(init_quorum, QUORUM);
-    if (init_potential && init_state != POTENTIAL) backend_connect(init_potential, POTENTIAL);
-    if (init_async && init_state != ASYNC) backend_connect(init_async, ASYNC);
-}
-
 void init_reload(void) {
     if (!reload) return;
     if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
