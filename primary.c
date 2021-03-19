@@ -44,17 +44,9 @@ void primary_failed(Backend *backend) {
     backend_finish(backend);
 }
 
-static void primary_slot(Backend *backend) {
-    char *name = MemoryContextStrdup(TopMemoryContext, PQhost(backend->conn));
-    for (const char *c = name; *c; c++) if (!((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') || (*c == '_'))) *c = '_';
-    ReplicationSlotDrop(name, true);
-    pfree(name);
-}
-
 void primary_finished(Backend *backend) {
     if (ShutdownRequestPending) return;
     primary_set_synchronous_standby_names();
-    primary_slot(backend);
 }
 
 void primary_fini(void) {
@@ -102,7 +94,6 @@ static void primary_schema(const char *schema) {
 
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo");
-    init_alter_system_reset("primary_slot_name");
     init_set_remote_state(PRIMARY, save_hostname);
     init_set_local_state(PRIMARY);
     primary_schema("curl");

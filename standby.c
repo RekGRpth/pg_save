@@ -8,53 +8,11 @@ extern queue_t save_queue;
 extern STATE init_state;
 static bool standby_prepared = false;
 
-static void standby_create_slot_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
-    }
-    backend_idle(backend);
-}
-
-static void standby_create_slot(Backend *backend) {
-    static Oid paramTypes[] = {NAMEOID};
-    const char *paramValues[] = {PrimarySlotName};
-    static const char *command = "SELECT pg_create_physical_replication_slot($1)";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else {
-        backend->socket = standby_create_slot_socket;
-        backend->events = WL_SOCKET_WRITEABLE;
-    }
-}
-
-static void standby_select_slot_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: PQntuples(result) ? backend_idle(backend) : standby_create_slot(backend); break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); backend_idle(backend); break;
-    }
-}
-
-static void standby_select_slot(Backend *backend) {
-    static Oid paramTypes[] = {NAMEOID};
-    const char *paramValues[] = {PrimarySlotName};
-    static const char *command = "SELECT * FROM pg_replication_slots WHERE slot_name = $1";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else {
-        backend->socket = standby_select_slot_socket;
-        backend->events = WL_SOCKET_WRITEABLE;
-    }
-}
-
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
     if (backend->state == PRIMARY) standby_prepared = false;
     init_set_remote_state(backend->state, PQhost(backend->conn));
-    if (backend->state == PRIMARY) standby_select_slot(backend);
-    else backend_idle(backend);
+    backend_idle(backend);
 }
 
 static void standby_promote(Backend *backend) {
