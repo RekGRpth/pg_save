@@ -2,7 +2,6 @@
 
 extern char *backend_save;
 extern char *init_policy;
-extern char *save_hostname;
 extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
@@ -95,7 +94,7 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo");
     init_set_state(PRIMARY);
-    init_set_host_state(save_hostname, PRIMARY);
+    init_set_host_state(MyBgworkerEntry->bgw_type, PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");

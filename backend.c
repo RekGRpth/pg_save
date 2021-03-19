@@ -1,7 +1,6 @@
 #include "include.h"
 
 char *backend_save = NULL;
-extern char *save_hostname;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -32,7 +31,7 @@ void backend_array(void) {
     }
     if (init_state != UNKNOWN && init_state != PRIMARY) {
         if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "\"(%s,%s)\"", save_hostname, init_state2char(init_state));
+        appendStringInfo(&buf, "\"(%s,%s)\"", MyBgworkerEntry->bgw_type, init_state2char(init_state));
     }
     appendStringInfoString(&buf, "}");
     backend_save = buf.data;
@@ -86,7 +85,7 @@ static void backend_reset_socket(Backend *backend) {
 static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, save_hostname, NULL};
+        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;

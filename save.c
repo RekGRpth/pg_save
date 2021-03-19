@@ -1,6 +1,5 @@
 #include "include.h"
 
-char *save_hostname;
 char *save_schema_type;
 extern int init_timeout;
 queue_t save_queue;
@@ -43,8 +42,7 @@ static void save_init(void) {
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     queue_init(&save_queue);
-    save_hostname = MyBgworkerEntry->bgw_type;
-    D1("hostname = %s, timeout = %i", save_hostname, init_timeout);
+    D1("hostname = %s, timeout = %i", MyBgworkerEntry->bgw_type, init_timeout);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);

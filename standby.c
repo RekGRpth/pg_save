@@ -1,7 +1,6 @@
 #include "include.h"
 
 extern char *backend_save;
-extern char *save_hostname;
 extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
@@ -9,9 +8,9 @@ extern STATE init_state;
 static Backend *standby_primary = NULL;
 
 static void standby_update(STATE state) {
-    init_reset_host_state(save_hostname, init_state);
+    init_reset_host_state(MyBgworkerEntry->bgw_type, init_state);
     init_set_state(state);
-    init_set_host_state(save_hostname, state);
+    init_set_host_state(MyBgworkerEntry->bgw_type, state);
     init_reload();
     backend_array();
 }
@@ -108,7 +107,7 @@ static void standby_reprimary(void) {
     D1("state = %s, found = %s", init_state2char(init_state), backend ? "true" : "false");
     if (!backend) E("!backend_state");
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
+    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
     init_alter_system_set("primary_conninfo", buf.data);
     standby_create(buf.data);
     pfree(buf.data);
