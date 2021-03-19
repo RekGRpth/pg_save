@@ -124,6 +124,7 @@ void backend_fini(void) {
         Backend *backend = queue_data(queue, Backend, queue);
         backend_finish(backend);
     }
+    RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
 void backend_init(void) {
