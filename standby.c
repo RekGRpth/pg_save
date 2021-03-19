@@ -131,7 +131,7 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
-    if (standby_primary) standby_query(standby_primary);
+    standby_primary ? standby_query(standby_primary) : standby_connect();
 }
 
 void standby_updated(Backend *backend) {
