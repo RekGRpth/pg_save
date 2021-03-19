@@ -156,12 +156,8 @@ void backend_result(const char *host, STATE state) {
         Backend *backend_ = queue_data(queue, Backend, queue);
         if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
     }
-    if (backend) {
-        if (state != UNKNOWN) backend_update(backend, state);
-        else backend_fail(backend);
-    } else if (state != UNKNOWN) {
-        backend_connect(host, state);
-    }
+    if (backend) state != UNKNOWN ? backend_update(backend, state) : backend_fail(backend);
+    else if (state != UNKNOWN) backend_connect(host, state);
 }
 
 void backend_timeout(void) {
