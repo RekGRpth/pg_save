@@ -37,16 +37,14 @@ static void save_type(const char *schema, const char *name) {
 }
 
 static void save_init(void) {
-    struct utsname buf;
     if (!EnableHotStandby) E("!EnableHotStandby");
-    if (uname(&buf)) E("uname");
-    queue_init(&save_queue);
-    save_hostname = MemoryContextStrdup(TopMemoryContext, buf.nodename);
-    D1("hostname = %s, timeout = %i", save_hostname, init_timeout);
     if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
+    queue_init(&save_queue);
+    save_hostname = MyBgworkerEntry->bgw_type;
+    D1("hostname = %s, timeout = %i", save_hostname, init_timeout);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
