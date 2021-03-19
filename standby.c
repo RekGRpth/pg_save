@@ -81,8 +81,8 @@ void standby_connected(Backend *backend) {
 
 static void standby_promote(void) {
     D1("state = %s", init_state2char(init_state));
-    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
-    else primary_init();
+    if (DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) primary_init();
+    else W("!pg_promote");
 }
 
 static void standby_reprimary(void) {
