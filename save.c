@@ -57,9 +57,6 @@ static void save_init(void) {
     process_session_preload_libraries();
     backend_init();
     save_type("save", "save");
-    init_connect();
-    etcd_init();
-    init_reload();
 }
 
 static void save_reload(void) {
