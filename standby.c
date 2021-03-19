@@ -131,7 +131,8 @@ void standby_init(void) {
 }
 
 void standby_timeout(void) {
-    standby_primary ? standby_query(standby_primary) : standby_connect();
+    if (!standby_primary) standby_connect();
+    else if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
 }
 
 void standby_updated(Backend *backend) {
