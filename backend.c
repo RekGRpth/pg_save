@@ -166,6 +166,10 @@ void backend_result(const char *state, const char *host) {
 
 void backend_timeout(void) {
     etcd_timeout();
+    queue_each(&save_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
+    }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 

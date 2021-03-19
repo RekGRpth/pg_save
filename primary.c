@@ -109,7 +109,7 @@ static void primary_result(void) {
     }
 }
 
-static void primary_standby(void) {
+void primary_timeout(void) {
     static Oid argtypes[] = {TEXTOID};
     Datum values[] = {backend_save ? CStringGetTextDatum(backend_save) : (Datum)NULL};
     char nulls[] = {backend_save ? ' ' : 'n'};
@@ -132,14 +132,6 @@ static void primary_standby(void) {
     primary_result();
     SPI_finish_my();
     if (backend_save) pfree((void *)values[0]);
-}
-
-void primary_timeout(void) {
-    queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
-    }
-    primary_standby();
 }
 
 void primary_updated(Backend *backend) {
