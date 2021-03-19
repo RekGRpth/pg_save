@@ -11,7 +11,7 @@ static bool standby_prepared = false;
 void standby_connected(Backend *backend) {
     backend->attempt = 0;
     if (backend->state == PRIMARY) standby_prepared = false;
-    init_set_remote_state(backend->state, PQhost(backend->conn));
+    init_set_state_host(backend->state, PQhost(backend->conn));
     backend_idle(backend);
 }
 
@@ -51,14 +51,14 @@ void standby_fini(void) {
 
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
-    if (init_state == PRIMARY) init_reset_local_state(init_state);
-    if (init_state != UNKNOWN) init_set_remote_state(init_state, save_hostname);
+    if (init_state == PRIMARY) init_reset_state(init_state);
+    if (init_state != UNKNOWN) init_set_state_host(init_state, save_hostname);
 }
 
 static void standby_state(STATE state) {
-    init_reset_remote_state(init_state);
-    init_set_local_state(state);
-    init_set_remote_state(state, save_hostname);
+    init_reset_state_host(init_state);
+    init_set_state(state);
+    init_set_state_host(state, save_hostname);
     init_reload();
     backend_array();
 }

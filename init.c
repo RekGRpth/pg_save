@@ -103,13 +103,13 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_reset_local_state(STATE state) {
+void init_reset_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_alter_system_reset("pg_save.state");
     init_state = UNKNOWN;
 }
 
-void init_reset_remote_state(STATE state) {
+void init_reset_state_host(STATE state) {
     StringInfoData buf;
     if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;
@@ -120,13 +120,13 @@ void init_reset_remote_state(STATE state) {
     pfree(buf.data);
 }
 
-void init_set_local_state(STATE state) {
+void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_alter_system_set("pg_save.state", init_state2char(state));
     init_state = state;
 }
 
-void init_set_remote_state(STATE state, const char *host) {
+void init_set_state_host(STATE state, const char *host) {
     StringInfoData buf;
     D1("state = %s, host = %s", init_state2char(state), host);
     initStringInfoMy(TopMemoryContext, &buf);
