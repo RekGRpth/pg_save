@@ -87,14 +87,13 @@ static void standby_promote(Backend *backend) {
 }
 
 static void standby_reprimary(Backend *backend) {
+    Backend *sync = backend_state(SYNC);
     D1("state = %s", init_state2char(init_state));
     backend_finish(backend);
-    queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
+    if (!sync) E("!backend_state"); else {
         StringInfoData buf;
-        if (backend->state != SYNC) continue;
         initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
+        appendStringInfo(&buf, "host=%s application_name=%s", PQhost(sync->conn), save_hostname);
         init_alter_system_set("primary_conninfo", buf.data);
         pfree(buf.data);
     }

@@ -6,6 +6,14 @@ extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
 
+Backend *backend_state(STATE state) {
+    queue_each(&save_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state == state) return backend;
+    }
+    return NULL;
+}
+
 void backend_array(void) {
     StringInfoData buf;
     int nelems = queue_size(&save_queue);
