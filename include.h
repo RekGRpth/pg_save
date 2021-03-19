@@ -93,6 +93,7 @@ void init_set_state(STATE state);
 void initStringInfoMy(MemoryContext memoryContext, StringInfoData *buf);
 void _PG_init(void);
 void primary_connected(Backend *backend);
+void primary_created(Backend *backend);
 void primary_failed(Backend *backend);
 void primary_finished(Backend *backend);
 void primary_fini(void);
@@ -107,6 +108,7 @@ void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *
 void SPI_finish_my(void);
 void SPI_start_transaction_my(const char *src);
 void standby_connected(Backend *backend);
+void standby_created(Backend *backend);
 void standby_failed(Backend *backend);
 void standby_finished(Backend *backend);
 void standby_fini(void);

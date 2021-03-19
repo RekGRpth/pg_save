@@ -76,7 +76,11 @@ static void standby_prepare(Backend *backend) {
 }
 
 void standby_connected(Backend *backend) {
-    backend->state == PRIMARY ? standby_prepare(standby_primary = backend) : backend_idle(backend);
+    backend->state == PRIMARY ? standby_prepare(backend) : backend_idle(backend);
+}
+
+void standby_created(Backend *backend) {
+    if (backend->state == PRIMARY) standby_primary = backend;
 }
 
 static void standby_create(const char *conninfo) {

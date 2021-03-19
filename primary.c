@@ -38,6 +38,9 @@ void primary_connected(Backend *backend) {
     backend_idle(backend);
 }
 
+void primary_created(Backend *backend) {
+}
+
 void primary_failed(Backend *backend) {
     backend_finish(backend);
 }

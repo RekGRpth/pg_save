@@ -48,7 +48,7 @@ static void backend_connected(Backend *backend) {
     if (backend->state != PRIMARY) backend_array();
 }
 
-static void backend_create_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
+static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), init_state2char(backend->state)); break;
@@ -76,14 +76,14 @@ static void backend_create_or_reset_socket(Backend *backend, PostgresPollingStat
 }
 
 static void backend_create_socket(Backend *backend) {
-    backend_create_or_reset_socket(backend, PQconnectPoll);
+    backend_connect_or_reset_socket(backend, PQconnectPoll);
 }
 
 static void backend_reset_socket(Backend *backend) {
-    backend_create_or_reset_socket(backend, PQresetPoll);
+    backend_connect_or_reset_socket(backend, PQresetPoll);
 }
 
-static void backend_create_or_reset(Backend *backend, const char *host) {
+static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
         const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, save_hostname, NULL};
@@ -100,11 +100,16 @@ static void backend_create_or_reset(Backend *backend, const char *host) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
+static void backend_created(Backend *backend) {
+    RecoveryInProgress() ? standby_created(backend) : primary_created(backend);
+}
+
 void backend_create(const char *host, STATE state) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
-    backend_create_or_reset(backend, host);
+    backend_connect_or_reset(backend, host);
     queue_insert_tail(&save_queue, &backend->queue);
+    backend_created(backend);
 }
 
 static void backend_finished(Backend *backend) {
@@ -155,7 +160,7 @@ void backend_idle(Backend *backend) {
 }
 
 void backend_reset(Backend *backend) {
-    backend_create_or_reset(backend, NULL);
+    backend_connect_or_reset(backend, NULL);
 }
 
 static Backend *backend_host(const char *host) {
