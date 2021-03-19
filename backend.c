@@ -37,7 +37,7 @@ static void backend_connected(Backend *backend) {
     init_set_state_host(backend->state, PQhost(backend->conn));
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
-    backend_array();
+    if (backend->state != PRIMARY) backend_array();
 }
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
@@ -117,8 +117,8 @@ void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
+    if (backend->state != PRIMARY) backend_array();
     pfree(backend);
-    backend_array();
 }
 
 void backend_fini(void) {
@@ -178,5 +178,5 @@ void backend_update(Backend *backend, STATE state) {
     backend->state = state;
     init_set_state_host(backend->state, PQhost(backend->conn));
     backend_updated(backend);
-    backend_array();
+    if (backend->state != PRIMARY) backend_array();
 }
