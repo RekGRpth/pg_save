@@ -1,5 +1,4 @@
 #include "include.h"
-#include <sys/utsname.h>
 
 char *save_hostname;
 char *save_schema_type;

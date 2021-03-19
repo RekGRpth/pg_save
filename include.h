@@ -36,6 +36,7 @@
 #include <replication/walreceiver.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
+#include <sys/utsname.h>
 //#include <tcop/pquery.h>
 #include <tcop/utility.h>
 //#include <utils/acl.h>

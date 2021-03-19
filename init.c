@@ -129,8 +129,10 @@ void init_set_state(STATE state) {
 }
 
 static void init_work(void) {
+    struct utsname uts;
     StringInfoData buf;
     BackgroundWorker worker;
+    if (uname(&uts)) E("uname");
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
@@ -144,11 +146,11 @@ static void init_work(void) {
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_function_name, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfoString(&buf, "pg_save");
+    appendStringInfoString(&buf, uts.nodename);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_type, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfoString(&buf, "postgres postgres pg_save");
+    appendStringInfo(&buf, "postgres postgres %s", uts.nodename);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_name, buf.data, buf.len);
     pfree(buf.data);
