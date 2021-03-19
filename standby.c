@@ -75,7 +75,7 @@ static void standby_prepare(Backend *backend) {
     }
 }
 
-void standby_created(Backend *backend) {
+void standby_connected(Backend *backend) {
     backend->state == PRIMARY ? standby_prepare(standby_primary = backend) : backend_idle(backend);
 }
 

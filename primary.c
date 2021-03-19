@@ -33,7 +33,7 @@ static void primary_set_synchronous_standby_names(void) {
     pfree(buf.data);
 }
 
-void primary_created(Backend *backend) {
+void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
     backend_idle(backend);
 }
