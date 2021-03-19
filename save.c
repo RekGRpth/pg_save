@@ -7,10 +7,6 @@ extern int init_timeout;
 queue_t save_queue;
 TimestampTz save_start;
 
-static void save_fini(void) {
-    RecoveryInProgress() ? standby_fini() : primary_fini();
-}
-
 static void save_type(const char *schema, const char *name) {
     StringInfoData buf;
     int32 typmod;
@@ -55,7 +51,7 @@ static void save_init(void) {
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
     process_session_preload_libraries();
-    RecoveryInProgress() ? standby_init() : primary_init();
+    backend_init();
     save_type("save", "save");
     init_connect();
     etcd_init();
@@ -80,11 +76,6 @@ static void save_socket(Backend *backend) {
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
-}
-
-static void save_timeout(void) {
-    etcd_timeout();
-    RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 void save_worker(Datum main_arg) {
@@ -134,11 +125,11 @@ void save_worker(Datum main_arg) {
         }
         stop = GetCurrentTimestamp();
         if (init_timeout > 0 && (TimestampDifferenceExceeds(save_start, stop, init_timeout) || !nevents)) {
-            save_timeout();
+            backend_timeout();
             save_start = stop;
         }
         FreeWaitEventSet(set);
         pfree(events);
     }
-    save_fini();
+    backend_fini();
 }

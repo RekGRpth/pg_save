@@ -50,7 +50,6 @@ void primary_finished(Backend *backend) {
 }
 
 void primary_fini(void) {
-    backend_fini();
 }
 
 static void primary_extension(const char *schema, const char *extension) {

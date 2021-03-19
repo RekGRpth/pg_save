@@ -47,7 +47,6 @@ void standby_finished(Backend *backend) {
 }
 
 void standby_fini(void) {
-    backend_fini();
 }
 
 void standby_init(void) {

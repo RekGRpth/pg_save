@@ -126,6 +126,10 @@ void backend_fini(void) {
     }
 }
 
+void backend_init(void) {
+    RecoveryInProgress() ? standby_init() : primary_init();
+}
+
 static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
@@ -153,6 +157,11 @@ void backend_result(const char *state, const char *host) {
     } else if (state) {
         backend_connect(host, init_char2state(state));
     }
+}
+
+void backend_timeout(void) {
+    etcd_timeout();
+    RecoveryInProgress() ? standby_timeout() : primary_timeout();
 }
 
 static void backend_updated(Backend *backend) {
