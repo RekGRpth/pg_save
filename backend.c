@@ -34,7 +34,7 @@ void backend_array(void) {
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     backend->attempt = 0;
-    init_set_state_host(backend->state, PQhost(backend->conn));
+    init_set_host_state(PQhost(backend->conn), backend->state);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
     if (backend->state != PRIMARY) backend_array();
@@ -101,7 +101,7 @@ void backend_connect(const char *host, STATE state) {
 
 static void backend_finished(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    init_reset_state_host(backend->state, PQhost(backend->conn));
+    init_reset_host_state(PQhost(backend->conn), backend->state);
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
     init_reload();
 }
@@ -149,18 +149,18 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
 
-void backend_result(const char *state, const char *host) {
+void backend_result(const char *host, STATE state) {
     Backend *backend = NULL;
-    D1("state = %s, host = %s", state ? state : "(null)", host);
+    D1("state = %s, host = %s", init_state2char(state), host);
     queue_each(&save_queue, queue) {
         Backend *backend_ = queue_data(queue, Backend, queue);
         if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
     }
     if (backend) {
-        if (state) backend_update(backend, init_char2state(state));
+        if (state != UNKNOWN) backend_update(backend, state);
         else backend_fail(backend);
-    } else if (state) {
-        backend_connect(host, init_char2state(state));
+    } else if (state != UNKNOWN) {
+        backend_connect(host, state);
     }
 }
 
@@ -180,9 +180,9 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_update(Backend *backend, STATE state) {
-    init_reset_state_host(backend->state, PQhost(backend->conn));
+    init_reset_host_state(PQhost(backend->conn), backend->state);
     backend->state = state;
-    init_set_state_host(backend->state, PQhost(backend->conn));
+    init_set_host_state(PQhost(backend->conn), backend->state);
     backend_updated(backend);
     if (backend->state != PRIMARY) backend_array();
 }

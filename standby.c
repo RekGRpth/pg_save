@@ -9,9 +9,9 @@ extern STATE init_state;
 static Backend *standby_primary = NULL;
 
 static void standby_update(STATE state) {
-    init_reset_state_host(init_state, save_hostname);
+    init_reset_host_state(save_hostname, init_state);
     init_set_state(state);
-    init_set_state_host(state, save_hostname);
+    init_set_host_state(save_hostname, state);
     init_reload();
     backend_array();
 }
@@ -21,7 +21,7 @@ static void standby_result(PGresult *result) {
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         const char *me = PQgetvalue(result, row, PQfnumber(result, "me"));
-        (me[0] == 't' || me[0] == 'T') ? standby_update(init_char2state(state)) : backend_result(state, host);
+        (me[0] == 't' || me[0] == 'T') ? standby_update(init_char2state(state)) : backend_result(host, init_char2state(state));
     }
 }
 

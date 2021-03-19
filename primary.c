@@ -91,7 +91,7 @@ static void primary_schema(const char *schema) {
 
 void primary_init(void) {
     init_alter_system_reset("primary_conninfo");
-    init_set_state_host(PRIMARY, save_hostname);
+    init_set_host_state(save_hostname, PRIMARY);
     init_set_state(PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
@@ -103,7 +103,7 @@ static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
         char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", true));
-        backend_result(state, host);
+        backend_result(host, init_char2state(state));
         pfree(host);
         if (state) pfree(state);
     }

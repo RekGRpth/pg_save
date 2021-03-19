@@ -26,6 +26,7 @@ const char *init_state2char(STATE state) {
 }
 
 STATE init_char2state(const char *state) {
+    if (!state) return UNKNOWN;
     if (!strcmp(state, "primary")) return PRIMARY;
     if (!strcmp(state, "sync")) return SYNC;
     if (!strcmp(state, "potential")) return POTENTIAL;
@@ -95,7 +96,7 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_reset_state_host(STATE state, const char *host) {
+void init_reset_host_state(const char *host, STATE state) {
     StringInfoData buf;
     if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;
@@ -112,7 +113,7 @@ void init_reset_state(STATE state) {
     init_state = UNKNOWN;
 }
 
-void init_set_state_host(STATE state, const char *host) {
+void init_set_host_state(const char *host, STATE state) {
     StringInfoData buf;
     D1("state = %s, host = %s", init_state2char(state), host);
     initStringInfoMy(TopMemoryContext, &buf);
