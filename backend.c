@@ -151,7 +151,7 @@ void backend_reset(Backend *backend) {
 
 void backend_result(const char *host, STATE state) {
     Backend *backend = NULL;
-    D1("state = %s, host = %s", init_state2char(state), host);
+    D1("host = %s, state = %s", host, init_state2char(state));
     queue_each(&save_queue, queue) {
         Backend *backend_ = queue_data(queue, Backend, queue);
         if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
