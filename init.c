@@ -103,27 +103,21 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_reset_state(STATE state) {
-    D1("state = %s", init_state2char(state));
-    init_alter_system_reset("pg_save.state");
-    init_state = UNKNOWN;
-}
-
-void init_reset_state_host(STATE state) {
+void init_reset_state_host(STATE state, const char *host) {
     StringInfoData buf;
     if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;
-    D1("state = %s", init_state2char(state));
+    D1("state = %s, host = %s", init_state2char(state), host);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_reset(buf.data);
     pfree(buf.data);
 }
 
-void init_set_state(STATE state) {
+void init_reset_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", init_state2char(state));
-    init_state = state;
+    init_alter_system_reset("pg_save.state");
+    init_state = UNKNOWN;
 }
 
 void init_set_state_host(STATE state, const char *host) {
@@ -133,6 +127,12 @@ void init_set_state_host(STATE state, const char *host) {
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_alter_system_set(buf.data, host);
     pfree(buf.data);
+}
+
+void init_set_state(STATE state) {
+    D1("state = %s", init_state2char(state));
+    init_alter_system_set("pg_save.state", init_state2char(state));
+    init_state = state;
 }
 
 static void init_work(void) {

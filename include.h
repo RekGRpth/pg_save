@@ -86,7 +86,7 @@ void init_alter_system_set(const char *name, const char *new);
 void init_connect(void);
 void init_debug(void);
 void init_reload(void);
-void init_reset_state_host(STATE state);
+void init_reset_state_host(STATE state, const char *host);
 void init_reset_state(STATE state);
 void init_set_state_host(STATE state, const char *host);
 void init_set_state(STATE state);
