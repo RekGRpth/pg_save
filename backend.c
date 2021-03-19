@@ -39,16 +39,16 @@ void backend_array(void) {
     D1("save = %s", backend_save);
 }
 
-static void backend_connected(Backend *backend) {
+static void backend_created(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     backend->attempt = 0;
     init_set_host_state(PQhost(backend->conn), backend->state);
-    RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
+    RecoveryInProgress() ? standby_created(backend) : primary_created(backend);
     init_reload();
     if (backend->state != PRIMARY) backend_array();
 }
 
-static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
+static void backend_create_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_AWAITING_RESPONSE: D1("%s:%s CONNECTION_AWAITING_RESPONSE", PQhost(backend->conn), init_state2char(backend->state)); break;
@@ -61,7 +61,7 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
         case CONNECTION_GSS_STARTUP: D1("%s:%s CONNECTION_GSS_STARTUP", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_MADE: D1("%s:%s CONNECTION_MADE", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_NEEDED: D1("%s:%s CONNECTION_NEEDED", PQhost(backend->conn), init_state2char(backend->state)); break;
-        case CONNECTION_OK: D1("%s:%s CONNECTION_OK", PQhost(backend->conn), init_state2char(backend->state)); backend_connected(backend); return;
+        case CONNECTION_OK: D1("%s:%s CONNECTION_OK", PQhost(backend->conn), init_state2char(backend->state)); backend_created(backend); return;
         case CONNECTION_SETENV: D1("%s:%s CONNECTION_SETENV", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_SSL_STARTUP: D1("%s:%s CONNECTION_SSL_STARTUP", PQhost(backend->conn), init_state2char(backend->state)); break;
         case CONNECTION_STARTED: D1("%s:%s CONNECTION_STARTED", PQhost(backend->conn), init_state2char(backend->state)); break;
@@ -69,27 +69,27 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", PQhost(backend->conn), init_state2char(backend->state)); break;
         case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
-        case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", PQhost(backend->conn), init_state2char(backend->state)); backend_connected(backend); return;
+        case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", PQhost(backend->conn), init_state2char(backend->state)); backend_created(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", PQhost(backend->conn), init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", PQhost(backend->conn), init_state2char(backend->state)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
 }
 
-static void backend_connect_socket(Backend *backend) {
-    backend_connect_or_reset_socket(backend, PQconnectPoll);
+static void backend_create_socket(Backend *backend) {
+    backend_create_or_reset_socket(backend, PQconnectPoll);
 }
 
 static void backend_reset_socket(Backend *backend) {
-    backend_connect_or_reset_socket(backend, PQresetPoll);
+    backend_create_or_reset_socket(backend, PQresetPoll);
 }
 
-static void backend_connect_or_reset(Backend *backend, const char *host) {
+static void backend_create_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
         const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, save_hostname, NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
-        backend->socket = backend_connect_socket;
+        backend->socket = backend_create_socket;
     } else {
         if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_reset_socket;
@@ -100,10 +100,10 @@ static void backend_connect_or_reset(Backend *backend, const char *host) {
     backend->events = WL_SOCKET_WRITEABLE;
 }
 
-void backend_connect(const char *host, STATE state) {
+void backend_create(const char *host, STATE state) {
     Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
-    backend_connect_or_reset(backend, host);
+    backend_create_or_reset(backend, host);
     queue_insert_tail(&save_queue, &backend->queue);
 }
 
@@ -155,7 +155,7 @@ void backend_idle(Backend *backend) {
 }
 
 void backend_reset(Backend *backend) {
-    backend_connect_or_reset(backend, NULL);
+    backend_create_or_reset(backend, NULL);
 }
 
 static Backend *backend_host(const char *host) {
@@ -170,7 +170,7 @@ void backend_result(const char *host, STATE state) {
     Backend *backend = backend_host(host);
     D1("host = %s, state = %s, found = %s", host, init_state2char(state), backend ? "true" : "false");
     if (backend) state != UNKNOWN ? backend_update(backend, state) : backend_fail(backend);
-    else if (state != UNKNOWN) backend_connect(host, state);
+    else if (state != UNKNOWN) backend_create(host, state);
 }
 
 void backend_timeout(void) {

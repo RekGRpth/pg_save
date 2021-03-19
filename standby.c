@@ -75,18 +75,18 @@ static void standby_prepare(Backend *backend) {
     }
 }
 
-void standby_connected(Backend *backend) {
+void standby_created(Backend *backend) {
     backend->state == PRIMARY ? standby_prepare(standby_primary = backend) : backend_idle(backend);
 }
 
-static void standby_connect(const char *conninfo) {
+static void standby_create(const char *conninfo) {
     char *err;
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(conninfo, &err))) E("!PQconninfoParse and %s", err);
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
-        if (!strcmp(opt->keyword, "host")) backend_connect(opt->val, PRIMARY);
+        if (!strcmp(opt->keyword, "host")) backend_create(opt->val, PRIMARY);
     }
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
@@ -106,7 +106,7 @@ static void standby_reprimary(void) {
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), save_hostname);
     init_alter_system_set("primary_conninfo", buf.data);
-    standby_connect(buf.data);
+    standby_create(buf.data);
     pfree(buf.data);
 }
 
@@ -128,11 +128,11 @@ void standby_fini(void) {
 void standby_init(void) {
     init_alter_system_reset("synchronous_standby_names");
     init_reset_state(init_state);
-    standby_connect(PrimaryConnInfo);
+    standby_create(PrimaryConnInfo);
 }
 
 void standby_timeout(void) {
-    if (!standby_primary) standby_connect(PrimaryConnInfo);
+    if (!standby_primary) standby_create(PrimaryConnInfo);
     else if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
 }
 
