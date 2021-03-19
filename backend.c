@@ -151,13 +151,17 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
 
-void backend_result(const char *host, STATE state) {
-    Backend *backend = NULL;
-    D1("host = %s, state = %s", host, init_state2char(state));
+static Backend *backend_host(const char *host) {
     queue_each(&save_queue, queue) {
-        Backend *backend_ = queue_data(queue, Backend, queue);
-        if (!strcmp(host, PQhost(backend_->conn))) { backend = backend_; break; }
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (!strcmp(host, PQhost(backend->conn))) return backend;
     }
+    return NULL;
+}
+
+void backend_result(const char *host, STATE state) {
+    Backend *backend = backend_host(host);
+    D1("host = %s, state = %s, found = %s", host, init_state2char(state), backend ? "true" : "false");
     if (backend) state != UNKNOWN ? backend_update(backend, state) : backend_fail(backend);
     else if (state != UNKNOWN) backend_connect(host, state);
 }
