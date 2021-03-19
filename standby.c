@@ -9,9 +9,7 @@ extern STATE init_state;
 static bool standby_prepared = false;
 
 void standby_connected(Backend *backend) {
-    backend->attempt = 0;
     if (backend->state == PRIMARY) standby_prepared = false;
-    init_set_state_host(backend->state, PQhost(backend->conn));
     backend_idle(backend);
 }
 

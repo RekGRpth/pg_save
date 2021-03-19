@@ -33,6 +33,8 @@ void backend_array(void) {
 
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+    backend->attempt = 0;
+    init_set_state_host(backend->state, PQhost(backend->conn));
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
     backend_array();
