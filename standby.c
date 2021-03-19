@@ -53,7 +53,7 @@ void standby_init(void) {
     if (init_state != UNKNOWN) init_set_state_host(init_state, save_hostname);
 }
 
-static void standby_state(STATE state) {
+static void standby_update(STATE state) {
     init_reset_state_host(init_state, save_hostname);
     init_set_state(state);
     init_set_state_host(state, save_hostname);
@@ -67,7 +67,7 @@ static void standby_result(PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         const char *cme = PQgetvalue(result, row, PQfnumber(result, "me"));
         bool me = cme[0] == 't' || cme[0] == 'T';
-        if (me) { standby_state(init_char2state(state)); continue; }
+        if (me) { standby_update(init_char2state(state)); continue; }
         backend_result(state, host);
     }
 }
