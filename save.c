@@ -101,17 +101,19 @@ void save_worker(Datum main_arg) {
         int nevents = 2;
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
-            if (PQsocket(backend->conn) < 0) D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-            else nevents++;
+            if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
+            if (PQsocket(backend->conn) < 0) continue;
+            nevents++;
         }
         events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
         queue_each(&save_queue, queue) {
+            int fd;
             Backend *backend = queue_data(queue, Backend, queue);
-            int fd = PQsocket(backend->conn);
-            if (fd < 0) continue;
+            if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
+            if ((fd = PQsocket(backend->conn)) < 0) continue;
             if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
                 case 0: /*D1("PQflush = 0");*/ break;
                 case 1: D1("PQflush = 1"); break;
