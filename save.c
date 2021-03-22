@@ -125,10 +125,13 @@ void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        if (!(nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION))) save_timeout(); else for (int i = 0; i < nevents; i++) {
-            WaitEvent *event = &events[i];
-            if (event->events & WL_LATCH_SET) save_latch();
-            if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
+        nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION);
+        if (!ShutdownRequestPending) {
+            if (!nevents) save_timeout(); else for (int i = 0; i < nevents; i++) {
+                WaitEvent *event = &events[i];
+                if (event->events & WL_LATCH_SET) save_latch();
+                if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
+            }
         }
         FreeWaitEventSet(set);
         pfree(events);
