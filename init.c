@@ -93,13 +93,6 @@ void init_reset_host_state(const char *host, STATE state) {
     pfree(buf.data);
 }
 
-void init_reset_state(STATE state) {
-    if (state == UNKNOWN) return;
-    D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", NULL);
-    init_state = UNKNOWN;
-}
-
 void init_set_host_state(const char *host, STATE state) {
     StringInfoData buf;
     D1("host = %s, state = %s", host, init_state2char(state));
@@ -111,7 +104,7 @@ void init_set_host_state(const char *host, STATE state) {
 
 void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", init_state2char(state));
+    init_alter_system_set("pg_save.state", state != UNKNOWN ? init_state2char(state) : NULL);
     init_state = state;
 }
 
