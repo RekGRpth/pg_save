@@ -7,7 +7,7 @@ char *init_sync;
 int init_attempt;
 int init_timeout;
 STATE init_state = UNKNOWN;
-static bool reload = false;
+static bool init_sighup = false;
 static char *init_async;
 static char *init_potential;
 static char *init_primary;
@@ -59,9 +59,9 @@ void init_debug(void) {
 }
 
 void init_reload(void) {
-    if (!reload) return;
+    if (!init_sighup) return;
     if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
-    reload = false;
+    init_sighup = false;
 }
 
 void init_set_host(const char *host, STATE state) {
@@ -102,7 +102,7 @@ void init_set_system(const char *name, const char *new) {
     if (!new_isnull) list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
     pfree(stmt);
-    reload = true;
+    init_sighup = true;
 }
 
 static void init_work(void) {
