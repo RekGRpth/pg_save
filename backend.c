@@ -5,10 +5,10 @@ extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
 
-Backend *backend_state(STATE state) {
-    queue_each(&save_queue, queue) {
+Backend *backend_host(const char *host) {
+    if (host) queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == state) return backend;
+        if (!strcmp(host, PQhost(backend->conn))) return backend;
     }
     return NULL;
 }
@@ -160,14 +160,6 @@ void backend_idle(Backend *backend) {
 
 void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
-}
-
-static Backend *backend_host(const char *host) {
-    queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (!strcmp(host, PQhost(backend->conn))) return backend;
-    }
-    return NULL;
 }
 
 void backend_result(const char *host, STATE state) {

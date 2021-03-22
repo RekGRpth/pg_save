@@ -1,6 +1,7 @@
 #include "include.h"
 
 extern char *backend_save;
+extern char *init_sync;
 extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
@@ -103,9 +104,9 @@ static void standby_promote(void) {
 
 static void standby_reprimary(void) {
     StringInfoData buf;
-    Backend *backend = backend_state(SYNC);
+    Backend *backend = backend_host(init_sync);
     D1("state = %s, found = %s", init_state2char(init_state), backend ? "true" : "false");
-    if (!backend) E("!backend_state");
+    if (!backend) E("!backend_host");
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
     init_alter_system_set("primary_conninfo", buf.data);
