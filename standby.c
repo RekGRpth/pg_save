@@ -9,9 +9,9 @@ extern STATE init_state;
 static Backend *standby_primary = NULL;
 
 static void standby_update(STATE state) {
-    init_set_host_state(NULL, init_state);
+    init_set_host(NULL, init_state);
     init_set_state(state);
-    init_set_host_state(MyBgworkerEntry->bgw_type, state);
+    init_set_host(MyBgworkerEntry->bgw_type, state);
     init_reload();
     backend_array();
 }

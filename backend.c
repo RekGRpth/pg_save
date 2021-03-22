@@ -41,7 +41,7 @@ void backend_array(void) {
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     backend->attempt = 0;
-    init_set_host_state(PQhost(backend->conn), backend->state);
+    init_set_host(PQhost(backend->conn), backend->state);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
     if (backend->state != PRIMARY) backend_array();
@@ -184,9 +184,9 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_update(Backend *backend, STATE state) {
-    init_set_host_state(NULL, backend->state);
+    init_set_host(NULL, backend->state);
     backend->state = state;
-    init_set_host_state(PQhost(backend->conn), backend->state);
+    init_set_host(PQhost(backend->conn), backend->state);
     backend_updated(backend);
     if (backend->state != PRIMARY) backend_array();
 }

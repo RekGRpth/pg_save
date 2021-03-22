@@ -83,7 +83,7 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_set_host_state(const char *host, STATE state) {
+void init_set_host(const char *host, STATE state) {
     StringInfoData buf;
     if (state == UNKNOWN) return;
     D1("host = %s, state = %s", host, init_state2char(state));
