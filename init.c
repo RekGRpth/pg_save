@@ -68,13 +68,11 @@ void init_set_host(const char *host, STATE state) {
     StringInfoData buf;
     if (state == UNKNOWN) return;
     D1("host = %s, state = %s", host, init_state2char(state));
-    if (host) {
-        if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
-        if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
-        if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
-        if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
-        if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
-    }
+    if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
+    if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
+    if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
+    if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
+    if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_set_system(buf.data, host);
