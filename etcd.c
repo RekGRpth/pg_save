@@ -56,8 +56,12 @@ static bool etcd_kv_put(const char *key, const char *value, int ttl) {
     return TextDatumGetCStringMy(TopMemoryContext, value);
 }*/
 
+static TimestampTz etcd_timeval2TimestampTz(struct timeval tp) {
+    return ((TimestampTz)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY)) * USECS_PER_SEC + tp.tv_usec;
+}
+
 void etcd_timeout(void) {
-    if ((init_state == UNKNOWN || etcd_kv_put(init_state2char(init_state), MyBgworkerEntry->bgw_type, 0)) && etcd_kv_put(MyBgworkerEntry->bgw_type, timestamptz_to_str(save_timeval2TimestampTz(save_start)), 0)) etcd_attempt = 0; else {
+    if ((init_state == UNKNOWN || etcd_kv_put(init_state2char(init_state), MyBgworkerEntry->bgw_type, 0)) && etcd_kv_put(MyBgworkerEntry->bgw_type, timestamptz_to_str(etcd_timeval2TimestampTz(save_start)), 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
         if (etcd_attempt++ >= init_attempt) if (kill(PostmasterPid, SIGTERM)) W("kill and %m");
     }

@@ -5,10 +5,6 @@ extern int init_timeout;
 queue_t save_queue;
 struct timeval save_start;
 
-TimestampTz save_timeval2TimestampTz(struct timeval tp) {
-    return ((TimestampTz)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY)) * USECS_PER_SEC + tp.tv_usec;
-}
-
 static int save_calculate(void) {
     int64 hour;
     int64 min;
