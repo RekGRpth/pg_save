@@ -185,9 +185,8 @@ static void backend_updated(Backend *backend) {
 
 void backend_update(Backend *backend, STATE state) {
     if (backend->state == state) return;
-    init_set_host(NULL, backend->state);
     backend->state = state;
-    init_set_host(PQhost(backend->conn), backend->state);
+    init_set_host(PQhost(backend->conn), state);
     backend_updated(backend);
     if (backend->state != PRIMARY) backend_array();
 }
