@@ -97,13 +97,7 @@ static void save_timeout(void) {
     backend_timeout();
 }
 
-static bool save_timeval_difference_exceeds(struct timeval start, struct timeval stop, int msec) {
-    return ((int64)stop.tv_sec - (int64)start.tv_sec) * USECS_PER_SEC + (int64)stop.tv_usec - (int64)start.tv_usec >= (int64)msec * INT64CONST(1000);
-}
-
 void save_worker(Datum main_arg) {
-    struct timeval start, stop;
-    if (gettimeofday(&start, NULL)) E("gettimeofday and %m");
     save_init();
     while (!ShutdownRequestPending) {
         int nevents = 2;
@@ -131,16 +125,10 @@ void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION);
-        for (int i = 0; i < nevents; i++) {
+        if (!(nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION))) save_timeout(); else for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
-        }
-        if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
-        if (init_timeout > 0 && (save_timeval_difference_exceeds(start, stop, init_timeout) || !nevents)) {
-            save_timeout();
-            start = stop;
         }
         FreeWaitEventSet(set);
         pfree(events);
