@@ -98,7 +98,6 @@ void init_reload(void) {
 
 void init_reset_host_state(const char *host, STATE state) {
     StringInfoData buf;
-    if (ShutdownRequestPending) return;
     if (state == UNKNOWN) return;
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfoMy(TopMemoryContext, &buf);
@@ -108,6 +107,7 @@ void init_reset_host_state(const char *host, STATE state) {
 }
 
 void init_reset_state(STATE state) {
+    if (state == UNKNOWN) return;
     D1("state = %s", init_state2char(state));
     init_alter_system_reset("pg_save.state");
     init_state = UNKNOWN;

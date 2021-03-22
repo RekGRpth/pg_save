@@ -45,8 +45,6 @@ void primary_failed(Backend *backend) {
 }
 
 void primary_finished(Backend *backend) {
-    if (ShutdownRequestPending) return;
-    primary_set_synchronous_standby_names();
 }
 
 void primary_fini(void) {

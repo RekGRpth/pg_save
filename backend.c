@@ -113,7 +113,6 @@ void backend_create(const char *host, STATE state) {
 
 static void backend_finished(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    init_reset_host_state(PQhost(backend->conn), backend->state);
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
     init_reload();
 }
