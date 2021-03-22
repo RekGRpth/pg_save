@@ -83,18 +83,9 @@ void init_reload(void) {
     reload = false;
 }
 
-void init_reset_host_state(const char *host, STATE state) {
-    StringInfoData buf;
-    if (state == UNKNOWN) return;
-    D1("host = %s, state = %s", host, init_state2char(state));
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_alter_system_set(buf.data, NULL);
-    pfree(buf.data);
-}
-
 void init_set_host_state(const char *host, STATE state) {
     StringInfoData buf;
+    if (state == UNKNOWN) return;
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));

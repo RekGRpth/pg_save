@@ -86,7 +86,6 @@ void etcd_timeout(void);
 void init_alter_system_set(const char *name, const char *new);
 void init_debug(void);
 void init_reload(void);
-void init_reset_host_state(const char *host, STATE state);
 void init_set_host_state(const char *host, STATE state);
 void init_set_state(STATE state);
 void initStringInfoMy(MemoryContext memoryContext, StringInfoData *buf);
