@@ -28,7 +28,7 @@ static void primary_set_synchronous_standby_names(void) {
     }
     pfree(names);
     appendStringInfoString(&buf, ")");
-    init_alter_system_set("synchronous_standby_names", buf.data);
+    init_set_system("synchronous_standby_names", buf.data);
     pfree(buf.data);
 }
 
@@ -90,7 +90,7 @@ static void primary_schema(const char *schema) {
 }
 
 void primary_init(void) {
-    init_alter_system_set("primary_conninfo", NULL);
+    init_set_system("primary_conninfo", NULL);
     init_set_state(PRIMARY);
     init_set_host(MyBgworkerEntry->bgw_type, PRIMARY);
     primary_schema("curl");

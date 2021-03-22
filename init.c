@@ -43,25 +43,6 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
-void init_alter_system_set(const char *name, const char *new) {
-    AlterSystemStmt *stmt;
-    const char *old = GetConfigOption(name, false, true);
-    bool old_isnull = !old || old[0] == '\0';
-    bool new_isnull = !new || new[0] == '\0';
-    if (!old_isnull && !new_isnull && !strcmp(old, new)) return;
-    D1("name = %s, old = %s, new = %s", name, !old_isnull ? old : "(null)", !new_isnull ? new : "(null)");
-    stmt = makeNode(AlterSystemStmt);
-    stmt->setstmt = makeNode(VariableSetStmt);
-    stmt->setstmt->name = (char *)name;
-    stmt->setstmt->kind = !new_isnull ? VAR_SET_VALUE : VAR_RESET;
-    if (!new_isnull) stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
-    AlterSystemSetConfigFile(stmt);
-    if (!new_isnull) list_free_deep(stmt->setstmt->args);
-    pfree(stmt->setstmt);
-    pfree(stmt);
-    reload = true;
-}
-
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
     D1("restart = %i", init_restart);
@@ -89,14 +70,33 @@ void init_set_host(const char *host, STATE state) {
     D1("host = %s, state = %s", host, init_state2char(state));
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_alter_system_set(buf.data, host);
+    init_set_system(buf.data, host);
     pfree(buf.data);
 }
 
 void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_alter_system_set("pg_save.state", state != UNKNOWN ? init_state2char(state) : NULL);
+    init_set_system("pg_save.state", state != UNKNOWN ? init_state2char(state) : NULL);
     init_state = state;
+}
+
+void init_set_system(const char *name, const char *new) {
+    AlterSystemStmt *stmt;
+    const char *old = GetConfigOption(name, false, true);
+    bool old_isnull = !old || old[0] == '\0';
+    bool new_isnull = !new || new[0] == '\0';
+    if (!old_isnull && !new_isnull && !strcmp(old, new)) return;
+    D1("name = %s, old = %s, new = %s", name, !old_isnull ? old : "(null)", !new_isnull ? new : "(null)");
+    stmt = makeNode(AlterSystemStmt);
+    stmt->setstmt = makeNode(VariableSetStmt);
+    stmt->setstmt->name = (char *)name;
+    stmt->setstmt->kind = !new_isnull ? VAR_SET_VALUE : VAR_RESET;
+    if (!new_isnull) stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
+    AlterSystemSetConfigFile(stmt);
+    if (!new_isnull) list_free_deep(stmt->setstmt->args);
+    pfree(stmt->setstmt);
+    pfree(stmt);
+    reload = true;
 }
 
 static void init_work(void) {

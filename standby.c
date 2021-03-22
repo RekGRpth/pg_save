@@ -109,7 +109,7 @@ static void standby_reprimary(void) {
     if (!backend) E("!backend_host");
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
-    init_alter_system_set("primary_conninfo", buf.data);
+    init_set_system("primary_conninfo", buf.data);
     standby_create(buf.data);
     pfree(buf.data);
 }
@@ -130,7 +130,7 @@ void standby_fini(void) {
 }
 
 void standby_init(void) {
-    init_alter_system_set("synchronous_standby_names", NULL);
+    init_set_system("synchronous_standby_names", NULL);
     init_set_state(UNKNOWN);
     standby_create(PrimaryConnInfo);
 }
