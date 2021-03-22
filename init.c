@@ -78,6 +78,7 @@ void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_set_system("pg_save.state", state != UNKNOWN ? init_state2char(state) : NULL);
     init_state = state;
+    init_set_host(MyBgworkerEntry->bgw_type, state);
 }
 
 void init_set_system(const char *name, const char *new) {

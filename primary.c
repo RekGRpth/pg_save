@@ -92,7 +92,6 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
     init_set_state(PRIMARY);
-    init_set_host(MyBgworkerEntry->bgw_type, PRIMARY);
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
