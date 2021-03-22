@@ -91,6 +91,7 @@ void init_set_system(const char *name, const char *new) {
     const char *old = GetConfigOption(name, false, true);
     bool old_isnull = !old || old[0] == '\0';
     bool new_isnull = !new || new[0] == '\0';
+    if (old_isnull && new_isnull) return;
     if (!old_isnull && !new_isnull && !strcmp(old, new)) return;
     D1("name = %s, old = %s, new = %s", name, !old_isnull ? old : "(null)", !new_isnull ? new : "(null)");
     stmt = makeNode(AlterSystemStmt);
