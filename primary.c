@@ -11,7 +11,7 @@ static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
     char **names;
     int i = 0;
-    if (!queue_size(&save_queue)) return init_alter_system_reset("synchronous_standby_names");
+    if (!queue_size(&save_queue)) return;
     names = MemoryContextAlloc(TopMemoryContext, queue_size(&save_queue) * sizeof(*names));
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
@@ -90,7 +90,7 @@ static void primary_schema(const char *schema) {
 }
 
 void primary_init(void) {
-    init_alter_system_reset("primary_conninfo");
+    init_alter_system_set("primary_conninfo", NULL);
     init_set_state(PRIMARY);
     init_set_host_state(MyBgworkerEntry->bgw_type, PRIMARY);
     primary_schema("curl");

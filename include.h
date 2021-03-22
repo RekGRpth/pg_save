@@ -83,7 +83,6 @@ void backend_timeout(void);
 void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);
-void init_alter_system_reset(const char *name);
 void init_alter_system_set(const char *name, const char *new);
 void init_debug(void);
 void init_reload(void);

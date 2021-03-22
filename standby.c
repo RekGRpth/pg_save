@@ -130,7 +130,7 @@ void standby_fini(void) {
 }
 
 void standby_init(void) {
-    init_alter_system_reset("synchronous_standby_names");
+    init_alter_system_set("synchronous_standby_names", NULL);
     init_reset_state(init_state);
     standby_create(PrimaryConnInfo);
 }
