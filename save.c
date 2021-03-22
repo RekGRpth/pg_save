@@ -3,7 +3,6 @@
 char *save_schema_type;
 extern int init_timeout;
 queue_t save_queue;
-struct timeval save_start;
 
 static int save_calculate(void) {
     int64 hour;
@@ -103,8 +102,8 @@ static bool save_timeval_difference_exceeds(struct timeval start, struct timeval
 }
 
 void save_worker(Datum main_arg) {
-    struct timeval stop;
-    if (gettimeofday(&save_start, NULL)) E("gettimeofday and %m");
+    struct timeval start, stop;
+    if (gettimeofday(&start, NULL)) E("gettimeofday and %m");
     save_init();
     while (!ShutdownRequestPending) {
         int nevents = 2;
@@ -139,9 +138,9 @@ void save_worker(Datum main_arg) {
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
         if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
-        if (init_timeout > 0 && (save_timeval_difference_exceeds(save_start, stop, init_timeout) || !nevents)) {
+        if (init_timeout > 0 && (save_timeval_difference_exceeds(start, stop, init_timeout) || !nevents)) {
             save_timeout();
-            save_start = stop;
+            start = stop;
         }
         FreeWaitEventSet(set);
         pfree(events);
