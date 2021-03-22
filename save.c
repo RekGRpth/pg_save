@@ -9,6 +9,26 @@ TimestampTz save_timeval2TimestampTz(struct timeval tp) {
     return ((TimestampTz)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY)) * USECS_PER_SEC + tp.tv_usec;
 }
 
+static int save_calculate(void) {
+    int64 hour;
+    int64 min;
+    int64 sec;
+    int64 timeout = init_timeout * INT64CONST(1000);
+    struct timeval tp;
+    if (gettimeofday(&tp, NULL)) E("gettimeofday and %m");
+    sec = (int64)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY);
+    hour = sec / SECS_PER_HOUR;
+    sec -= hour * SECS_PER_HOUR;
+    min = sec / SECS_PER_MINUTE;
+    sec -= min * SECS_PER_MINUTE;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_HOUR && timeout > (hour *= USECS_PER_HOUR)) timeout -= hour;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_MINUTE && timeout > (min *= USECS_PER_MINUTE)) timeout -= min;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_SEC && timeout > (sec *= USECS_PER_SEC)) timeout -= sec;
+    if (timeout > tp.tv_usec) timeout -= tp.tv_usec;
+    timeout = timeout / INT64CONST(1000);
+    return timeout;
+}
+
 static void save_fini(void) {
     backend_fini();
 }
@@ -82,34 +102,13 @@ static void save_timeout(void) {
     backend_timeout();
 }
 
-static bool timeval_difference_exceeds(struct timeval start, struct timeval stop, int msec) {
+static bool save_timeval_difference_exceeds(struct timeval start, struct timeval stop, int msec) {
     return ((int64)stop.tv_sec - (int64)start.tv_sec) * USECS_PER_SEC + (int64)stop.tv_usec - (int64)start.tv_usec >= (int64)msec * INT64CONST(1000);
-}
-
-static int save_calculate(void) {
-    int64 hour;
-    int64 min;
-    int64 sec;
-    int64 timeout = init_timeout * INT64CONST(1000);
-    struct timeval tp;
-    if (gettimeofday(&tp, NULL)) E("gettimeofday and %m");
-    sec = (int64)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY);
-    hour = sec / SECS_PER_HOUR;
-    sec -= hour * SECS_PER_HOUR;
-    min = sec / SECS_PER_MINUTE;
-    sec -= min * SECS_PER_MINUTE;
-    if (init_timeout * INT64CONST(1000) > USECS_PER_HOUR && timeout > (hour *= USECS_PER_HOUR)) timeout -= hour;
-    if (init_timeout * INT64CONST(1000) > USECS_PER_MINUTE && timeout > (min *= USECS_PER_MINUTE)) timeout -= min;
-    if (init_timeout * INT64CONST(1000) > USECS_PER_SEC && timeout > (sec *= USECS_PER_SEC)) timeout -= sec;
-    if (timeout > tp.tv_usec) timeout -= tp.tv_usec;
-    timeout = timeout / INT64CONST(1000);
-    return timeout;
 }
 
 void save_worker(Datum main_arg) {
     struct timeval stop;
-    if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
-    save_start = stop;
+    if (gettimeofday(&save_start, NULL)) E("gettimeofday and %m");
     save_init();
     while (!ShutdownRequestPending) {
         int nevents = 2;
@@ -144,7 +143,7 @@ void save_worker(Datum main_arg) {
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
         if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
-        if (init_timeout > 0 && (timeval_difference_exceeds(save_start, stop, init_timeout) || !nevents)) {
+        if (init_timeout > 0 && (save_timeval_difference_exceeds(save_start, stop, init_timeout) || !nevents)) {
             save_timeout();
             save_start = stop;
         }
