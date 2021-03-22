@@ -48,12 +48,12 @@ void init_debug(void) {
     D1("restart = %i", init_restart);
     D1("timeout = %i", init_timeout);
     D1("policy = %s", init_policy);
-    if (init_async) D1("async = %s", init_async);
-    if (init_potential) D1("potential = %s", init_potential);
-    if (init_primary) D1("primary = %s", init_primary);
-    if (init_quorum) D1("quorum = %s", init_quorum);
     if (init_state != UNKNOWN) D1("state = %s", init_state2char(init_state));
+    if (init_primary) D1("primary = %s", init_primary);
     if (init_sync) D1("sync = %s", init_sync);
+    if (init_potential) D1("potential = %s", init_potential);
+    if (init_quorum) D1("quorum = %s", init_quorum);
+    if (init_async) D1("async = %s", init_async);
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
@@ -68,6 +68,13 @@ void init_set_host(const char *host, STATE state) {
     StringInfoData buf;
     if (state == UNKNOWN) return;
     D1("host = %s, state = %s", host, init_state2char(state));
+    if (host) {
+        if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
+        if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
+        if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
+        if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
+        if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
+    }
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_set_system(buf.data, host);
