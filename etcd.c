@@ -2,7 +2,7 @@
 
 extern int init_attempt;
 extern STATE init_state;
-extern TimestampTz save_start;
+extern struct timeval save_start;
 static int etcd_attempt = 0;
 static Oid etcd_kv_put_oid;
 //static Oid etcd_kv_range_oid;
@@ -57,7 +57,7 @@ static bool etcd_kv_put(const char *key, const char *value, int ttl) {
 }*/
 
 void etcd_timeout(void) {
-    if ((init_state == UNKNOWN || etcd_kv_put(init_state2char(init_state), MyBgworkerEntry->bgw_type, 0)) && etcd_kv_put(MyBgworkerEntry->bgw_type, timestamptz_to_str(save_start), 0)) etcd_attempt = 0; else {
+    if ((init_state == UNKNOWN || etcd_kv_put(init_state2char(init_state), MyBgworkerEntry->bgw_type, 0)) && etcd_kv_put(MyBgworkerEntry->bgw_type, timestamptz_to_str(save_timeval2TimestampTz(save_start)), 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
         if (etcd_attempt++ >= init_attempt) if (kill(PostmasterPid, SIGTERM)) W("kill and %m");
     }

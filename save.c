@@ -3,7 +3,11 @@
 char *save_schema_type;
 extern int init_timeout;
 queue_t save_queue;
-TimestampTz save_start;
+struct timeval save_start;
+
+TimestampTz save_timeval2TimestampTz(struct timeval tp) {
+    return ((TimestampTz)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY)) * USECS_PER_SEC + tp.tv_usec;
+}
 
 static void save_fini(void) {
     backend_fini();
@@ -78,18 +82,39 @@ static void save_timeout(void) {
     backend_timeout();
 }
 
+static bool timeval_difference_exceeds(struct timeval start, struct timeval stop, int msec) {
+    return ((int64)stop.tv_sec - (int64)start.tv_sec) * USECS_PER_SEC + (int64)stop.tv_usec - (int64)start.tv_usec >= (int64)msec * INT64CONST(1000);
+}
+
+static int save_calculate(void) {
+    int64 hour;
+    int64 min;
+    int64 sec;
+    int64 timeout = init_timeout * INT64CONST(1000);
+    struct timeval tp;
+    if (gettimeofday(&tp, NULL)) E("gettimeofday and %m");
+    sec = (int64)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY);
+    hour = sec / SECS_PER_HOUR;
+    sec -= hour * SECS_PER_HOUR;
+    min = sec / SECS_PER_MINUTE;
+    sec -= min * SECS_PER_MINUTE;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_HOUR && timeout > (hour *= USECS_PER_HOUR)) timeout -= hour;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_MINUTE && timeout > (min *= USECS_PER_MINUTE)) timeout -= min;
+    if (init_timeout * INT64CONST(1000) > USECS_PER_SEC && timeout > (sec *= USECS_PER_SEC)) timeout -= sec;
+    if (timeout > tp.tv_usec) timeout -= tp.tv_usec;
+    timeout = timeout / INT64CONST(1000);
+    return timeout;
+}
+
 void save_worker(Datum main_arg) {
-    TimestampTz stop = (save_start = GetCurrentTimestamp());
+    struct timeval stop;
+    if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
+    save_start = stop;
     save_init();
     while (!ShutdownRequestPending) {
-        fsec_t fsec;
-        int hour;
-        int min;
-        int sec;
-        int timeout = init_timeout * 1000;
+        int nevents = 2;
         WaitEvent *events;
         WaitEventSet *set;
-        int nevents = 2;
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
@@ -112,19 +137,14 @@ void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        dt2time(GetCurrentTimestamp(), &hour, &min, &sec, &fsec);
-        timeout -= fsec;
-        if (init_timeout > 1000 && timeout > sec * 1000 * 1000) timeout -= sec * 1000 * 1000;
-        if (init_timeout > 60 * 1000 && timeout > min * 60 * 1000 * 1000) timeout -= min * 60 * 1000 * 1000;
-        if (init_timeout > 60 * 60 * 1000 && timeout > hour * 60 * 60 * 1000 * 1000) timeout -= hour * 60 * 60 * 1000 * 1000;
-        nevents = WaitEventSetWait(set, timeout / 1000, events, nevents, PG_WAIT_EXTENSION);
+        nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
         }
-        stop = GetCurrentTimestamp();
-        if (init_timeout > 0 && (TimestampDifferenceExceeds(save_start, stop, init_timeout) || !nevents)) {
+        if (gettimeofday(&stop, NULL)) E("gettimeofday and %m");
+        if (init_timeout > 0 && (timeval_difference_exceeds(save_start, stop, init_timeout) || !nevents)) {
             save_timeout();
             save_start = stop;
         }

@@ -69,6 +69,7 @@ const char *init_state2char(STATE state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 STATE init_char2state(const char *state);
+TimestampTz save_timeval2TimestampTz(struct timeval tp);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_array(void);
 void backend_create(const char *host, STATE state);
