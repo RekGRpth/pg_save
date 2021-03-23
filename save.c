@@ -4,26 +4,6 @@ char *save_schema_type;
 extern int init_timeout;
 queue_t save_queue;
 
-static int save_calculate(void) {
-    int64 hour;
-    int64 min;
-    int64 sec;
-    int64 timeout = init_timeout * INT64CONST(1000);
-    struct timeval tp;
-    if (gettimeofday(&tp, NULL)) E("gettimeofday and %m");
-    sec = (int64)tp.tv_sec - ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY);
-    hour = sec / SECS_PER_HOUR;
-    sec -= hour * SECS_PER_HOUR;
-    min = sec / SECS_PER_MINUTE;
-    sec -= min * SECS_PER_MINUTE;
-    if (timeout > USECS_PER_HOUR && timeout > (hour *= USECS_PER_HOUR)) timeout -= hour;
-    if (timeout > USECS_PER_MINUTE && timeout > (min *= USECS_PER_MINUTE)) timeout -= min;
-    if (timeout > USECS_PER_SEC && timeout > (sec *= USECS_PER_SEC)) timeout -= sec;
-    if (timeout > tp.tv_usec) timeout -= tp.tv_usec;
-    timeout = timeout / INT64CONST(1000);
-    return timeout;
-}
-
 static void save_fini(void) {
     backend_fini();
 }
@@ -98,11 +78,18 @@ static void save_timeout(void) {
 }
 
 void save_worker(Datum main_arg) {
+    instr_time cur_time;
+    instr_time start_time;
+    long cur_timeout = -1;
     save_init();
     while (!ShutdownRequestPending) {
         int nevents = 2;
         WaitEvent *events;
         WaitEventSet *set;
+        if (init_timeout >= 0 && cur_timeout <= 0) {
+            INSTR_TIME_SET_CURRENT(start_time);
+            cur_timeout = init_timeout;
+        }
         queue_each(&save_queue, queue) {
             Backend *backend = queue_data(queue, Backend, queue);
             if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
@@ -125,12 +112,18 @@ void save_worker(Datum main_arg) {
             }
             AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
         }
-        nevents = WaitEventSetWait(set, save_calculate(), events, nevents, PG_WAIT_EXTENSION);
+        nevents = WaitEventSetWait(set, cur_timeout, events, nevents, PG_WAIT_EXTENSION);
         if (!ShutdownRequestPending) {
-            if (!nevents) save_timeout(); else for (int i = 0; i < nevents; i++) {
+            for (int i = 0; i < nevents; i++) {
                 WaitEvent *event = &events[i];
                 if (event->events & WL_LATCH_SET) save_latch();
-                if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
+                if (event->events & WL_SOCKET_MASK && !ShutdownRequestPending) save_socket(event->user_data);
+            }
+            if (init_timeout >= 0) {
+                INSTR_TIME_SET_CURRENT(cur_time);
+                INSTR_TIME_SUBTRACT(cur_time, start_time);
+                cur_timeout = init_timeout - (long)INSTR_TIME_GET_MILLISEC(cur_time);
+                if (cur_timeout <= 0) save_timeout();
             }
         }
         FreeWaitEventSet(set);
