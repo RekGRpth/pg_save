@@ -99,7 +99,7 @@ void save_worker(Datum main_arg) {
         events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
-        AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
+        AddWaitEventToSet(set, WL_POSTMASTER_DEATH, PGINVALID_SOCKET, NULL, NULL);
         queue_each(&save_queue, queue) {
             int fd;
             Backend *backend = queue_data(queue, Backend, queue);
@@ -117,6 +117,7 @@ void save_worker(Datum main_arg) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
+            if (event->events & WL_POSTMASTER_DEATH) ShutdownRequestPending = true;
         }
         if (init_timeout >= 0) {
             INSTR_TIME_SET_CURRENT(cur_time);
