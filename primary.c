@@ -34,6 +34,7 @@ static void primary_set_synchronous_standby_names(void) {
 }
 
 static void primary_demote(Backend *backend) {
+    if (queue_size(&save_queue) < 2) return;
     init_state = UNKNOWN;
     if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
     if (kill(-PostmasterPid, SIGTERM)) W("kill and %m");
