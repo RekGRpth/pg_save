@@ -107,10 +107,11 @@ static void standby_reprimary(void) {
     D1("state = %s, found = %s", init_state2char(init_state), backend ? "true" : "false");
     if (!backend) E("!backend_host");
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
+    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
     init_set_system("primary_conninfo", buf.data);
+    standby_create(buf.data);
     pfree(buf.data);
-    backend_update(backend, PRIMARY);
+    backend_finish(backend);
 }
 
 void standby_failed(Backend *backend) {
