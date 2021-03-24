@@ -116,7 +116,7 @@ static void standby_reprimary(void) {
 void standby_failed(Backend *backend) {
     backend_finish(backend);
     if (backend->state != PRIMARY);
-    else if (!queue_size(&save_queue)) { if (kill(PostmasterPid, SIGTERM)) W("kill and %m"); }
+    else if (!queue_size(&save_queue)) { if (kill(-PostmasterPid, SIGTERM)) W("kill and %m"); }
     else if (init_state != SYNC) standby_reprimary();
     else standby_promote();
 }
