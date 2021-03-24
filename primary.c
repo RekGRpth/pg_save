@@ -2,6 +2,7 @@
 
 extern char *backend_save;
 extern char *init_policy;
+extern char *init_sync;
 extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
@@ -32,8 +33,15 @@ static void primary_set_synchronous_standby_names(void) {
     pfree(buf.data);
 }
 
+static void primary_demote(Backend *backend) {
+    init_state = UNKNOWN;
+    if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
+    if (kill(PostmasterPid, SIGTERM)) W("kill and %m");
+}
+
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
+    if (backend->state == SYNC && strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) < 0) primary_demote(backend);
     backend_idle(backend);
 }
 
