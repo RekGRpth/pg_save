@@ -114,9 +114,6 @@ void standby_init(void);
 void standby_timeout(void);
 void standby_updated(Backend *backend);
 
-#define Q(name) #name
-#define S(macro) Q(macro)
-
 #define FORMAT_0(fmt, ...) "%s(%s:%d): %s", __func__, __FILE__, __LINE__, fmt
 #define FORMAT_1(fmt, ...) "%s(%s:%d): " fmt,  __func__, __FILE__, __LINE__
 #define GET_FORMAT(fmt, ...) GET_FORMAT_PRIVATE(fmt, 0, ##__VA_ARGS__, 1, \
