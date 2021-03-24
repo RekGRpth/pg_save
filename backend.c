@@ -104,7 +104,10 @@ static void backend_created(Backend *backend) {
 }
 
 void backend_create(const char *host, STATE state) {
-    Backend *backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
+    Backend *backend;
+    if (!strcmp(host, MyBgworkerEntry->bgw_type)) { W("backend with host \"%s\" is local!"); return; }
+    if ((backend = backend_host(host))) { W("backend with host \"%s\" already exists!"); return; }
+    backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
     backend_connect_or_reset(backend, host);
     queue_insert_tail(&save_queue, &backend->queue);
