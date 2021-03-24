@@ -109,8 +109,8 @@ static void standby_reprimary(void) {
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
     init_set_system("primary_conninfo", buf.data);
-    standby_create(buf.data);
     pfree(buf.data);
+    backend_update(backend, PRIMARY);
 }
 
 void standby_failed(Backend *backend) {
