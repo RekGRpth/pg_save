@@ -8,6 +8,11 @@ static void save_fini(void) {
     backend_fini();
 }
 
+static void save_exit(int code, Datum arg) {
+    D1("code = %i", code);
+    save_fini();
+}
+
 static void save_type(const char *schema, const char *name) {
     StringInfoData buf;
     int32 typmod;
@@ -45,6 +50,7 @@ static void save_init(void) {
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
+    on_proc_exit(save_exit, PointerGetDatum(NULL));
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
     pgstat_report_appname(MyBgworkerEntry->bgw_type);
@@ -99,7 +105,7 @@ void save_worker(Datum main_arg) {
         events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
-        AddWaitEventToSet(set, WL_POSTMASTER_DEATH, PGINVALID_SOCKET, NULL, NULL);
+        AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
         queue_each(&save_queue, queue) {
             int fd;
             Backend *backend = queue_data(queue, Backend, queue);
@@ -117,7 +123,6 @@ void save_worker(Datum main_arg) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
             if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
-            if (event->events & WL_POSTMASTER_DEATH) ShutdownRequestPending = true;
         }
         if (init_timeout >= 0) {
             INSTR_TIME_SET_CURRENT(cur_time);
@@ -128,5 +133,5 @@ void save_worker(Datum main_arg) {
         FreeWaitEventSet(set);
         pfree(events);
     }
-    save_fini();
+    proc_exit(0);
 }
