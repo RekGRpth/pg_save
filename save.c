@@ -49,7 +49,6 @@ static void save_init(void) {
     D1("hostname = %s, timeout = %i", MyBgworkerEntry->bgw_type, init_timeout);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
-    pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
     on_proc_exit(save_exit, PointerGetDatum(NULL));
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
@@ -88,7 +87,7 @@ void save_worker(Datum main_arg) {
     instr_time start_time;
     long cur_timeout = -1;
     save_init();
-    while (!ShutdownRequestPending) {
+    for (;;) {
         int nevents = 2;
         WaitEvent *events;
         WaitEventSet *set;
@@ -133,5 +132,5 @@ void save_worker(Datum main_arg) {
         FreeWaitEventSet(set);
         pfree(events);
     }
-    proc_exit(0);
+    proc_exit(1);
 }
