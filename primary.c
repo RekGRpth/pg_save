@@ -143,4 +143,5 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
+    if (backend->state == SYNC && strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) < 0) primary_demote(backend);
 }
