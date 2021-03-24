@@ -7,6 +7,7 @@ extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
+static int primary_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
     StringInfoData buf;
@@ -33,8 +34,13 @@ static void primary_set_synchronous_standby_names(void) {
     pfree(buf.data);
 }
 
-static void primary_demote(Backend *backend) {
+static void primary_demote(void) {
+    Backend *backend;
     if (queue_size(&save_queue) < 2) return;
+    if (!(backend = backend_host(init_sync))) return;
+    if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
+    W("%i < %i", primary_attempt, init_attempt);
+    if (primary_attempt++ < init_attempt) return;
     init_state = UNKNOWN;
     if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
     if (kill(-PostmasterPid, SIGTERM)) W("kill and %m");
@@ -42,7 +48,6 @@ static void primary_demote(Backend *backend) {
 
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
-    if (backend->state == SYNC && strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) < 0) primary_demote(backend);
     backend_idle(backend);
 }
 
@@ -140,9 +145,9 @@ void primary_timeout(void) {
     primary_result();
     SPI_finish_my();
     if (backend_save) pfree((void *)values[0]);
+    primary_demote();
 }
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
-    if (backend->state == SYNC && strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) < 0) primary_demote(backend);
 }
