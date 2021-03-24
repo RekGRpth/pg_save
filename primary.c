@@ -49,6 +49,7 @@ static void primary_demote(void) {
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
     backend_idle(backend);
+    primary_attempt = 0;
 }
 
 void primary_created(Backend *backend) {
