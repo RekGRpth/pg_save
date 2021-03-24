@@ -84,8 +84,8 @@ static void backend_reset_socket(Backend *backend) {
 
 static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
-        const char *keywords[] = {"host", "port", "user", "dbname", "application_name", NULL};
-        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, NULL};
+        const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
+        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state == PRIMARY ? "read-write" : "any", NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
