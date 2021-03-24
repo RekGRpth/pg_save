@@ -43,7 +43,7 @@ static void primary_demote(void) {
     if (primary_attempt++ < init_attempt) return;
     init_state = UNKNOWN;
     if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
-    if (kill(-PostmasterPid, SIGTERM)) W("kill and %m");
+    if (kill(-PostmasterPid, SIGTERM)) W("kill");
 }
 
 void primary_connected(Backend *backend) {

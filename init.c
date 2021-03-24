@@ -60,7 +60,7 @@ void init_debug(void) {
 
 void init_reload(void) {
     if (!init_sighup) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill and %m");
+    if (kill(PostmasterPid, SIGHUP)) W("kill");
     init_sighup = false;
 }
 
