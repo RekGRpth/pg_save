@@ -2,7 +2,6 @@
 
 extern char *backend_save;
 extern char *init_sync;
-extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -61,8 +60,8 @@ static void standby_prepare(Backend *backend) {
         initStringInfoMy(TopMemoryContext, &buf);
         appendStringInfo(&buf,
             "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
-            "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
-            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", save_schema_type);
+            "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
+            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state");
         command = buf.data;
     }
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendPrepare(backend->conn, "standby_prepare", command, countof(paramTypes), paramTypes)) {

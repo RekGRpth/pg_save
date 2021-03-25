@@ -3,7 +3,6 @@
 extern char *backend_save;
 extern char *init_policy;
 extern char *init_sync;
-extern char *save_schema_type;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -136,8 +135,8 @@ void primary_timeout(void) {
         initStringInfoMy(TopMemoryContext, &buf);
         appendStringInfo(&buf,
             "SELECT application_name, s.sync_state\n"
-            "FROM pg_stat_replication AS s FULL OUTER JOIN unnest($1::%1$s[]) AS v USING (application_name)\n"
-            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state", save_schema_type);
+            "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
+            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state");
         command = buf.data;
     }
     SPI_connect_my(command);

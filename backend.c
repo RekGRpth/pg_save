@@ -20,20 +20,20 @@ void backend_array(void) {
     backend_save = NULL;
     if (!nelems) return;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "{");
+    appendStringInfoString(&buf, "[");
     nelems = 0;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state == PRIMARY) continue;
         if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "\"(%s,%s)\"", PQhost(backend->conn), init_state2char(backend->state));
+        appendStringInfo(&buf, "{\"application_name\":\"%s\",\"sync_state\":\"%s\"}", PQhost(backend->conn), init_state2char(backend->state));
         nelems++;
     }
     if (init_state != UNKNOWN && init_state != PRIMARY) {
         if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "\"(%s,%s)\"", MyBgworkerEntry->bgw_type, init_state2char(init_state));
+        appendStringInfo(&buf, "{\"application_name\":\"%s\",\"sync_state\":\"%s\"}", MyBgworkerEntry->bgw_type, init_state2char(init_state));
     }
-    appendStringInfoString(&buf, "}");
+    appendStringInfoString(&buf, "]");
     backend_save = buf.data;
     D1("save = %s", backend_save);
 }
