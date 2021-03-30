@@ -29,7 +29,7 @@ static void standby_query_socket(Backend *backend) {
         case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    ok ? backend_idle(backend) : backend_finish(backend);
+    ok ? backend_prepare(backend) : backend_finish(backend);
 }
 
 static void standby_query(Backend *backend) {
@@ -54,16 +54,10 @@ static void standby_prepare_socket(Backend *backend) {
 
 static void standby_prepare(Backend *backend) {
     static Oid paramTypes[] = {TEXTOID};
-    static char *command = NULL;
-    if (!command) {
-        StringInfoData buf;
-        initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf,
-            "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
-            "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
-            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state");
-        command = buf.data;
-    }
+    static char *command =
+        "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
+        "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
+        "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state";
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendPrepare(backend->conn, "standby_prepare", command, countof(paramTypes), paramTypes)) {
         W("%s:%s !PQsendPrepare and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
@@ -74,7 +68,7 @@ static void standby_prepare(Backend *backend) {
 }
 
 void standby_connected(Backend *backend) {
-    backend->state == PRIMARY ? standby_prepare(backend) : backend_idle(backend);
+    backend->state == PRIMARY ? standby_prepare(backend) : backend_prepare(backend);
 }
 
 void standby_created(Backend *backend) {

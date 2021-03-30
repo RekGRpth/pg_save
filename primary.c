@@ -47,7 +47,7 @@ static void primary_demote(void) {
 
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
-    backend_idle(backend);
+    backend_prepare(backend);
     primary_attempt = 0;
 }
 
@@ -110,6 +110,8 @@ void primary_init(void) {
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
+    primary_schema("queue");
+    primary_extension("queue", "pg_queue");
 }
 
 static void primary_result(void) {
@@ -127,18 +129,11 @@ void primary_timeout(void) {
     Datum values[] = {backend_save ? CStringGetTextDatum(backend_save) : (Datum)NULL};
     char nulls[] = {backend_save ? ' ' : 'n'};
     static SPI_plan *plan = NULL;
-    static char *command = NULL;
+    static char *command = "SELECT application_name, s.sync_state\n"
+        "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
+        "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state";
     StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
     StaticAssertStmt(countof(argtypes) == countof(nulls), "countof(argtypes) == countof(values)");
-    if (!command) {
-        StringInfoData buf;
-        initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf,
-            "SELECT application_name, s.sync_state\n"
-            "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
-            "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state");
-        command = buf.data;
-    }
     SPI_connect_my(command);
     if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
     SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, true);
