@@ -74,6 +74,13 @@ static void backend_connected(Backend *backend) {
     if (backend->state != PRIMARY) backend_array();
 }
 
+static void backend_fail(Backend *backend) {
+    if (backend->attempt++ < init_attempt) return;
+    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+    init_reload();
+}
+
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", PQhost(backend->conn), init_state2char(backend->state)); break;
@@ -144,13 +151,6 @@ void backend_create(const char *host, STATE state) {
 static void backend_finished(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
-    init_reload();
-}
-
-void backend_fail(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
-    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
     init_reload();
 }
 

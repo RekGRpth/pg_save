@@ -73,7 +73,6 @@ STATE init_char2state(const char *state);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_array(void);
 void backend_create(const char *host, STATE state);
-void backend_fail(Backend *backend);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
