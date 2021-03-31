@@ -6,47 +6,6 @@ extern queue_t save_queue;
 extern STATE init_state;
 static Backend *standby_primary = NULL;
 
-static void standby_update(STATE state) {
-    if (init_state == state) return;
-    init_set_state(state);
-    init_reload();
-    backend_array();
-}
-
-static void standby_result(PGresult *result) {
-    for (int row = 0; row < PQntuples(result); row++) {
-        const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
-        const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
-        const char *me = PQgetvalue(result, row, PQfnumber(result, "me"));
-        (me[0] == 't' || me[0] == 'T') ? standby_update(init_char2state(state)) : backend_result(host, init_char2state(state));
-    }
-}
-
-static void standby_query_socket(Backend *backend) {
-    bool ok = false;
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
-    }
-    ok ? backend_idle(backend) : backend_finish(backend);
-}
-
-static void standby_query(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
-    const char *paramValues[] = {backend_save};
-    static char *command =
-        "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
-        "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
-        "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else {
-        backend->events = WL_SOCKET_WRITEABLE;
-        backend->socket = standby_query_socket;
-    }
-}
-
 void standby_connected(Backend *backend) {
 }
 
@@ -106,6 +65,50 @@ static void standby_reprimary(Backend *backend) {
 
 void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
     if (init_state == POTENTIAL && !strcmp(payload, "reprimary")) standby_reprimary(backend);
+}
+
+static void standby_demote(void) {
+}
+
+static void standby_update(STATE state) {
+    if (init_state == state) return;
+    init_set_state(state);
+    init_reload();
+    backend_array();
+}
+
+static void standby_result(PGresult *result) {
+    for (int row = 0; row < PQntuples(result); row++) {
+        const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
+        const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
+        const char *me = PQgetvalue(result, row, PQfnumber(result, "me"));
+        (me[0] == 't' || me[0] == 'T') ? standby_update(init_char2state(state)) : backend_result(host, init_char2state(state));
+    }
+}
+
+static void standby_query_socket(Backend *backend) {
+    bool ok = false;
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
+        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    }
+    ok ? backend_idle(backend) : backend_finish(backend);
+}
+
+static void standby_query(Backend *backend) {
+    static Oid paramTypes[] = {TEXTOID};
+    const char *paramValues[] = {backend_save};
+    static char *command =
+        "SELECT application_name, s.sync_state, client_addr IS NOT DISTINCT FROM (SELECT client_addr FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS me\n"
+        "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
+        "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state";
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
+        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+        backend_finish(backend);
+    } else {
+        backend->events = WL_SOCKET_WRITEABLE;
+        backend->socket = standby_query_socket;
+    }
 }
 
 void standby_timeout(void) {
