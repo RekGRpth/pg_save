@@ -55,6 +55,7 @@ void standby_init(void) {
 
 static void standby_reprimary(Backend *backend) {
     StringInfoData buf;
+    if (standby_primary) backend_finish(standby_primary);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
     backend_finish(backend);
