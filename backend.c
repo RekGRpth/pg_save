@@ -49,7 +49,7 @@ static void backend_query_socket(Backend *backend) {
 
 static void backend_query(Backend *backend) {
     static Oid paramTypes[] = {TEXTOID};
-    const char *paramValues[] = {MyBgworkerEntry->bgw_type};
+    const char *paramValues[] = {PQhost(backend->conn)};
     static char *command = "SELECT queue.pg_queue_listen($1)";
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
         W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
