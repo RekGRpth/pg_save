@@ -170,13 +170,16 @@ void backend_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
+static void backend_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
+    D1("%s:%s channel = %s, payload = %s, srcPid = %i", PQhost(backend->conn), init_state2char(backend->state), channel, payload, srcPid);
+    RecoveryInProgress() ? standby_notify(backend, channel, payload, srcPid) : primary_notify(backend, channel, payload, srcPid);
+}
+
 static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) {
-        D1("relname=%s, extra=%s, be_pid=%i", notify->relname, notify->extra, notify->be_pid);
-    }
+    for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) backend_notify(backend, notify->relname, notify->extra, notify->be_pid);
 }
 
 void backend_idle(Backend *backend) {

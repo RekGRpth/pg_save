@@ -113,6 +113,9 @@ void primary_init(void) {
     primary_extension("queue", "pg_queue");
 }
 
+void primary_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
+}
+
 static void primary_result(void) {
     for (uint64 row = 0; row < SPI_processed; row++) {
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));

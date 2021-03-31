@@ -1,7 +1,7 @@
 #include "include.h"
 
 extern char *backend_save;
-extern char *init_sync;
+extern char *init_primary;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -74,25 +74,11 @@ static void standby_promote(void) {
     else W("!pg_promote");
 }
 
-static void standby_reprimary(void) {
-    StringInfoData buf;
-    Backend *backend = backend_host(init_sync);
-    D1("state = %s, found = %s", init_state2char(init_state), backend ? "true" : "false");
-    if (!backend) E("!backend_host");
-    backend_finish(backend);
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
-    init_set_system("primary_conninfo", buf.data);
-    standby_create(buf.data);
-    pfree(buf.data);
-}
-
 void standby_failed(Backend *backend) {
     backend_finish(backend);
-    if (backend->state != PRIMARY);
-    else if (!queue_size(&save_queue)) { if (kill(-PostmasterPid, SIGTERM)) W("kill"); }
-    else if (init_state != SYNC) standby_reprimary();
-    else standby_promote();
+    if (backend->state != PRIMARY) return;
+    if (!queue_size(&save_queue)) { if (kill(-PostmasterPid, SIGTERM)) W("kill"); return; }
+    if (init_state == SYNC) standby_promote();
 }
 
 void standby_finished(Backend *backend) {
@@ -105,6 +91,23 @@ void standby_fini(void) {
 void standby_init(void) {
     init_set_system("synchronous_standby_names", NULL);
     standby_create(PrimaryConnInfo);
+}
+
+static void standby_reprimary(Backend *backend) {
+    StringInfoData buf;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
+    backend_finish(backend);
+    init_set_system("primary_conninfo", buf.data);
+    standby_create(buf.data);
+    pfree(buf.data);
+}
+
+void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
+    if (init_state == POTENTIAL && !strcmp(payload, "primary")) {
+        Backend *primary = backend_host(init_primary);
+        if (!primary || strcmp(PQhost(primary->conn), channel)) standby_reprimary(backend);
+    }
 }
 
 void standby_timeout(void) {
