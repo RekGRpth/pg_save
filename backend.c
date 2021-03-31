@@ -48,23 +48,20 @@ static void backend_query_socket(Backend *backend) {
 }
 
 static void backend_query(Backend *backend) {
-    static char *command = NULL;
-    if (!command) {
-        const char *channel = PQhost(backend->conn);
-        const char *channel_quote = quote_identifier(channel);
-        StringInfoData buf;
-        initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf, "LISTEN %s", channel_quote);
-        command = buf.data;
-        if (channel_quote != channel) pfree((void *)channel_quote);
-    }
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, command)) {
+    const char *channel = PQhost(backend->conn);
+    const char *channel_quote = quote_identifier(channel);
+    StringInfoData buf;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "LISTEN %s", channel_quote);
+    if (channel_quote != channel) pfree((void *)channel_quote);
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, buf.data)) {
         W("%s:%s !PQsendQuery and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->events = WL_SOCKET_WRITEABLE;
         backend->socket = backend_query_socket;
     }
+    pfree(buf.data);
 }
 
 static void backend_connected(Backend *backend) {
