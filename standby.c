@@ -27,8 +27,9 @@ static void standby_create(const char *conninfo) {
     PQconninfoFree(opts);
 }
 
-static void standby_promote(void) {
+static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
+    backend_finish(backend);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote"); else {
         primary_init();
         init_notify(MyBgworkerEntry->bgw_type, "reprimary");
@@ -36,10 +37,9 @@ static void standby_promote(void) {
 }
 
 void standby_failed(Backend *backend) {
-    backend_finish(backend);
-    if (backend->state != PRIMARY) return;
+    if (backend->state != PRIMARY) { backend_finish(backend); return; }
     if (!queue_size(&save_queue)) { if (kill(-PostmasterPid, SIGTERM)) W("kill"); return; }
-    if (init_state == SYNC) standby_promote();
+    if (init_state == SYNC) standby_promote(backend);
 }
 
 void standby_finished(Backend *backend) {
