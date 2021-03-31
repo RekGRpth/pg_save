@@ -172,35 +172,16 @@ static void backend_query_socket(Backend *backend) {
     ok ? backend_idle(backend) : backend_finish(backend);
 }
 
-static void backend_query(Backend *backend) {
+void backend_query(Backend *backend) {
+    static Oid paramTypes[] = {TEXTOID};
     const char *paramValues[] = {MyBgworkerEntry->bgw_type};
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryPrepared(backend->conn, "backend_prepare", countof(paramValues), paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryPrepared and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+    static char *command = "SELECT queue.pg_queue_listen($1)";
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
+        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->events = WL_SOCKET_WRITEABLE;
         backend->socket = backend_query_socket;
-    }
-}
-
-static void backend_prepare_socket(Backend *backend) {
-    bool ok = false;
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_COMMAND_OK: ok = true; break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
-    }
-    ok ? backend_query(backend) : backend_finish(backend);
-}
-
-void backend_prepare(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
-    static char *command = "SELECT queue.pg_queue_listen($1)";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendPrepare(backend->conn, "backend_prepare", command, countof(paramTypes), paramTypes)) {
-        W("%s:%s !PQsendPrepare and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else {
-        backend->events = WL_SOCKET_WRITEABLE;
-        backend->socket = backend_prepare_socket;
     }
 }
 

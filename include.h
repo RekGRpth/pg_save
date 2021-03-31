@@ -77,7 +77,7 @@ void backend_fail(Backend *backend);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_init(void);
-void backend_prepare(Backend *backend);
+void backend_query(Backend *backend);
 void backend_reset(Backend *backend);
 void backend_result(const char *host, STATE state);
 void backend_timeout(void);
