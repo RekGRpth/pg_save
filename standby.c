@@ -71,7 +71,7 @@ static void standby_promote(void) {
     D1("state = %s", init_state2char(init_state));
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote"); else {
         primary_init();
-        init_notify(MyBgworkerEntry->bgw_type, "promote");
+        init_notify(MyBgworkerEntry->bgw_type, "reprimary");
     }
 }
 
@@ -105,7 +105,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
-    if (init_state == POTENTIAL && !strcmp(payload, "promote")) standby_reprimary(backend);
+    if (init_state == POTENTIAL && !strcmp(payload, "reprimary")) standby_reprimary(backend);
 }
 
 void standby_timeout(void) {
