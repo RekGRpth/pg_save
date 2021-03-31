@@ -41,18 +41,25 @@ void backend_array(void) {
 static void backend_query_socket(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: ok = true; break;
+        case PGRES_COMMAND_OK: ok = true; break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
     ok ? backend_idle(backend) : backend_finish(backend);
 }
 
 static void backend_query(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
-    const char *paramValues[] = {PQhost(backend->conn)};
-    static char *command = "SELECT queue.pg_queue_listen($1)";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+    static char *command = NULL;
+    if (!command) {
+        const char *channel = PQhost(backend->conn);
+        const char *channel_quote = quote_identifier(channel);
+        StringInfoData buf;
+        initStringInfoMy(TopMemoryContext, &buf);
+        appendStringInfo(&buf, "LISTEN %s", channel_quote)
+        command = buf.data;
+        if (channel_quote != function) pfree((void *)channel_quote);
+    }
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, command)) {
+        W("%s:%s !PQsendQuery and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->events = WL_SOCKET_WRITEABLE;
