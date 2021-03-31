@@ -82,7 +82,7 @@ void init_notify(const char *channel, const char *payload) {
 
 void init_reload(void) {
     if (!init_sighup) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill");
+    if (kill(PostmasterPid, SIGHUP)) W("kill(%i ,%i)", PostmasterPid, SIGHUP);
     init_sighup = false;
 }
 

@@ -102,7 +102,7 @@ void primary_init(void) {
 }
 
 static void primary_demote(Backend *backend) {
-    if (kill(-PostmasterPid, SIGTERM)) E("kill");
+    if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
 void primary_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {

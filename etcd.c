@@ -58,6 +58,6 @@ void etcd_init(void) {
 void etcd_timeout(void) {
     if ((init_state == UNKNOWN || etcd_kv_put(init_state2char(init_state), MyBgworkerEntry->bgw_type, 0)) && etcd_kv_put(MyBgworkerEntry->bgw_type, timestamptz_to_str(GetCurrentTimestamp()), 0)) etcd_attempt = 0; else {
         W("!etcd_kv_put and %i < %i", etcd_attempt, init_attempt);
-        if (etcd_attempt++ >= init_attempt) if (kill(-PostmasterPid, SIGTERM)) W("kill");
+        if (etcd_attempt++ >= init_attempt) if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
     }
 }

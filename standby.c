@@ -38,7 +38,7 @@ static void standby_promote(Backend *backend) {
 
 void standby_failed(Backend *backend) {
     if (backend->state != PRIMARY) { backend_finish(backend); return; }
-    if (!queue_size(&save_queue)) { if (kill(-PostmasterPid, SIGTERM)) W("kill"); return; }
+    if (!queue_size(&save_queue)) { if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
     if (init_state == SYNC) standby_promote(backend);
 }
 
