@@ -2,7 +2,6 @@
 
 extern char *backend_save;
 extern char *init_policy;
-extern char *init_sync;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;

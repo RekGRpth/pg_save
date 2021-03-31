@@ -3,7 +3,6 @@
 PG_MODULE_MAGIC;
 
 char *init_policy;
-char *init_sync;
 int init_attempt;
 int init_timeout;
 STATE init_state = UNKNOWN;
@@ -12,6 +11,7 @@ static char *init_async;
 static char *init_potential;
 static char *init_primary;
 static char *init_quorum;
+static char *init_sync;
 static int init_restart;
 
 const char *init_state2char(STATE state) {
