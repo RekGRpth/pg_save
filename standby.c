@@ -1,7 +1,6 @@
 #include "include.h"
 
 extern char *backend_save;
-extern char *init_primary;
 extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
@@ -106,10 +105,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
-    if (init_state == POTENTIAL && !strcmp(payload, "promote")) {
-        Backend *primary = backend_host(init_primary);
-        if (!primary || strcmp(PQhost(primary->conn), channel)) standby_reprimary(backend);
-    }
+    if (init_state == POTENTIAL && !strcmp(payload, "promote")) standby_reprimary(backend);
 }
 
 void standby_timeout(void) {
