@@ -70,8 +70,10 @@ static void standby_create(const char *conninfo) {
 
 static void standby_promote(void) {
     D1("state = %s", init_state2char(init_state));
-    if (DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) primary_init();
-    else W("!pg_promote");
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote"); else {
+        primary_init();
+        init_notify(MyBgworkerEntry->bgw_type, "promote");
+    }
 }
 
 void standby_failed(Backend *backend) {
@@ -104,7 +106,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
-    if (init_state == POTENTIAL && !strcmp(payload, "primary")) {
+    if (init_state == POTENTIAL && !strcmp(payload, "promote")) {
         Backend *primary = backend_host(init_primary);
         if (!primary || strcmp(PQhost(primary->conn), channel)) standby_reprimary(backend);
     }

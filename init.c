@@ -58,28 +58,7 @@ void init_debug(void) {
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
-void init_reload(void) {
-    if (!init_sighup) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill");
-    init_sighup = false;
-}
-
-void init_set_host(const char *host, STATE state) {
-    StringInfoData buf;
-    if (state == UNKNOWN) return;
-    D1("host = %s, state = %s", host, init_state2char(state));
-    if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
-    if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
-    if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
-    if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
-    if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_set_system(buf.data, host);
-    pfree(buf.data);
-}
-
-static void init_notify(const char *channel, const char *payload) {
+void init_notify(const char *channel, const char *payload) {
     const char *channel_quote = quote_identifier(channel);
     const char *payload_quote = quote_literal_cstr(payload);
     StringInfoData buf;
@@ -101,12 +80,32 @@ static void init_notify(const char *channel, const char *payload) {
     pfree(buf.data);
 }
 
+void init_reload(void) {
+    if (!init_sighup) return;
+    if (kill(PostmasterPid, SIGHUP)) W("kill");
+    init_sighup = false;
+}
+
+void init_set_host(const char *host, STATE state) {
+    StringInfoData buf;
+    if (state == UNKNOWN) return;
+    D1("host = %s, state = %s", host, init_state2char(state));
+    if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
+    if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
+    if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
+    if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
+    if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
+    init_set_system(buf.data, host);
+    pfree(buf.data);
+}
+
 void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(MyBgworkerEntry->bgw_type, state);
-    init_notify(MyBgworkerEntry->bgw_type, init_state2char(state));
 }
 
 void init_set_system(const char *name, const char *new) {

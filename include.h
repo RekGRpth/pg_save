@@ -85,6 +85,7 @@ void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);
 void init_debug(void);
+void init_notify(const char *channel, const char *payload);
 void init_reload(void);
 void init_set_host(const char *host, STATE state);
 void init_set_state(STATE state);
