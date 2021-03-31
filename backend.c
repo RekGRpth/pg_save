@@ -54,9 +54,9 @@ static void backend_query(Backend *backend) {
         const char *channel_quote = quote_identifier(channel);
         StringInfoData buf;
         initStringInfoMy(TopMemoryContext, &buf);
-        appendStringInfo(&buf, "LISTEN %s", channel_quote)
+        appendStringInfo(&buf, "LISTEN %s", channel_quote);
         command = buf.data;
-        if (channel_quote != function) pfree((void *)channel_quote);
+        if (channel_quote != channel) pfree((void *)channel_quote);
     }
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, command)) {
         W("%s:%s !PQsendQuery and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
