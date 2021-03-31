@@ -79,11 +79,34 @@ void init_set_host(const char *host, STATE state) {
     pfree(buf.data);
 }
 
+static void init_notify(const char *channel, const char *payload) {
+    const char *channel_quote = quote_identifier(channel);
+    const char *payload_quote = quote_literal_cstr(payload);
+    StringInfoData buf;
+    PlannedStmt *pstmt = makeNode(PlannedStmt);
+    NotifyStmt *n = makeNode(NotifyStmt);
+    pstmt->commandType = CMD_UTILITY;
+    pstmt->canSetTag = false;
+    pstmt->utilityStmt = (Node *)n;
+    n->conditionname = (char *)channel;
+    n->payload = (char *)payload;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "NOTIFY %s, %s", channel_quote, payload_quote);
+    if (channel_quote != channel) pfree((void *)channel_quote);
+    pfree((void *)payload_quote);
+    StartTransactionCommand();
+    ProcessUtility(pstmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
+    CommitTransactionCommand();
+    MemoryContextSwitchTo(TopMemoryContext);
+    pfree(buf.data);
+}
+
 void init_set_state(STATE state) {
     D1("state = %s", init_state2char(state));
-    init_set_system("pg_save.state", state != UNKNOWN ? init_state2char(state) : NULL);
+    init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(MyBgworkerEntry->bgw_type, state);
+    init_notify(MyBgworkerEntry->bgw_type, init_state2char(state));
 }
 
 void init_set_system(const char *name, const char *new) {

@@ -104,7 +104,6 @@ void standby_fini(void) {
 
 void standby_init(void) {
     init_set_system("synchronous_standby_names", NULL);
-//    init_set_state(UNKNOWN);
     standby_create(PrimaryConnInfo);
 }
 
