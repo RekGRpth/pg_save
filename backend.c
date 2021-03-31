@@ -152,7 +152,7 @@ static void backend_idle_socket(Backend *backend) {
     }
 }
 
-void backend_idle(Backend *backend) {
+static void backend_idle(Backend *backend) {
     backend->events = WL_SOCKET_READABLE;
     backend->socket = backend_idle_socket;
 }
