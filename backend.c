@@ -38,10 +38,33 @@ void backend_array(void) {
     D1("save = %s", backend_save);
 }
 
+static void backend_query_socket(Backend *backend) {
+    bool ok = false;
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
+        case PGRES_TUPLES_OK: ok = true; break;
+        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    }
+    ok ? backend_idle(backend) : backend_finish(backend);
+}
+
+static void backend_query(Backend *backend) {
+    static Oid paramTypes[] = {TEXTOID};
+    const char *paramValues[] = {MyBgworkerEntry->bgw_type};
+    static char *command = "SELECT queue.pg_queue_listen($1)";
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
+        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+        backend_finish(backend);
+    } else {
+        backend->events = WL_SOCKET_WRITEABLE;
+        backend->socket = backend_query_socket;
+    }
+}
+
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     backend->attempt = 0;
     init_set_host(PQhost(backend->conn), backend->state);
+    backend_query(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
     if (backend->state != PRIMARY) backend_array();
@@ -152,7 +175,7 @@ static void backend_idle_socket(Backend *backend) {
     }
 }
 
-static void backend_idle(Backend *backend) {
+void backend_idle(Backend *backend) {
     backend->events = WL_SOCKET_READABLE;
     backend->socket = backend_idle_socket;
 }
@@ -161,28 +184,6 @@ void backend_init(void) {
     RecoveryInProgress() ? standby_init() : primary_init();
     etcd_init();
     init_reload();
-}
-
-static void backend_query_socket(Backend *backend) {
-    bool ok = false;
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: ok = true; break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
-    }
-    ok ? backend_idle(backend) : backend_finish(backend);
-}
-
-void backend_query(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
-    const char *paramValues[] = {MyBgworkerEntry->bgw_type};
-    static char *command = "SELECT queue.pg_queue_listen($1)";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else {
-        backend->events = WL_SOCKET_WRITEABLE;
-        backend->socket = backend_query_socket;
-    }
 }
 
 void backend_reset(Backend *backend) {

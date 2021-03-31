@@ -29,7 +29,7 @@ static void standby_query_socket(Backend *backend) {
         case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    ok ? backend_query(backend) : backend_finish(backend);
+    ok ? backend_idle(backend) : backend_finish(backend);
 }
 
 static void standby_query(Backend *backend) {
@@ -49,7 +49,6 @@ static void standby_query(Backend *backend) {
 }
 
 void standby_connected(Backend *backend) {
-    backend->state == PRIMARY ? standby_query(backend) : backend_query(backend);
 }
 
 void standby_created(Backend *backend) {
