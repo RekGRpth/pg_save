@@ -5,6 +5,7 @@ extern int init_attempt;
 extern queue_t save_queue;
 extern STATE init_state;
 static Backend *standby_primary = NULL;
+static int standby_attempt = 0;
 
 void standby_connected(Backend *backend) {
 }
@@ -64,10 +65,16 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
-    if (init_state == POTENTIAL && !strcmp(payload, "reprimary")) standby_reprimary(backend);
+    if (backend->state == SYNC && !strcmp(payload, "reprimary")) standby_reprimary(backend);
 }
 
-static void standby_demote(void) {
+static void standby_demote(Backend *backend) {
+    backend_idle(backend);
+    if (queue_size(&save_queue) < 2) return;
+    if (strcmp(MyBgworkerEntry->bgw_type, PQhost(backend->conn)) > 0) return;
+    W("%i < %i", standby_attempt, init_attempt);
+    if (standby_attempt++ < init_attempt) return;
+    init_notify(MyBgworkerEntry->bgw_type, "demote");
 }
 
 static void standby_update(STATE state) {
@@ -92,7 +99,7 @@ static void standby_query_socket(Backend *backend) {
         case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    ok ? backend_idle(backend) : backend_finish(backend);
+    ok ? standby_demote(backend) : backend_finish(backend);
 }
 
 static void standby_query(Backend *backend) {

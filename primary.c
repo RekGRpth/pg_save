@@ -33,18 +33,6 @@ static void primary_set_synchronous_standby_names(void) {
     pfree(buf.data);
 }
 
-static void primary_demote(void) {
-    Backend *backend;
-    if (queue_size(&save_queue) < 2) return;
-    if (!(backend = backend_host(init_sync))) return;
-    if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
-    W("%i < %i", primary_attempt, init_attempt);
-    if (primary_attempt++ < init_attempt) return;
-    init_state = UNKNOWN;
-    if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
-    if (kill(-PostmasterPid, SIGTERM)) W("kill");
-}
-
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
     primary_attempt = 0;
@@ -113,7 +101,12 @@ void primary_init(void) {
     primary_extension("queue", "pg_queue");
 }
 
+static void primary_demote(Backend *backend) {
+    if (kill(-PostmasterPid, SIGTERM)) E("kill");
+}
+
 void primary_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
+    if (backend->state == SYNC && !strcmp(payload, "demote")) primary_demote(backend);
 }
 
 static void primary_result(void) {
@@ -142,7 +135,6 @@ void primary_timeout(void) {
     primary_result();
     SPI_finish_my();
     if (backend_save) pfree((void *)values[0]);
-    primary_demote();
 }
 
 void primary_updated(Backend *backend) {
