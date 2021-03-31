@@ -102,7 +102,7 @@ void primary_init(void) {
 
 static void primary_demote(Backend *backend) {
     init_state = UNKNOWN;
-    if (!etcd_kv_put(init_state2char(PRIMARY), PQhost(backend->conn), 0)) W("!etcd_kv_put");
+    if (!etcd_kv_put(init_state2char(PRIMARY), "", 0)) W("!etcd_kv_put");
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
