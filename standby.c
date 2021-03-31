@@ -70,6 +70,7 @@ void standby_notify(Backend *backend, const char *channel, const char *payload, 
 
 static void standby_demote(Backend *backend) {
     backend_idle(backend);
+    if (init_state != SYNC) return;
     if (queue_size(&save_queue) < 2) return;
     if (strcmp(MyBgworkerEntry->bgw_type, PQhost(backend->conn)) > 0) return;
     W("%i < %i", standby_attempt, init_attempt);
