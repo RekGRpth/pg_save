@@ -80,7 +80,6 @@ void backend_init(void);
 void backend_reset(Backend *backend);
 void backend_result(const char *host, STATE state);
 void backend_timeout(void);
-void backend_update(Backend *backend, STATE state);
 void etcd_init(void);
 void etcd_timeout(void);
 void init_debug(void);

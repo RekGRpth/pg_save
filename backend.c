@@ -197,6 +197,20 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
 
+static void backend_updated(Backend *backend) {
+    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    init_reload();
+}
+
+static void backend_update(Backend *backend, STATE state) {
+    if (backend->state == state) return;
+    backend->state = state;
+    init_set_host(PQhost(backend->conn), state);
+    backend_updated(backend);
+    if (backend->state != PRIMARY) backend_array();
+}
+
 void backend_result(const char *host, STATE state) {
     Backend *backend = backend_host(host);
     D1("host = %s, state = %s, found = %s", host, init_state2char(state), backend ? "true" : "false");
@@ -211,18 +225,4 @@ void backend_timeout(void) {
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
-}
-
-static void backend_updated(Backend *backend) {
-    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
-    init_reload();
-}
-
-void backend_update(Backend *backend, STATE state) {
-    if (backend->state == state) return;
-    backend->state = state;
-    init_set_host(PQhost(backend->conn), state);
-    backend_updated(backend);
-    if (backend->state != PRIMARY) backend_array();
 }
