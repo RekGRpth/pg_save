@@ -106,8 +106,8 @@ static void primary_demote(Backend *backend) {
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
-void primary_notify(Backend *backend, const char *channel, const char *payload, int32 srcPid) {
-    if (backend->state == SYNC && !strcmp(payload, "demote")) primary_demote(backend);
+void primary_notify(Backend *backend, const char *message) {
+    if (backend->state == SYNC && !strcmp(message, "demote")) primary_demote(backend);
 }
 
 static void primary_result(void) {
