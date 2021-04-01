@@ -64,8 +64,8 @@ static void standby_reprimary(Backend *backend) {
     pfree(buf.data);
 }
 
-void standby_notify(Backend *backend, const char *message) {
-    if (backend->state == SYNC && !strcmp(message, "reprimary")) standby_reprimary(backend);
+void standby_notify(Backend *backend, const char *state) {
+    if (backend->state == SYNC && !strcmp(state, "reprimary")) standby_reprimary(backend);
 }
 
 static void standby_demote(Backend *backend) {

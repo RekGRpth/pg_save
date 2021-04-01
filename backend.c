@@ -170,9 +170,9 @@ void backend_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
-static void backend_notify(Backend *backend, const char *message) {
-    D1("%s:%s message = %s", PQhost(backend->conn), init_state2char(backend->state), message);
-    RecoveryInProgress() ? standby_notify(backend, message) : primary_notify(backend, message);
+static void backend_notify(Backend *backend, const char *state) {
+    D1("%s:%s state = %s", PQhost(backend->conn), init_state2char(backend->state), state);
+    RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
 }
 
 static void backend_idle_socket(Backend *backend) {

@@ -97,7 +97,7 @@ void primary_failed(Backend *backend);
 void primary_finished(Backend *backend);
 void primary_fini(void);
 void primary_init(void);
-void primary_notify(Backend *backend, const char *message);
+void primary_notify(Backend *backend, const char *state);
 void primary_timeout(void);
 void primary_updated(Backend *backend);
 void save_worker(Datum main_arg);
@@ -113,7 +113,7 @@ void standby_failed(Backend *backend);
 void standby_finished(Backend *backend);
 void standby_fini(void);
 void standby_init(void);
-void standby_notify(Backend *backend, const char *message);
+void standby_notify(Backend *backend, const char *state);
 void standby_timeout(void);
 void standby_updated(Backend *backend);
 
