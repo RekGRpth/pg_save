@@ -92,12 +92,12 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
     init_set_state(PRIMARY);
+    primary_schema("queue");
+    primary_extension("queue", "pg_async");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
-    primary_schema("queue");
-    primary_extension("queue", "pg_queue");
 }
 
 static void primary_demote(Backend *backend) {
