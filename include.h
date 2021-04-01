@@ -50,14 +50,30 @@
 
 #include "queue.h"
 
-typedef enum STATE {UNKNOWN, PRIMARY, SYNC, POTENTIAL, QUORUM, ASYNC} STATE;
+#define STATE_MAP(XX) \
+    XX(unknown) \
+    XX(initial) \
+    XX(single) \
+    XX(wait_primary) \
+    XX(primary) \
+    XX(wait_standby) \
+    XX(sync) \
+    XX(potential) \
+    XX(quorum) \
+    XX(async)
+
+typedef enum state_t {
+#define XX(name) state_##name,
+    STATE_MAP(XX)
+#undef XX
+} state_t;
 
 typedef struct Backend {
     int attempt;
     int events;
     PGconn *conn;
     queue_t queue;
-    STATE state;
+    state_t state;
     void (*socket) (struct Backend *backend);
 } Backend;
 
@@ -65,28 +81,28 @@ typedef struct _SPI_plan SPI_plan;
 
 Backend *backend_host(const char *host);
 bool etcd_kv_put(const char *key, const char *value, int ttl);
+char **backend_names(void);
 char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum);
-const char *init_state2char(STATE state);
+const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
-STATE init_char2state(const char *state);
+state_t init_char2state(const char *state);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_array(void);
-void backend_create(const char *host, STATE state);
+void backend_create(const char *host, state_t state);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_init(void);
 void backend_reset(Backend *backend);
-void backend_result(const char *host, STATE state);
+void backend_result(const char *host, state_t state);
 void backend_timeout(void);
 void etcd_init(void);
 void etcd_timeout(void);
 void init_debug(void);
-void init_notify(const char *channel, const char *payload);
 void init_reload(void);
-void init_set_host(const char *host, STATE state);
-void init_set_state(STATE state);
+void init_set_host(const char *host, state_t state);
+void init_set_state(state_t state);
 void init_set_system(const char *name, const char *new);
 void initStringInfoMy(MemoryContext memoryContext, StringInfoData *buf);
 void _PG_init(void);
@@ -115,6 +131,7 @@ void standby_init(void);
 void standby_notify(Backend *backend, const char *state);
 void standby_timeout(void);
 void standby_updated(Backend *backend);
+void standby_update(state_t state);
 
 #define FORMAT_0(fmt, ...) "%s(%s:%d): %s", __func__, __FILE__, __LINE__, fmt
 #define FORMAT_1(fmt, ...) "%s(%s:%d): " fmt,  __func__, __FILE__, __LINE__

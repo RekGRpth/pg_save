@@ -5,34 +5,27 @@ PG_MODULE_MAGIC;
 char *init_policy;
 int init_attempt;
 int init_timeout;
-STATE init_state = UNKNOWN;
+state_t init_state = state_unknown;
 static bool init_sighup = false;
-static char *init_async;
-static char *init_potential;
-static char *init_primary;
-static char *init_quorum;
-static char *init_sync;
 static int init_restart;
+#define XX(name) static char *init_##name;
+STATE_MAP(XX)
+#undef XX
 
-const char *init_state2char(STATE state) {
+const char *init_state2char(state_t state) {
     switch (state) {
-        case PRIMARY: return "primary";
-        case SYNC: return "sync";
-        case POTENTIAL: return "potential";
-        case QUORUM: return "quorum";
-        case ASYNC: return "async";
-        default: return "unknown";
+#define XX(name) case state_##name: return #name;
+        STATE_MAP(XX)
+#undef XX
     }
+    E("state = %i", state);
 }
 
-STATE init_char2state(const char *state) {
-    if (!state) return UNKNOWN;
-    if (!strcmp(state, "primary")) return PRIMARY;
-    if (!strcmp(state, "sync")) return SYNC;
-    if (!strcmp(state, "potential")) return POTENTIAL;
-    if (!strcmp(state, "quorum")) return QUORUM;
-    if (!strcmp(state, "async")) return ASYNC;
-    return UNKNOWN;
+state_t init_char2state(const char *state) {
+#define XX(name) if (!strcmp(state, #name)) return state_##name;
+    STATE_MAP(XX)
+#undef XX
+    E("state = %s", state);
 }
 
 static Node *makeStringConst(char *str, int location) {
@@ -48,17 +41,36 @@ void init_debug(void) {
     D1("restart = %i", init_restart);
     D1("timeout = %i", init_timeout);
     D1("policy = %s", init_policy);
-    if (init_state != UNKNOWN) D1("state = %s", init_state2char(init_state));
-    if (init_primary) D1("primary = %s", init_primary);
-    if (init_sync) D1("sync = %s", init_sync);
-    if (init_potential) D1("potential = %s", init_potential);
-    if (init_quorum) D1("quorum = %s", init_quorum);
-    if (init_async) D1("async = %s", init_async);
+    D1("state = %s", init_state2char(init_state));
+#define XX(name) if (init_##name) D1(#name" = %s", init_##name);
+    STATE_MAP(XX)
+#undef XX
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
-void init_notify(const char *channel, const char *payload) {
+void init_reload(void) {
+    if (!init_sighup) return;
+    if (kill(PostmasterPid, SIGHUP)) W("kill(%i ,%i)", PostmasterPid, SIGHUP);
+    init_sighup = false;
+}
+
+void init_set_host(const char *host, state_t state) {
+    StringInfoData buf;
+    if (state == state_unknown) return;
+    D1("host = %s, state = %s", host, init_state2char(state));
+#define XX(name) if (state != state_##name && init_##name && !strcmp(init_##name, host)) init_set_system("pg_save."#name, "unknown");
+    STATE_MAP(XX)
+#undef XX
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
+    init_set_system(buf.data, host);
+    pfree(buf.data);
+}
+
+static void init_notify(state_t state) {
+    const char *channel = MyBgworkerEntry->bgw_type;
+    const char *payload = init_state2char(state);
     const char *channel_quote = quote_identifier(channel);
     const char *payload_quote = quote_literal_cstr(payload);
     StringInfoData buf;
@@ -80,33 +92,12 @@ void init_notify(const char *channel, const char *payload) {
     pfree(buf.data);
 }
 
-void init_reload(void) {
-    if (!init_sighup) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill(%i ,%i)", PostmasterPid, SIGHUP);
-    init_sighup = false;
-}
-
-void init_set_host(const char *host, STATE state) {
-    StringInfoData buf;
-    if (state == UNKNOWN) return;
-    D1("host = %s, state = %s", host, init_state2char(state));
-    if (state != PRIMARY && init_primary && !strcmp(init_primary, host)) init_set_system("pg_save.primary", NULL);
-    if (state != SYNC && init_sync && !strcmp(init_sync, host)) init_set_system("pg_save.sync", NULL);
-    if (state != POTENTIAL && init_potential && !strcmp(init_potential, host)) init_set_system("pg_save.potential", NULL);
-    if (state != QUORUM && init_quorum && !strcmp(init_quorum, host)) init_set_system("pg_save.quorum", NULL);
-    if (state != ASYNC && init_async && !strcmp(init_async, host)) init_set_system("pg_save.async", NULL);
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
-    init_set_system(buf.data, host);
-    pfree(buf.data);
-}
-
-void init_set_state(STATE state) {
+void init_set_state(state_t state) {
     D1("state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(MyBgworkerEntry->bgw_type, state);
-    init_notify(MyBgworkerEntry->bgw_type, init_state2char(state));
+    init_notify(state);
 }
 
 void init_set_system(const char *name, const char *new) {
@@ -160,24 +151,18 @@ static void init_work(void) {
 
 static void init_save(void) {
     static const struct config_enum_entry init_state_options[] = {
-        {"async", ASYNC, false},
-        {"potential", POTENTIAL, false},
-        {"primary", PRIMARY, false},
-        {"quorum", QUORUM, false},
-        {"sync", SYNC, false},
-        {"unknown", UNKNOWN, false},
-        {NULL, 0, false}
+#define XX(name) {#name, state_##name, false},
+        STATE_MAP(XX)
+#undef XX
     };
-    DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, UNKNOWN, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 30, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.async", "pg_save async", NULL, &init_async, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &init_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.potential", "pg_save potential", NULL, &init_potential, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.primary", "pg_save primary", NULL, &init_primary, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.quorum", "pg_save quorum", NULL, &init_quorum, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.sync", "pg_save sync", NULL, &init_sync, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+#define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    STATE_MAP(XX)
+#undef XX
     init_debug();
     init_work();
 }

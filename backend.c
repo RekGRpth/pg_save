@@ -3,7 +3,7 @@
 char *backend_save = NULL;
 extern int init_attempt;
 extern queue_t save_queue;
-extern STATE init_state;
+extern state_t init_state;
 
 Backend *backend_host(const char *host) {
     if (host) queue_each(&save_queue, queue) {
@@ -13,27 +13,36 @@ Backend *backend_host(const char *host) {
     return NULL;
 }
 
-void backend_array(void) {
-    StringInfoData buf;
+char **backend_names(void) {
+    char **names = NULL;
     int nelems = queue_size(&save_queue);
-    if (backend_save) pfree(backend_save);
-    backend_save = NULL;
-    if (!nelems) return;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "[");
+    if (!nelems) return names;
+    names = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names));
     nelems = 0;
+    if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state == PRIMARY) continue;
-        if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "{\"application_name\":\"%s\",\"sync_state\":\"%s\"}", PQhost(backend->conn), init_state2char(backend->state));
-        nelems++;
+        if (strcmp(PQparameterStatus(backend->conn, "target_session_attrs"), "read-write")) names[nelems++] = (char *)PQhost(backend->conn);
     }
-    if (init_state != UNKNOWN && init_state != PRIMARY) {
+    pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
+    return names;
+}
+
+void backend_array(void) {
+    char **names = backend_names();
+    int nelems = queue_size(&save_queue);
+    StringInfoData buf;
+    if (backend_save) pfree(backend_save);
+    backend_save = NULL;
+    if (!names) return;
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfoString(&buf, "{");
+    for (int i = 0; i < nelems; i++) {
         if (nelems) appendStringInfoString(&buf, ",");
-        appendStringInfo(&buf, "{\"application_name\":\"%s\",\"sync_state\":\"%s\"}", MyBgworkerEntry->bgw_type, init_state2char(init_state));
+        appendStringInfoString(&buf, names[i]);
     }
-    appendStringInfoString(&buf, "]");
+    pfree(names);
+    appendStringInfoString(&buf, "}");
     backend_save = buf.data;
     D1("save = %s", backend_save);
 }
@@ -71,7 +80,7 @@ static void backend_connected(Backend *backend) {
     backend_query(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
-    if (backend->state != PRIMARY) backend_array();
+    if (backend->state != state_primary) backend_array();
 }
 
 static void backend_fail(Backend *backend) {
@@ -119,7 +128,7 @@ static void backend_reset_socket(Backend *backend) {
 static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
-        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state == PRIMARY ? "read-write" : "any", NULL};
+        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state == state_primary ? "read-write" : "any", NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
@@ -137,7 +146,7 @@ static void backend_created(Backend *backend) {
     RecoveryInProgress() ? standby_created(backend) : primary_created(backend);
 }
 
-void backend_create(const char *host, STATE state) {
+void backend_create(const char *host, state_t state) {
     Backend *backend;
     if (!strcmp(host, MyBgworkerEntry->bgw_type)) { W("backend with host \"%s\" is local!", host); return; }
     if ((backend = backend_host(host))) { W("backend with host \"%s\" already exists!", host); return; }
@@ -158,7 +167,7 @@ void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
-    if (backend->state != PRIMARY) backend_array();
+    if (backend->state != state_primary) backend_array();
     pfree(backend);
 }
 
@@ -203,19 +212,19 @@ static void backend_updated(Backend *backend) {
     init_reload();
 }
 
-static void backend_update(Backend *backend, STATE state) {
+static void backend_update(Backend *backend, state_t state) {
     if (backend->state == state) return;
     backend->state = state;
     init_set_host(PQhost(backend->conn), state);
     backend_updated(backend);
-    if (backend->state != PRIMARY) backend_array();
+    backend_array();
 }
 
-void backend_result(const char *host, STATE state) {
+void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
     D1("host = %s, state = %s, found = %s", host, init_state2char(state), backend ? "true" : "false");
-    if (backend) state != UNKNOWN ? backend_update(backend, state) : backend_fail(backend);
-    else if (state != UNKNOWN) backend_create(host, state);
+    if (RecoveryInProgress() && !strcmp(host, MyBgworkerEntry->bgw_type)) return standby_update(state);
+    backend ? backend_update(backend, state) : backend_create(host, state);
 }
 
 void backend_timeout(void) {

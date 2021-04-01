@@ -4,23 +4,17 @@ extern char *backend_save;
 extern char *init_policy;
 extern int init_attempt;
 extern queue_t save_queue;
-extern STATE init_state;
+extern state_t init_state;
 static int primary_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
+    char **names = backend_names();
+    int nelems = queue_size(&save_queue);
     StringInfoData buf;
-    char **names;
-    int i = 0;
-    if (!queue_size(&save_queue)) return;
-    names = MemoryContextAlloc(TopMemoryContext, queue_size(&save_queue) * sizeof(*names));
-    queue_each(&save_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        names[i++] = (char *)PQhost(backend->conn);
-    }
-    pg_qsort(names, queue_size(&save_queue), sizeof(*names), pg_qsort_strcmp);
+    if (!names) return;
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "%s (", init_policy);
-    for (int i = 0; i < queue_size(&save_queue); i++) {
+    for (int i = 0; i < nelems; i++) {
         const char *name_quote = quote_identifier(names[i]);
         if (i) appendStringInfoString(&buf, ", ");
         appendStringInfoString(&buf, name_quote);
@@ -90,33 +84,42 @@ static void primary_schema(const char *schema) {
 }
 
 void primary_init(void) {
-    init_set_system("primary_conninfo", NULL);
-    init_set_state(PRIMARY);
     primary_schema("async");
     primary_extension("async", "pg_async");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
     primary_extension("save", "pg_save");
+    init_set_system("primary_conninfo", NULL);
+    if (init_state <= state_unknown) init_set_state(state_initial);
 }
 
 static void primary_demote(Backend *backend) {
-    init_state = UNKNOWN;
-    if (!etcd_kv_put(init_state2char(PRIMARY), "", 0)) W("!etcd_kv_put");
+    init_state = state_unknown;
+    if (!etcd_kv_put(init_state2char(state_primary), "", 0)) W("!etcd_kv_put");
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
 void primary_notify(Backend *backend, const char *state) {
-    if (backend->state == SYNC && !strcmp(state, "demote")) primary_demote(backend);
+    if (backend->state == state_sync && !strcmp(state, "demote")) primary_demote(backend);
 }
 
 static void primary_result(void) {
+    if (!SPI_processed) switch (init_state) {
+        case state_initial: init_set_state(state_single); break;
+        case state_primary: init_set_state(state_wait_primary); break;
+        case state_single: break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    } else switch (init_state) {
+        case state_single: init_set_state(state_wait_primary); break;
+        default: break;
+    }
     for (uint64 row = 0; row < SPI_processed; row++) {
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
-        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", true));
+        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", false));
         backend_result(host, init_char2state(state));
         pfree(host);
-        if (state) pfree(state);
+        pfree(state);
     }
 }
 
@@ -125,11 +128,7 @@ void primary_timeout(void) {
     Datum values[] = {backend_save ? CStringGetTextDatum(backend_save) : (Datum)NULL};
     char nulls[] = {backend_save ? ' ' : 'n'};
     static SPI_plan *plan = NULL;
-    static char *command = "SELECT application_name, s.sync_state\n"
-        "FROM pg_stat_replication AS s FULL OUTER JOIN json_populate_recordset(NULL::record, $1::json) AS v (application_name text, sync_state text) USING (application_name)\n"
-        "WHERE state = 'streaming' AND s.sync_state IS DISTINCT FROM v.sync_state";
-    StaticAssertStmt(countof(argtypes) == countof(values), "countof(argtypes) == countof(values)");
-    StaticAssertStmt(countof(argtypes) == countof(nulls), "countof(argtypes) == countof(values)");
+    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND application_name NOT IN (SELECT unnest($1::text[]));";
     SPI_connect_my(command);
     if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
     SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, true);
