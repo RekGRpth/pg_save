@@ -92,7 +92,7 @@ static void primary_schema(const char *schema) {
 void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
     init_set_state(PRIMARY);
-    primary_schema("queue");
+    primary_schema("async");
     primary_extension("async", "pg_async");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
