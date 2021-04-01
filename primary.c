@@ -93,7 +93,7 @@ void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
     init_set_state(PRIMARY);
     primary_schema("queue");
-    primary_extension("queue", "pg_async");
+    primary_extension("async", "pg_async");
     primary_schema("curl");
     primary_extension("curl", "pg_curl");
     primary_schema("save");
