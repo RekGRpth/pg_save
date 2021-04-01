@@ -106,6 +106,7 @@ void init_set_state(STATE state) {
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(MyBgworkerEntry->bgw_type, state);
+    init_notify(MyBgworkerEntry->bgw_type, init_state2char(state));
 }
 
 void init_set_system(const char *name, const char *new) {
