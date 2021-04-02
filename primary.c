@@ -81,6 +81,7 @@ static void primary_result(void) {
         pfree(host);
         pfree(state);
     }
+    init_reload();
 }
 
 void primary_timeout(void) {
