@@ -60,6 +60,7 @@ void primary_notify(Backend *backend, const char *state) {
 }
 
 static void primary_result(void) {
+    D1("init_state = %s", init_state2char(init_state));
     if (!SPI_tuptable->numvals) switch (init_state) {
         case state_initial: init_set_state(state_single); break;
         case state_primary: init_set_state(state_wait_primary); break;
