@@ -22,7 +22,7 @@ char **backend_names(void) {
     if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        if (strcmp(PQparameterStatus(backend->conn, "target_session_attrs"), "read-write")) names[nelems++] = (char *)PQhost(backend->conn);
+        if (backend->state > state_primary) names[nelems++] = (char *)PQhost(backend->conn);
     }
     pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
     return names;
@@ -38,7 +38,7 @@ void backend_array(void) {
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "{");
     for (int i = 0; i < nelems; i++) {
-        if (nelems) appendStringInfoString(&buf, ",");
+        if (i) appendStringInfoString(&buf, ",");
         appendStringInfoString(&buf, names[i]);
     }
     pfree(names);
@@ -128,7 +128,7 @@ static void backend_reset_socket(Backend *backend) {
 static void backend_connect_or_reset(Backend *backend, const char *host) {
     if (!backend->conn) {
         const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
-        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state == state_primary ? "read-write" : "any", NULL};
+        const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state <= state_primary ? "read-write" : "any", NULL};
         StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
