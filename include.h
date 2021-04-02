@@ -37,50 +37,32 @@
 
 #include <postgres.h>
 
-//#include <access/printtup.h>
 #include <access/xact.h>
-//#include <catalog/heap.h>
-//#include <catalog/namespace.h>
-//#include <catalog/pg_type.h>
 #include <commands/async.h>
-//#include <commands/dbcommands.h>
 #include <commands/extension.h>
 #include <commands/prepare.h>
-//#include <commands/user.h>
 #include <common/ip.h>
 #include <executor/spi.h>
 #include <fe_utils/recovery_gen.h>
-//#include <fe_utils/string_utils.h>
 #include <funcapi.h>
-//#include <jit/jit.h>
 #include <libpq-fe.h>
 #include <libpq/libpq-be.h>
-//#include <miscadmin.h>
-//#include <nodes/makefuncs.h>
-//#include <parser/analyze.h>
 #include <parser/parse_func.h>
 #include <parser/parse_type.h>
 #include <pgstat.h>
-//#include <postgresql/internal/pqexpbuffer.h>
 #include <postmaster/bgworker.h>
 #include <postmaster/interrupt.h>
 #include <replication/slot.h>
 #include <replication/syncrep.h>
-//#include <replication/syncrep.h>
 #include <replication/walreceiver.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
 #include <sys/utsname.h>
-//#include <tcop/pquery.h>
 #include <tcop/utility.h>
-//#include <utils/acl.h>
 #include <utils/builtins.h>
 #include <utils/lsyscache.h>
-//#include <utils/ps_status.h>
 #include <utils/regproc.h>
-//#include <utils/snapmgr.h>
 #include <utils/timeout.h>
-//#include <utils/typcache.h>
 
 #include "queue.h"
 
