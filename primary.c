@@ -35,7 +35,9 @@ void primary_created(Backend *backend) {
 }
 
 void primary_failed(Backend *backend) {
+    backend_update(backend, state_wait_standby);
     backend_finish(backend);
+    if (!queue_size(&save_queue)) init_set_state(state_wait_primary);
 }
 
 void primary_finished(Backend *backend) {
