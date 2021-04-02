@@ -1,6 +1,5 @@
 #include "include.h"
 
-char *backend_save = NULL;
 extern int init_attempt;
 extern queue_t save_queue;
 extern state_t init_state;
@@ -26,25 +25,6 @@ char **backend_names(void) {
     }
     pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
     return names;
-}
-
-void backend_array(void) {
-    char **names = backend_names();
-    int nelems = queue_size(&save_queue);
-    StringInfoData buf;
-    if (backend_save) pfree(backend_save);
-    backend_save = NULL;
-    if (!names) return;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "{");
-    for (int i = 0; i < nelems; i++) {
-        if (i) appendStringInfoString(&buf, ",");
-        appendStringInfoString(&buf, names[i]);
-    }
-    pfree(names);
-    appendStringInfoString(&buf, "}");
-    backend_save = buf.data;
-    D1("save = %s", backend_save);
 }
 
 static void backend_query_socket(Backend *backend) {
@@ -80,7 +60,6 @@ static void backend_connected(Backend *backend) {
     backend_query(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
-    if (backend->state != state_primary) backend_array();
 }
 
 static void backend_fail(Backend *backend) {
@@ -167,7 +146,6 @@ void backend_finish(Backend *backend) {
     queue_remove(&backend->queue);
     backend_finished(backend);
     PQfinish(backend->conn);
-    if (backend->state != state_primary) backend_array();
     pfree(backend);
 }
 
@@ -217,12 +195,10 @@ static void backend_update(Backend *backend, state_t state) {
     backend->state = state;
     init_set_host(PQhost(backend->conn), state);
     backend_updated(backend);
-    backend_array();
 }
 
 void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
-    D1("host = %s, state = %s, found = %s", host, init_state2char(state), backend ? "true" : "false");
     if (RecoveryInProgress() && !strcmp(host, MyBgworkerEntry->bgw_type)) return standby_update(state);
     backend ? backend_update(backend, state) : backend_create(host, state);
 }

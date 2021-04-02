@@ -1,6 +1,5 @@
 #include "include.h"
 
-extern char *backend_save;
 extern int init_attempt;
 extern queue_t save_queue;
 extern state_t init_state;
@@ -111,11 +110,9 @@ static void standby_query_socket(Backend *backend) {
 }
 
 static void standby_query(Backend *backend) {
-    static Oid paramTypes[] = {TEXTOID};
-    const char *paramValues[] = {backend_save};
-    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND application_name NOT IN (SELECT unnest($1::text[]));";
-    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQueryParams(backend->conn, command, countof(paramTypes), paramTypes, paramValues, NULL, NULL, false)) {
-        W("%s:%s !PQsendQueryParams and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming'";
+    if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, command)) {
+        W("%s:%s !PQsendQuery and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->events = WL_SOCKET_WRITEABLE;
@@ -135,5 +132,4 @@ void standby_update(state_t state) {
     if (init_state == state) return;
     init_set_state(state);
     init_reload();
-    backend_array();
 }

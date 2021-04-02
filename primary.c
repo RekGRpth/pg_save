@@ -1,6 +1,5 @@
 #include "include.h"
 
-extern char *backend_save;
 extern char *init_policy;
 extern int init_attempt;
 extern queue_t save_queue;
@@ -60,7 +59,6 @@ void primary_notify(Backend *backend, const char *state) {
 }
 
 static void primary_result(void) {
-    D1("init_state = %s", init_state2char(init_state));
     if (!SPI_tuptable->numvals) switch (init_state) {
         case state_initial: init_set_state(state_single); break;
         case state_primary: init_set_state(state_wait_primary); break;
@@ -81,18 +79,14 @@ static void primary_result(void) {
 }
 
 void primary_timeout(void) {
-    static Oid argtypes[] = {TEXTOID};
-    Datum values[] = {backend_save ? CStringGetTextDatum(backend_save) : (Datum)NULL};
-    char nulls[] = {backend_save ? ' ' : 'n'};
     static SPI_plan *plan = NULL;
-    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND application_name NOT IN (SELECT unnest($1::text[]));";
+    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming'";
     SPI_connect_my(command);
-    if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
-    SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, false);
+    if (!plan) plan = SPI_prepare_my(command, 0, NULL);
+    SPI_execute_plan_my(plan, NULL, NULL, SPI_OK_SELECT, false);
     primary_result();
     SPI_commit_my();
     SPI_finish_my();
-    if (backend_save) pfree((void *)values[0]);
 }
 
 void primary_updated(Backend *backend) {
