@@ -56,6 +56,8 @@ static void backend_query(Backend *backend) {
 static void backend_connected(Backend *backend) {
     D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
     backend->attempt = 0;
+    if (!strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type)) { W("backend with host \"%s\" is local!", PQhost(backend->conn)); backend_finish(backend); return; }
+    if (backend != backend_host(PQhost(backend->conn))) { W("backend with host \"%s\" already exists!", PQhost(backend->conn)); backend_finish(backend); return; }
     init_set_host(PQhost(backend->conn), backend->state);
     backend_query(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
@@ -127,8 +129,6 @@ static void backend_created(Backend *backend) {
 
 void backend_create(const char *host, state_t state) {
     Backend *backend;
-    if (!strcmp(host, MyBgworkerEntry->bgw_type)) { W("backend with host \"%s\" is local!", host); return; }
-    if ((backend = backend_host(host))) { W("backend with host \"%s\" already exists!", host); return; }
     backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
     backend_connect_or_reset(backend, host);
@@ -184,19 +184,6 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
 
-static void backend_updated(Backend *backend) {
-    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
-    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
-    init_reload();
-}
-
-static void backend_update(Backend *backend, state_t state) {
-    if (backend->state == state) return;
-    backend->state = state;
-    init_set_host(PQhost(backend->conn), state);
-    backend_updated(backend);
-}
-
 void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
     if (RecoveryInProgress() && !strcmp(host, MyBgworkerEntry->bgw_type)) return standby_update(state);
@@ -211,4 +198,17 @@ void backend_timeout(void) {
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
     init_reload();
+}
+
+static void backend_updated(Backend *backend) {
+    D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
+    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    init_reload();
+}
+
+void backend_update(Backend *backend, state_t state) {
+    if (backend->state == state) return;
+    backend->state = state;
+    init_set_host(PQhost(backend->conn), state);
+    backend_updated(backend);
 }

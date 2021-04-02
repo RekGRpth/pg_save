@@ -69,7 +69,9 @@ static void primary_result(void) {
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
         case state_single: init_set_state(state_wait_primary); break;
-        default: break;
+        case state_wait_primary: break;
+        case state_primary: break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
     }
     for (uint64 row = 0; row < SPI_tuptable->numvals; row++) {
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));

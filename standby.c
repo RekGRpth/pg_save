@@ -18,12 +18,13 @@ static void standby_create(const char *conninfo) {
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(conninfo, &err))) E("!PQconninfoParse and %s", err);
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
-        state_t state;
+//        state_t state;
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
         if (strcmp(opt->keyword, "host")) continue;
-        state = init_host(opt->val);
-        backend_create(opt->val, state == state_unknown ? state_wait_primary : state);
+//        state = init_host(opt->val);
+//        backend_create(opt->val, state == state_unknown ? state_wait_primary : state);
+        backend_create(opt->val, state_wait_primary);
     }
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
@@ -91,7 +92,12 @@ static void standby_result(PGresult *result) {
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
-        default: break;
+        case state_async: backend_update(standby_primary, state_primary); break;
+        case state_potential: backend_update(standby_primary, state_primary); break;
+        case state_quorum: backend_update(standby_primary, state_primary); break;
+        case state_sync: backend_update(standby_primary, state_primary); break;
+        case state_wait_standby: break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
     }
     for (int row = 0; row < PQntuples(result); row++) {
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
