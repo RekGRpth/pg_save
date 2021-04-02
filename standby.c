@@ -21,7 +21,7 @@ static void standby_create(const char *conninfo) {
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
-        if (!strcmp(opt->keyword, "host")) backend_create(opt->val, state_primary);
+        if (!strcmp(opt->keyword, "host")) backend_create(opt->val, state_wait_primary);
     }
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
