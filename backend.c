@@ -17,16 +17,13 @@ char **backend_names(void) {
     char **names = NULL;
     int nelems = queue_size(&save_queue);
     if (!nelems) return names;
-    D1("nelems = %i", nelems);
     names = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names));
     nelems = 0;
     if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
-        D1("%s:%s", PQhost(backend->conn), init_state2char(backend->state));
         if (backend->state > state_primary) names[nelems++] = (char *)PQhost(backend->conn);
     }
-    D1("nelems = %i", nelems);
     pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
     return names;
 }
@@ -38,11 +35,9 @@ void backend_array(void) {
     if (backend_save) pfree(backend_save);
     backend_save = NULL;
     if (!names) return;
-    D1("nelems = %i", nelems);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfoString(&buf, "{");
     for (int i = 0; i < nelems; i++) {
-        D1("names[%i] = %s", i, names[i]);
         if (i) appendStringInfoString(&buf, ",");
         appendStringInfoString(&buf, names[i]);
     }
