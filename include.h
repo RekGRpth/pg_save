@@ -87,6 +87,7 @@ const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 state_t init_char2state(const char *state);
+state_t init_host(const char *host);
 void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_array(void);
 void backend_create(const char *host, state_t state);

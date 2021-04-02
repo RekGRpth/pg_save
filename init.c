@@ -28,6 +28,13 @@ state_t init_char2state(const char *state) {
     E("state = %s", state);
 }
 
+state_t init_host(const char *host) {
+#define XX(name) if (init_##name && !strcmp(host, init_##name)) return state_##name;
+    STATE_MAP(XX)
+#undef XX
+    return state_unknown;
+}
+
 static Node *makeStringConst(char *str, int location) {
     A_Const *n = makeNode(A_Const);
     n->val.type = T_String;
