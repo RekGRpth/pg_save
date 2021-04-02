@@ -60,7 +60,7 @@ void primary_notify(Backend *backend, const char *state) {
 }
 
 static void primary_result(void) {
-    if (!SPI_processed) switch (init_state) {
+    if (!SPI_tuptable->numvals) switch (init_state) {
         case state_initial: init_set_state(state_single); break;
         case state_primary: init_set_state(state_wait_primary); break;
         case state_single: break;
@@ -70,7 +70,7 @@ static void primary_result(void) {
         case state_single: init_set_state(state_wait_primary); break;
         default: break;
     }
-    for (uint64 row = 0; row < SPI_processed; row++) {
+    for (uint64 row = 0; row < SPI_tuptable->numvals; row++) {
         char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
         char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", false));
         backend_result(host, init_char2state(state));
