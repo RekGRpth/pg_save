@@ -80,6 +80,7 @@ static void init_notify(state_t state) {
     const char *payload = init_state2char(state);
     const char *channel_quote = quote_identifier(channel);
     const char *payload_quote = quote_literal_cstr(payload);
+    bool idle = !IsTransactionOrTransactionBlock();
     StringInfoData buf;
     PlannedStmt *pstmt = makeNode(PlannedStmt);
     NotifyStmt *n = makeNode(NotifyStmt);
@@ -92,9 +93,9 @@ static void init_notify(state_t state) {
     appendStringInfo(&buf, "NOTIFY %s, %s", channel_quote, payload_quote);
     if (channel_quote != channel) pfree((void *)channel_quote);
     pfree((void *)payload_quote);
-    StartTransactionCommand();
+    if (idle) StartTransactionCommand();
     ProcessUtility(pstmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
-    CommitTransactionCommand();
+    if (idle) CommitTransactionCommand();
     MemoryContextSwitchTo(TopMemoryContext);
     pfree(buf.data);
 }

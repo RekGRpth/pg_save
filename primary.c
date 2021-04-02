@@ -87,8 +87,9 @@ void primary_timeout(void) {
     static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND application_name NOT IN (SELECT unnest($1::text[]));";
     SPI_connect_my(command);
     if (!plan) plan = SPI_prepare_my(command, countof(argtypes), argtypes);
-    SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, true);
+    SPI_execute_plan_my(plan, values, nulls, SPI_OK_SELECT, false);
     primary_result();
+    SPI_commit_my();
     SPI_finish_my();
     if (backend_save) pfree((void *)values[0]);
 }
