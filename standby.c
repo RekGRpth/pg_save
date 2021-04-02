@@ -11,7 +11,7 @@ void standby_connected(Backend *backend) {
 }
 
 void standby_created(Backend *backend) {
-    if (backend->state == state_primary) standby_primary = backend;
+    if (backend->state <= state_primary) standby_primary = backend;
 }
 
 static void standby_create(const char *conninfo) {
@@ -45,7 +45,7 @@ void standby_failed(Backend *backend) {
 }
 
 void standby_finished(Backend *backend) {
-    if (backend->state == state_primary) standby_primary = NULL;
+    if (backend->state <= state_primary) standby_primary = NULL;
 }
 
 void standby_fini(void) {
