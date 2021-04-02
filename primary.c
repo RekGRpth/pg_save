@@ -28,6 +28,7 @@ static void primary_set_synchronous_standby_names(void) {
 void primary_connected(Backend *backend) {
     primary_set_synchronous_standby_names();
     primary_attempt = 0;
+    if (init_state == state_wait_primary) init_set_state(state_primary);
 }
 
 void primary_created(Backend *backend) {
@@ -56,6 +57,7 @@ static void primary_demote(Backend *backend) {
 
 void primary_notify(Backend *backend, const char *state) {
     if (backend->state == state_sync && !strcmp(state, "demote")) primary_demote(backend);
+    if (init_state == state_wait_primary) init_set_state(state_primary);
 }
 
 static void primary_result(void) {
@@ -91,4 +93,5 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     primary_set_synchronous_standby_names();
+    if (init_state == state_wait_primary) init_set_state(state_primary);
 }
