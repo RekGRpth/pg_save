@@ -198,7 +198,7 @@ void backend_idle(Backend *backend) {
 
 void backend_init(void) {
     RecoveryInProgress() ? standby_init() : primary_init();
-    etcd_init();
+//    etcd_init();
     init_reload();
 }
 
@@ -228,7 +228,7 @@ void backend_result(const char *host, state_t state) {
 }
 
 void backend_timeout(void) {
-    etcd_timeout();
+//    etcd_timeout();
     queue_each(&save_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
