@@ -234,4 +234,5 @@ void backend_timeout(void) {
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
+    init_reload();
 }
