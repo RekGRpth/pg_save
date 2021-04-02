@@ -84,12 +84,12 @@ static void standby_demote(Backend *backend) {
 
 static void standby_result(PGresult *result) {
     if (!PQntuples(result)) switch (init_state) {
-        case state_async: init_set_state(state_wait_standby); break;
-        case state_initial: init_set_state(state_wait_standby); break;
-        case state_potential: init_set_state(state_wait_standby); break;
-        case state_quorum: init_set_state(state_wait_standby); break;
-        case state_sync: init_set_state(state_wait_standby); break;
-        case state_wait_standby: break;
+//        case state_async: init_set_state(state_wait_standby); break;
+//        case state_initial: init_set_state(state_wait_standby); break;
+//        case state_potential: init_set_state(state_wait_standby); break;
+//        case state_quorum: init_set_state(state_wait_standby); break;
+//        case state_sync: init_set_state(state_wait_standby); break;
+//        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
         case state_async: backend_update(standby_primary, state_primary); break;
@@ -97,7 +97,7 @@ static void standby_result(PGresult *result) {
         case state_potential: backend_update(standby_primary, state_primary); break;
         case state_quorum: backend_update(standby_primary, state_primary); break;
         case state_sync: backend_update(standby_primary, state_primary); break;
-        case state_wait_standby: break;
+//        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
     for (int row = 0; row < PQntuples(result); row++) {
