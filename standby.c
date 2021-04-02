@@ -93,6 +93,7 @@ static void standby_result(PGresult *result) {
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
         case state_async: backend_update(standby_primary, state_primary); break;
+        case state_initial: backend_update(standby_primary, state_primary); break;
         case state_potential: backend_update(standby_primary, state_primary); break;
         case state_quorum: backend_update(standby_primary, state_primary); break;
         case state_sync: backend_update(standby_primary, state_primary); break;
