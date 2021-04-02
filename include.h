@@ -39,29 +39,18 @@
 
 #include <access/xact.h>
 #include <commands/async.h>
-#include <commands/extension.h>
-#include <commands/prepare.h>
-#include <common/ip.h>
 #include <executor/spi.h>
-#include <fe_utils/recovery_gen.h>
 #include <funcapi.h>
 #include <libpq-fe.h>
 #include <libpq/libpq-be.h>
-#include <parser/parse_func.h>
-#include <parser/parse_type.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
 #include <postmaster/interrupt.h>
-#include <replication/slot.h>
-#include <replication/syncrep.h>
-#include <replication/walreceiver.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
 #include <sys/utsname.h>
 #include <tcop/utility.h>
 #include <utils/builtins.h>
-#include <utils/lsyscache.h>
-#include <utils/regproc.h>
 #include <utils/timeout.h>
 
 #include "queue.h"
@@ -104,7 +93,6 @@ Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bo
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 state_t init_char2state(const char *state);
 state_t init_host(const char *host);
-void appendConnStrVal(PQExpBuffer buf, const char *str);
 void backend_create(const char *host, state_t state);
 void backend_finish(Backend *backend);
 void backend_fini(void);
