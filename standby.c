@@ -60,6 +60,7 @@ static void standby_reprimary(Backend *backend) {
     if (standby_primary) backend_finish(standby_primary);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
+    init_set_host(PQhost(backend->conn), state_wait_primary);
     backend_finish(backend);
     init_set_system("primary_conninfo", buf.data);
     standby_create(buf.data);
