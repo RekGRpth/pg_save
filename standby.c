@@ -74,7 +74,7 @@ static void standby_result(PGresult *result) {
     if (!PQntuples(result)) switch (init_state) {
 //        case state_async: init_set_state(state_wait_standby); break;
 //        case state_initial: init_set_state(state_wait_standby); break;
-//        case state_potential: init_set_state(state_wait_standby); break;
+        case state_potential: init_set_state(state_wait_standby); break;
 //        case state_quorum: init_set_state(state_wait_standby); break;
 //        case state_sync: init_set_state(state_wait_standby); break;
 //        case state_wait_standby: break;
