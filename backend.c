@@ -12,6 +12,14 @@ Backend *backend_host(const char *host) {
     return NULL;
 }
 
+Backend *backend_state(state_t state) {
+    if (state != state_unknown) queue_each(&save_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state == state) return backend;
+    }
+    return NULL;
+}
+
 char **backend_names(void) {
     char **names = NULL;
     int nelems = queue_size(&save_queue);

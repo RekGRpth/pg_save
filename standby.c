@@ -4,7 +4,6 @@ extern int init_attempt;
 extern queue_t save_queue;
 extern state_t init_state;
 static Backend *standby_primary = NULL;
-static int standby_attempt = 0;
 
 void standby_connected(Backend *backend) {
 }
@@ -72,16 +71,6 @@ void standby_notify(Backend *backend, state_t state) {
     if (backend->state == state_sync && init_state == state_potential && state == state_promote) standby_reprimary(backend);
 }
 
-static void standby_demote(Backend *backend) {
-    backend_idle(backend);
-    if (init_state != state_sync) return;
-    if (queue_size(&save_queue) < 2) return;
-    if (strcmp(MyBgworkerEntry->bgw_type, PQhost(backend->conn)) > 0) return;
-    W("%i < %i", standby_attempt, init_attempt);
-    if (standby_attempt++ < init_attempt) return;
-//    init_notify(MyBgworkerEntry->bgw_type, "demote");
-}
-
 static void standby_result(PGresult *result) {
     if (!PQntuples(result)) switch (init_state) {
 //        case state_async: init_set_state(state_wait_standby); break;
@@ -114,7 +103,7 @@ static void standby_query_socket(Backend *backend) {
         case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    ok ? standby_demote(backend) : backend_finish(backend);
+    ok ? backend_idle(backend) : backend_finish(backend);
 }
 
 static void standby_query(Backend *backend) {

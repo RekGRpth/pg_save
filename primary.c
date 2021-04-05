@@ -51,14 +51,19 @@ void primary_init(void) {
     if (init_state <= state_unknown) init_set_state(state_initial);
 }
 
-static void primary_demote(Backend *backend) {
-    init_state = state_unknown;
-    if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
+void primary_notify(Backend *backend, state_t state) {
+    if (init_state == state_wait_primary) init_set_state(state_primary);
 }
 
-void primary_notify(Backend *backend, state_t state) {
-//    if (backend->state == state_sync && !strcmp(state, "demote")) primary_demote(backend);
-    if (init_state == state_wait_primary) init_set_state(state_primary);
+static void primary_demote(void) {
+    Backend *backend;
+    if (queue_size(&save_queue) < 2) return;
+    if (!(backend = backend_state(state_sync))) return;
+    if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
+    W("%i < %i", primary_attempt, init_attempt);
+    if (primary_attempt++ < init_attempt) return;
+    init_set_state(state_demote);
+    if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
 static void primary_result(void) {
@@ -93,6 +98,7 @@ void primary_timeout(void) {
     primary_result();
     SPI_commit_my();
     SPI_finish_my();
+    primary_demote();
 }
 
 void primary_updated(Backend *backend) {

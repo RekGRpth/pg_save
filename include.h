@@ -61,6 +61,7 @@
     XX(single) \
     XX(wait_primary) \
     XX(primary) \
+    XX(demote) \
     XX(promote) \
     XX(wait_standby) \
     XX(sync) \
@@ -86,7 +87,7 @@ typedef struct Backend {
 typedef struct _SPI_plan SPI_plan;
 
 Backend *backend_host(const char *host);
-bool etcd_kv_put(const char *key, const char *value, int ttl);
+Backend *backend_state(state_t state);
 char **backend_names(void);
 char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum);
 const char *init_state2char(state_t state);
@@ -103,8 +104,6 @@ void backend_reset(Backend *backend);
 void backend_result(const char *host, state_t state);
 void backend_timeout(void);
 void backend_update(Backend *backend, state_t state);
-void etcd_init(void);
-void etcd_timeout(void);
 void init_debug(void);
 void init_reload(void);
 void init_set_host(const char *host, state_t state);
