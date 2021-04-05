@@ -46,10 +46,11 @@ static Node *makeStringConst(char *str, int location) {
 
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
-    D1("restart = %i", init_restart);
-    D1("timeout = %i", init_timeout);
+    D1("hostname = %s", init_hostname);
     D1("policy = %s", init_policy);
+    D1("restart = %i", init_restart);
     D1("state = %s", init_state2char(init_state));
+    D1("timeout = %i", init_timeout);
 #define XX(name) if (init_##name) D1(#name" = %s", init_##name);
     STATE_MAP(XX)
 #undef XX
