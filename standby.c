@@ -17,13 +17,12 @@ static void standby_create(const char *conninfo) {
     PQconninfoOption *opts;
     if (!(opts = PQconninfoParse(conninfo, &err))) E("!PQconninfoParse and %s", err);
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
-//        state_t state;
+        state_t state;
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
         if (strcmp(opt->keyword, "host")) continue;
-//        state = init_host(opt->val);
-//        backend_create(opt->val, state == state_unknown ? state_wait_primary : state);
-        backend_create(opt->val, state_wait_primary);
+        state = init_host(opt->val);
+        backend_create(opt->val, state == state_unknown ? state_wait_primary : state);
     }
     if (err) PQfreemem(err);
     PQconninfoFree(opts);
