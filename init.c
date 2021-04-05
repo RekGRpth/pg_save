@@ -133,6 +133,8 @@ static void init_work(void) {
     StringInfoData buf;
     BackgroundWorker worker;
     if (uname(&uts)) E("uname");
+    init_set_system("custom.hostname", uts.nodename);
+    init_reload();
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
