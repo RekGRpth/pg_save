@@ -56,8 +56,8 @@ static void primary_demote(Backend *backend) {
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
-void primary_notify(Backend *backend, const char *state) {
-    if (backend->state == state_sync && !strcmp(state, "demote")) primary_demote(backend);
+void primary_notify(Backend *backend, state_t state) {
+//    if (backend->state == state_sync && !strcmp(state, "demote")) primary_demote(backend);
     if (init_state == state_wait_primary) init_set_state(state_primary);
 }
 

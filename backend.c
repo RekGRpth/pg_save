@@ -158,8 +158,8 @@ void backend_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
-static void backend_notify(Backend *backend, const char *state) {
-    D1("%s:%s state = %s", PQhost(backend->conn), init_state2char(backend->state), state);
+static void backend_notify(Backend *backend, state_t state) {
+    D1("%s:%s state = %s", PQhost(backend->conn), init_state2char(backend->state), init_state2char(state));
     RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
 }
 
@@ -167,7 +167,7 @@ static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, notify->extra);
+    for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
 }
 
 void backend_idle(Backend *backend) {
