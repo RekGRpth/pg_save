@@ -7,6 +7,7 @@ int init_attempt;
 int init_timeout;
 state_t init_state = state_unknown;
 static bool init_sighup = false;
+static char *init_hostname;
 static int init_restart;
 #define XX(name) static char *init_##name;
 STATE_MAP(XX)
@@ -129,12 +130,8 @@ void init_set_system(const char *name, const char *new) {
 }
 
 static void init_work(void) {
-    struct utsname uts;
     StringInfoData buf;
     BackgroundWorker worker;
-    if (uname(&uts)) E("uname");
-    init_set_system("custom.hostname", uts.nodename);
-    init_reload();
     MemSet(&worker, 0, sizeof(worker));
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
@@ -148,11 +145,11 @@ static void init_work(void) {
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_function_name, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfoString(&buf, uts.nodename);
+    appendStringInfoString(&buf, init_hostname);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_type, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfo(&buf, "postgres postgres %s", uts.nodename);
+    appendStringInfo(&buf, "postgres postgres %s", init_hostname);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_name, buf.data, buf.len);
     pfree(buf.data);
@@ -160,15 +157,18 @@ static void init_work(void) {
 }
 
 static void init_save(void) {
+    struct utsname uts;
     static const struct config_enum_entry init_state_options[] = {
 #define XX(name) {#name, state_##name, false},
         STATE_MAP(XX)
 #undef XX
     };
+    if (uname(&uts)) E("uname");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, uts.nodename, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &init_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
