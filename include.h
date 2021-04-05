@@ -61,7 +61,6 @@
     XX(single) \
     XX(wait_primary) \
     XX(primary) \
-    XX(demote) \
     XX(wait_standby) \
     XX(sync) \
     XX(potential) \

@@ -62,7 +62,7 @@ static void primary_demote(void) {
     if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
     W("%i < %i", primary_attempt, init_attempt);
     if (primary_attempt++ < init_attempt) return;
-    init_set_state(state_demote);
+    init_set_state(state_wait_standby);
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
 }
 
