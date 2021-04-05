@@ -67,7 +67,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, state_t state) {
-    if (backend->state == state_sync && init_state == state_potential && state == state_promote) standby_reprimary(backend);
+    if (backend->state == state_sync && init_state == state_potential && state == state_primary) standby_reprimary(backend);
 }
 
 static void standby_result(PGresult *result) {
