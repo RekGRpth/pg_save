@@ -31,7 +31,7 @@ static void standby_create(const char *conninfo) {
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
     backend_finish(backend);
-    init_set_state(state_promote);
+    init_set_state(state_wait_primary);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     else primary_init();
 }
@@ -68,7 +68,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_notify(Backend *backend, state_t state) {
-    if (backend->state == state_sync && init_state == state_potential && (state == state_promote || state == state_primary)) standby_reprimary(backend);
+    if (backend->state == state_sync && init_state == state_potential && (state == state_wait_primary || state == state_primary)) standby_reprimary(backend);
 }
 
 static void standby_result(PGresult *result) {

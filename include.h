@@ -62,7 +62,6 @@
     XX(wait_primary) \
     XX(primary) \
     XX(demote) \
-    XX(promote) \
     XX(wait_standby) \
     XX(sync) \
     XX(potential) \
