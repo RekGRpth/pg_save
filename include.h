@@ -86,7 +86,6 @@ typedef struct _SPI_plan SPI_plan;
 
 Backend *backend_host(const char *host);
 Backend *backend_state(state_t state);
-char **backend_names(void);
 char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum);
 const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
@@ -101,6 +100,7 @@ void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_init(void);
+void backend_names(char **names);
 void backend_reset(Backend *backend);
 void backend_result(const char *host, state_t state);
 void backend_timeout(void);

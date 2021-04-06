@@ -20,21 +20,6 @@ Backend *backend_state(state_t state) {
     return NULL;
 }
 
-char **backend_names(void) {
-    int nelems = backend_size();
-    char **names = nelems ? MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names)) : NULL;
-    if (!nelems) return names;
-    nelems = 0;
-    if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state <= state_primary) continue;
-        names[nelems++] = (char *)PQhost(backend->conn);
-    }
-    pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
-    return names;
-}
-
 int backend_nevents(void) {
     int nevents = 0;
     queue_each(&backend_queue, queue) {
@@ -216,6 +201,17 @@ void backend_init(void) {
     queue_init(&backend_queue);
     RecoveryInProgress() ? standby_init() : primary_init();
     init_reload();
+}
+
+void backend_names(char **names) {
+    int nelems = 0;
+    if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (backend->state <= state_primary) continue;
+        names[nelems++] = (char *)PQhost(backend->conn);
+    }
+    pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
 }
 
 void backend_reset(Backend *backend) {

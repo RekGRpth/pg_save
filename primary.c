@@ -7,11 +7,12 @@ static int primary_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
     int nelems = backend_size();
-    char **names = backend_names();
+    char **names = nelems ? MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names)) : NULL;
     StringInfoData buf;
     if (!names) return;
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "%s (", init_policy);
+    backend_names(names);
     for (int i = 0; i < nelems; i++) {
         const char *name_quote = quote_identifier(names[i]);
         if (i) appendStringInfoString(&buf, ", ");
