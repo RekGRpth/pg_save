@@ -2,13 +2,9 @@
 
 extern int init_timeout;
 
-static void save_fini(void) {
-    backend_fini();
-}
-
 static void save_exit(int code, Datum arg) {
     D1("code = %i", code);
-    save_fini();
+    backend_fini();
 }
 
 static void save_init(void) {
