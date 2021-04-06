@@ -39,14 +39,6 @@ static void save_latch(void) {
     if (ConfigReloadPending) save_reload();
 }
 
-static void save_socket(Backend *backend) {
-    if (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
-    }
-    backend->socket(backend);
-}
-
 static void save_timeout(void) {
     backend_timeout();
 }
@@ -71,7 +63,7 @@ void save_worker(Datum main_arg) {
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
-            if (event->events & WL_SOCKET_MASK) save_socket(event->user_data);
+            if (event->events & WL_SOCKET_MASK) backend_socket(event->user_data);
         }
         if (init_timeout >= 0) {
             INSTR_TIME_SET_CURRENT(cur_time);

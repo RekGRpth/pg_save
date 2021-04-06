@@ -224,6 +224,14 @@ void backend_result(const char *host, state_t state) {
     backend ? backend_update(backend, state) : backend_create(host, state);
 }
 
+void backend_socket(Backend *backend) {
+    if (PQstatus(backend->conn) == CONNECTION_OK) {
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
+        if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
+    }
+    backend->socket(backend);
+}
+
 void backend_timeout(void) {
     queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
