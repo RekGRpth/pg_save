@@ -1,7 +1,6 @@
 #include "include.h"
 
 extern int init_timeout;
-queue_t save_queue;
 
 static void save_fini(void) {
     backend_fini();
@@ -18,7 +17,6 @@ static void save_init(void) {
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
-    queue_init(&save_queue);
     D1("hostname = %s, timeout = %i", MyBgworkerEntry->bgw_type, init_timeout);
     set_config_option("application_name", MyBgworkerEntry->bgw_type, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
@@ -60,35 +58,16 @@ void save_worker(Datum main_arg) {
     long cur_timeout = -1;
     save_init();
     for (;;) {
-        int nevents = 2;
-        WaitEvent *events;
-        WaitEventSet *set;
+        int nevents = 2 + backend_nevents();
+        WaitEvent *events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
+        WaitEventSet *set = CreateWaitEventSet(TopMemoryContext, nevents);
         if (init_timeout >= 0 && cur_timeout <= 0) {
             INSTR_TIME_SET_CURRENT(start_time);
             cur_timeout = init_timeout;
         }
-        queue_each(&save_queue, queue) {
-            Backend *backend = queue_data(queue, Backend, queue);
-            if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
-            if (PQsocket(backend->conn) < 0) continue;
-            nevents++;
-        }
-        events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
-        set = CreateWaitEventSet(TopMemoryContext, nevents);
         AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
         AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
-        queue_each(&save_queue, queue) {
-            int fd;
-            Backend *backend = queue_data(queue, Backend, queue);
-            if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
-            if ((fd = PQsocket(backend->conn)) < 0) continue;
-            if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
-                case 0: /*D1("PQflush = 0");*/ break;
-                case 1: D1("PQflush = 1"); break;
-                default: D1("PQflush = default"); break;
-            }
-            AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
-        }
+        backend_event(set);
         nevents = WaitEventSetWait(set, cur_timeout, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];

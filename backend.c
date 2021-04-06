@@ -1,11 +1,11 @@
 #include "include.h"
 
 extern int init_attempt;
-extern queue_t save_queue;
 extern state_t init_state;
+static queue_t backend_queue;
 
 Backend *backend_host(const char *host) {
-    if (host) queue_each(&save_queue, queue) {
+    if (host) queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (!strcmp(host, PQhost(backend->conn))) return backend;
     }
@@ -13,7 +13,7 @@ Backend *backend_host(const char *host) {
 }
 
 Backend *backend_state(state_t state) {
-    if (state != state_unknown) queue_each(&save_queue, queue) {
+    if (state != state_unknown) queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state == state) return backend;
     }
@@ -22,18 +22,33 @@ Backend *backend_state(state_t state) {
 
 char **backend_names(void) {
     char **names = NULL;
-    int nelems = queue_size(&save_queue);
+    int nelems = backend_size();
     if (!nelems) return names;
     names = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names));
     nelems = 0;
     if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
-    queue_each(&save_queue, queue) {
+    queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (backend->state <= state_primary) continue;
         names[nelems++] = (char *)PQhost(backend->conn);
     }
     pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
     return names;
+}
+
+int backend_nevents(void) {
+    int nevents = 0;
+    queue_each(&backend_queue, queue) {
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
+        if (PQsocket(backend->conn) < 0) continue;
+        nevents++;
+    }
+    return nevents;
+}
+
+size_t backend_size(void) {
+    return queue_size(&backend_queue);
 }
 
 static void backend_query_socket(Backend *backend) {
@@ -141,8 +156,23 @@ void backend_create(const char *host, state_t state) {
     backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
     backend_connect_or_reset(backend, host);
-    queue_insert_tail(&save_queue, &backend->queue);
+    queue_insert_tail(&backend_queue, &backend->queue);
     backend_created(backend);
+}
+
+void backend_event(WaitEventSet *set) {
+    queue_each(&backend_queue, queue) {
+        int fd;
+        Backend *backend = queue_data(queue, Backend, queue);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
+        if ((fd = PQsocket(backend->conn)) < 0) continue;
+        if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
+            case 0: /*D1("PQflush = 0");*/ break;
+            case 1: D1("PQflush = 1"); break;
+            default: D1("PQflush = default"); break;
+        }
+        AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
+    }
 }
 
 static void backend_finished(Backend *backend) {
@@ -159,7 +189,7 @@ void backend_finish(Backend *backend) {
 }
 
 void backend_fini(void) {
-    queue_each(&save_queue, queue) {
+    queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         backend_finish(backend);
     }
@@ -184,6 +214,7 @@ void backend_idle(Backend *backend) {
 }
 
 void backend_init(void) {
+    queue_init(&backend_queue);
     RecoveryInProgress() ? standby_init() : primary_init();
     init_reload();
 }
@@ -199,7 +230,7 @@ void backend_result(const char *host, state_t state) {
 }
 
 void backend_timeout(void) {
-    queue_each(&save_queue, queue) {
+    queue_each(&backend_queue, queue) {
         Backend *backend = queue_data(queue, Backend, queue);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }

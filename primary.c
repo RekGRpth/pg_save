@@ -2,13 +2,12 @@
 
 extern char *init_policy;
 extern int init_attempt;
-extern queue_t save_queue;
 extern state_t init_state;
 static int primary_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
     char **names = backend_names();
-    int nelems = queue_size(&save_queue);
+    int nelems = backend_size();
     StringInfoData buf;
     if (!names) return;
     initStringInfoMy(TopMemoryContext, &buf);
@@ -37,7 +36,7 @@ void primary_created(Backend *backend) {
 void primary_failed(Backend *backend) {
     backend_update(backend, state_wait_standby);
     backend_finish(backend);
-    if (!queue_size(&save_queue)) init_set_state(state_wait_primary);
+    if (!backend_size()) init_set_state(state_wait_primary);
 }
 
 void primary_finished(Backend *backend) {
@@ -57,7 +56,7 @@ void primary_notify(Backend *backend, state_t state) {
 
 static void primary_demote(void) {
     Backend *backend;
-    if (queue_size(&save_queue) < 2) return;
+    if (backend_size() < 2) return;
     if (!(backend = backend_state(state_sync))) return;
     if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
     W("%i < %i", primary_attempt, init_attempt);

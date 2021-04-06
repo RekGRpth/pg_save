@@ -1,7 +1,6 @@
 #include "include.h"
 
 extern int init_attempt;
-extern queue_t save_queue;
 extern state_t init_state;
 static Backend *standby_primary = NULL;
 
@@ -37,7 +36,7 @@ static void standby_promote(Backend *backend) {
 
 void standby_failed(Backend *backend) {
     if (backend->state > state_primary) { backend_update(backend, state_wait_standby); backend_finish(backend); return; }
-    if (!queue_size(&save_queue)) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
+    if (!backend_size()) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
     if (init_state == state_sync) standby_promote(backend);
 }
 
