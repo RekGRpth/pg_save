@@ -139,8 +139,8 @@ void backend_create(const char *host, state_t state) {
     if ((backend = backend_host(host))) { W("backend with host \"%s\" already exists!", host); return; }
     backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->state = state;
-    backend_connect_or_reset(backend, host);
     queue_insert_tail(&backend_queue, &backend->queue);
+    backend_connect_or_reset(backend, host);
     backend_created(backend);
 }
 
