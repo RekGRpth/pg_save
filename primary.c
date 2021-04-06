@@ -6,8 +6,8 @@ extern state_t init_state;
 static int primary_attempt = 0;
 
 static void primary_set_synchronous_standby_names(void) {
-    char **names = backend_names();
     int nelems = backend_size();
+    char **names = backend_names();
     StringInfoData buf;
     if (!names) return;
     initStringInfoMy(TopMemoryContext, &buf);

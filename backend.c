@@ -21,10 +21,9 @@ Backend *backend_state(state_t state) {
 }
 
 char **backend_names(void) {
-    char **names = NULL;
     int nelems = backend_size();
+    char **names = nelems ? MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names)) : NULL;
     if (!nelems) return names;
-    names = MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names));
     nelems = 0;
     if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
     queue_each(&backend_queue, queue) {
