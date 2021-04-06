@@ -54,6 +54,7 @@ void init_debug(void) {
 #define XX(name) if (init_##name) D1(#name" = %s", init_##name);
     STATE_MAP(XX)
 #undef XX
+    if (IsBackgroundWorker) D1("RecoveryInProgress = %s", RecoveryInProgress() ? "true" : "false");
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
