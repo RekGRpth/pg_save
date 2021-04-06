@@ -39,10 +39,6 @@ static void save_latch(void) {
     if (ConfigReloadPending) save_reload();
 }
 
-static void save_timeout(void) {
-    backend_timeout();
-}
-
 void save_worker(Datum main_arg) {
     instr_time cur_time;
     instr_time start_time;
@@ -69,7 +65,7 @@ void save_worker(Datum main_arg) {
             INSTR_TIME_SET_CURRENT(cur_time);
             INSTR_TIME_SUBTRACT(cur_time, start_time);
             cur_timeout = init_timeout - (long)INSTR_TIME_GET_MILLISEC(cur_time);
-            if (cur_timeout <= 0) save_timeout();
+            if (cur_timeout <= 0) backend_timeout();
         }
         FreeWaitEventSet(set);
         pfree(events);
