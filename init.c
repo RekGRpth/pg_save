@@ -109,7 +109,15 @@ void init_set_state(state_t state) {
     init_state = state;
     init_set_host(MyBgworkerEntry->bgw_type, state);
     init_notify(state);
-    if (state == state_primary) RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE));
+    switch (state) {
+        case state_async:
+        case state_potential:
+        case state_primary:
+        case state_quorum:
+        case state_single:
+        case state_sync: RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE)); break;
+        default: break;
+    }
 }
 
 void init_set_system(const char *name, const char *new) {
