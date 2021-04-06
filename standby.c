@@ -34,6 +34,18 @@ static void standby_promote(Backend *backend) {
     else primary_init();
 }
 
+static void standby_reprimary(Backend *backend) {
+    StringInfoData buf;
+    if (standby_primary) { init_set_host(PQhost(standby_primary->conn), state_wait_standby); backend_finish(standby_primary); }
+    initStringInfoMy(TopMemoryContext, &buf);
+    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
+    init_set_host(PQhost(backend->conn), state_wait_primary);
+    backend_finish(backend);
+    init_set_system("primary_conninfo", buf.data);
+    standby_create(buf.data);
+    pfree(buf.data);
+}
+
 void standby_failed(Backend *backend) {
     if (backend->state > state_primary) { backend_update(backend, state_wait_standby); backend_finish(backend); return; }
     if (!backend_size()) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
@@ -59,18 +71,6 @@ void standby_init(void) {
     init_set_system("synchronous_standby_names", NULL);
     if (init_state <= state_primary) init_set_state(state_initial);
     standby_create(PrimaryConnInfo);
-}
-
-static void standby_reprimary(Backend *backend) {
-    StringInfoData buf;
-    if (standby_primary) { init_set_host(PQhost(standby_primary->conn), state_wait_standby); backend_finish(standby_primary); }
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
-    init_set_host(PQhost(backend->conn), state_wait_primary);
-    backend_finish(backend);
-    init_set_system("primary_conninfo", buf.data);
-    standby_create(buf.data);
-    pfree(buf.data);
 }
 
 void standby_notify(Backend *backend, state_t state) {
