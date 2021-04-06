@@ -38,6 +38,14 @@ void standby_failed(Backend *backend) {
     if (backend->state > state_primary) { backend_update(backend, state_wait_standby); backend_finish(backend); return; }
     if (!backend_size()) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
     if (init_state == state_sync) standby_promote(backend);
+    switch (init_state) {
+        case state_sync: standby_promote(backend); break;
+        case state_potential: {
+            Backend *sync = backend_state(state_sync);
+            if (sync && backend->attempt >= 2 * init_attempt) standby_reprimary(sync);
+        } break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    }
 }
 
 void standby_finished(Backend *backend) {
