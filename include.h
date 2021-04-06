@@ -45,6 +45,7 @@
 #include <libpq/libpq-be.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
+#include <postmaster/bgwriter.h>
 #include <postmaster/interrupt.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
