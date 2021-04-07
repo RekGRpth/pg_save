@@ -117,10 +117,10 @@ static void backend_connect_or_reset(Backend *backend, const char *host) {
     const char *values[] = {host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, MyBgworkerEntry->bgw_type, backend->state <= state_primary ? "read-write" : "any", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT", host, init_state2char(backend->state)); backend_fail(backend); return;
-        case PQPING_NO_RESPONSE: W("%s:%s PQPING_NO_RESPONSE", host, init_state2char(backend->state)); backend_fail(backend); return;
+        case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT and %i < %i", host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
+        case PQPING_NO_RESPONSE: W("%s:%s PQPING_NO_RESPONSE and %i < %i", host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
         case PQPING_OK: D1("%s:%s PQPING_OK", host, init_state2char(backend->state)); break;
-        case PQPING_REJECT: W("%s:%s PQPING_REJECT", host, init_state2char(backend->state)); backend_fail(backend); return;
+        case PQPING_REJECT: W("%s:%s PQPING_REJECT and %i < %i", host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
     }
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", PQhost(backend->conn), init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
