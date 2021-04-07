@@ -58,7 +58,6 @@ void init_debug(void) {
     D1("standby_signal_file_found = %s", standby_signal_file_found ? "true" : "false");
     if (IsBackgroundWorker) D1("RecoveryInProgress = %s", RecoveryInProgress() ? "true" : "false");
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
-    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
 }
 
 void init_reload(void) {

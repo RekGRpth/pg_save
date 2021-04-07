@@ -5,28 +5,7 @@ extern int init_attempt;
 extern state_t init_state;
 static int primary_attempt = 0;
 
-static void primary_set_synchronous_standby_names(void) {
-    int nelems = backend_size();
-    char **names = nelems ? MemoryContextAlloc(TopMemoryContext, nelems * sizeof(*names)) : NULL;
-    StringInfoData buf;
-    if (!names) return;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "%s (", init_policy);
-    backend_names(names);
-    for (int i = 0; i < nelems; i++) {
-        const char *name_quote = quote_identifier(names[i]);
-        if (i) appendStringInfoString(&buf, ", ");
-        appendStringInfoString(&buf, name_quote);
-        if (name_quote != names[i]) pfree((void *)name_quote);
-    }
-    pfree(names);
-    appendStringInfoString(&buf, ")");
-    init_set_system("synchronous_standby_names", buf.data);
-    pfree(buf.data);
-}
-
 void primary_connected(Backend *backend) {
-    primary_set_synchronous_standby_names();
     primary_attempt = 0;
     if (init_state == state_wait_primary) init_set_state(state_primary);
 }
@@ -102,6 +81,5 @@ void primary_timeout(void) {
 }
 
 void primary_updated(Backend *backend) {
-    primary_set_synchronous_standby_names();
     if (init_state == state_wait_primary) init_set_state(state_primary);
 }

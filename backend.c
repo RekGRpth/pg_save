@@ -203,17 +203,6 @@ void backend_init(void) {
     init_reload();
 }
 
-void backend_names(char **names) {
-    int nelems = 0;
-    if (RecoveryInProgress()) names[nelems++] = MyBgworkerEntry->bgw_type;
-    queue_each(&backend_queue, queue) {
-        Backend *backend = queue_data(queue, Backend, queue);
-        if (backend->state <= state_primary) continue;
-        names[nelems++] = (char *)PQhost(backend->conn);
-    }
-    pg_qsort(names, nelems, sizeof(*names), pg_qsort_strcmp);
-}
-
 void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend, NULL);
 }
