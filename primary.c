@@ -22,7 +22,7 @@ void primary_finished(Backend *backend) {
     if (init_state != state_primary) return;
     if (backend_nevents()) return;
     init_set_state(state_wait_standby);
-    if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
+    if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
 }
 
 void primary_fini(void) {
@@ -45,7 +45,7 @@ static void primary_demote(void) {
     W("%i < %i", primary_attempt, init_attempt);
     if (primary_attempt++ < init_attempt) return;
     init_set_state(state_wait_standby);
-    if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
+    if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
 }
 
 static void primary_result(void) {
