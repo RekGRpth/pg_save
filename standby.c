@@ -27,7 +27,7 @@ static void standby_create(const char *conninfo) {
 
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
-    init_set_host(PQhost(backend->conn), state_wait_standby);
+    init_set_host(backend->host, state_wait_standby);
     backend_finish(backend);
     init_set_state(state_wait_primary);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
@@ -36,10 +36,10 @@ static void standby_promote(Backend *backend) {
 
 static void standby_reprimary(Backend *backend) {
     StringInfoData buf;
-    if (standby_primary) { init_set_host(PQhost(standby_primary->conn), state_wait_standby); backend_finish(standby_primary); }
+    if (standby_primary) { init_set_host(standby_primary->host, state_wait_standby); backend_finish(standby_primary); }
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", PQhost(backend->conn), MyBgworkerEntry->bgw_type);
-    init_set_host(PQhost(backend->conn), state_wait_primary);
+    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", backend->host, MyBgworkerEntry->bgw_type);
+    init_set_host(backend->host, state_wait_primary);
     backend_finish(backend);
     init_set_system("primary_conninfo", buf.data);
     standby_create(buf.data);
@@ -106,7 +106,7 @@ static void standby_query_socket(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", PQhost(backend->conn), init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+        default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
     ok ? backend_idle(backend) : backend_finish(backend);
 }
@@ -114,7 +114,7 @@ static void standby_query_socket(Backend *backend) {
 static void standby_query(Backend *backend) {
     static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)";
     if (PQisBusy(backend->conn)) backend->events = WL_SOCKET_READABLE; else if (!PQsendQuery(backend->conn, command)) {
-        W("%s:%s !PQsendQuery and %.*s", PQhost(backend->conn), init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+        W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
         backend->events = WL_SOCKET_WRITEABLE;

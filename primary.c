@@ -38,7 +38,7 @@ static void primary_demote(void) {
     Backend *backend;
     if (backend_size() < 2) return;
     if (!(backend = backend_state(state_sync))) return;
-    if (strcmp(PQhost(backend->conn), MyBgworkerEntry->bgw_type) > 0) return;
+    if (strcmp(backend->host, MyBgworkerEntry->bgw_type) > 0) return;
     W("%i < %i", primary_attempt, init_attempt);
     if (primary_attempt++ < init_attempt) return;
     init_set_state(state_wait_standby);
