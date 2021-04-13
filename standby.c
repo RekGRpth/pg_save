@@ -51,9 +51,10 @@ void standby_failed(Backend *backend) {
     if (!backend_size()) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL); return; }
     switch (init_state) {
         case state_sync: standby_promote(backend); break;
-        case state_potential: {
+        case state_potential: if (backend->attempt >= 2 * init_attempt) {
             Backend *sync = backend_state(state_sync);
-            if (sync && backend->attempt >= 2 * init_attempt) standby_reprimary(sync);
+            if (sync) standby_reprimary(sync);
+            else if (kill(PostmasterPid, SIGKILL)) W("kill(%i ,%i)", PostmasterPid, SIGKILL);
         } break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
