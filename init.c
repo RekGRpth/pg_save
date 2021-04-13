@@ -118,6 +118,7 @@ void init_set_state(state_t state) {
         case state_sync: RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE)); break;
         default: break;
     }
+    if (state == state_primary && getenv("SYNCHRONOUS_STANDBY_NAMES")) init_set_system("synchronous_standby_names", getenv("SYNCHRONOUS_STANDBY_NAMES"));
 }
 
 void init_set_system(const char *name, const char *new) {
