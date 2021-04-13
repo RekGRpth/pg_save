@@ -15,14 +15,13 @@ void primary_created(Backend *backend) {
 void primary_failed(Backend *backend) {
     backend_update(backend, state_wait_standby);
     backend_finish(backend);
-    if (!backend_nevents()) init_set_state(state_wait_primary);
-}
-
-void primary_finished(Backend *backend) {
     if (init_state != state_primary) return;
     if (backend_nevents()) return;
     init_set_state(state_wait_standby);
     if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
+}
+
+void primary_finished(Backend *backend) {
 }
 
 void primary_fini(void) {
