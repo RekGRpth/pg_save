@@ -2,7 +2,6 @@
 
 PG_MODULE_MAGIC;
 
-char *init_policy;
 int init_attempt;
 int init_timeout;
 state_t init_state = state_unknown;
@@ -48,7 +47,6 @@ static Node *makeStringConst(char *str, int location) {
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
     D1("hostname = %s", init_hostname);
-    D1("policy = %s", init_policy);
     D1("restart = %i", init_restart);
     D1("state = %s", init_state2char(init_state));
     D1("timeout = %i", init_timeout);
@@ -194,7 +192,6 @@ static void init_save(void) {
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, uts.nodename, PGC_POSTMASTER, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.policy", "pg_save policy", NULL, &init_policy, "FIRST 1", PGC_POSTMASTER, 0, NULL, NULL, NULL);
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
 #undef XX

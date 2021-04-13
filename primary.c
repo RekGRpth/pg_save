@@ -1,6 +1,5 @@
 #include "include.h"
 
-extern char *init_policy;
 extern int init_attempt;
 extern state_t init_state;
 static int primary_attempt = 0;
