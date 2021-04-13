@@ -31,10 +31,6 @@ int backend_nevents(void) {
     return nevents;
 }
 
-size_t backend_size(void) {
-    return queue_size(&backend_queue);
-}
-
 static void backend_query_socket(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {

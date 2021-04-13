@@ -16,7 +16,7 @@ void primary_created(Backend *backend) {
 void primary_failed(Backend *backend) {
     backend_update(backend, state_wait_standby);
     backend_finish(backend);
-    if (!backend_size()) init_set_state(state_wait_primary);
+    if (!backend_nevents()) init_set_state(state_wait_primary);
 }
 
 void primary_finished(Backend *backend) {
@@ -36,7 +36,7 @@ void primary_notify(Backend *backend, state_t state) {
 
 static void primary_demote(void) {
     Backend *backend;
-    if (backend_size() < 2) return;
+    if (backend_nevents() < 2) return;
     if (!(backend = backend_state(state_sync))) return;
     if (strcmp(backend->host, MyBgworkerEntry->bgw_type) > 0) return;
     W("%i < %i", primary_attempt, init_attempt);
