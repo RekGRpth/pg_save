@@ -70,13 +70,7 @@ static void primary_result(void) {
 
 void primary_timeout(void) {
     static SPI_plan *plan = NULL;
-    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming'";
-    int num_backends = pgstat_fetch_stat_numbackends();
-    for (int curr_backend = 1; curr_backend <= num_backends; curr_backend++) {
-        PgBackendStatus *beentry = pgstat_fetch_stat_beentry(curr_backend);
-        if (!beentry || beentry->st_progress_command != PROGRESS_COMMAND_BASEBACKUP) continue;
-        return;
-    }
+    static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)";
     SPI_connect_my(command);
     if (!plan) plan = SPI_prepare_my(command, 0, NULL);
     SPI_execute_plan_my(plan, NULL, NULL, SPI_OK_SELECT, false);
