@@ -39,7 +39,7 @@ static void main_check(void) {
     return dbname;
 }*/
 
-static void main_conf(void) {
+static void main_recovery(void) {
     FILE *file;
     char filename[MAXPGPATH];
     snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "postgresql.auto.conf");
@@ -64,7 +64,13 @@ static void main_backup(const char *primary) {
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(getenv("PGDATA"), true);
     if (rename(pgdata, getenv("PGDATA"))) E("rename(\"%s\", \"%s\") and %m", pgdata, getenv("PGDATA"));
-    main_conf();
+    main_recovery();
+}
+
+static void main_initdb(void) {
+    char str[MAXPGPATH];
+    snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", getenv("PGDATA"));
+    if (system(str)) E("system(\"%s\") and %m", str);
 }
 
 static void main_init(void) {
@@ -74,6 +80,21 @@ static void main_init(void) {
         main_backup(primary);
         free(primary);
     } else {
+        size_t count = strlen(getenv("HOSTNAME"));
+        char *err;
+        PQconninfoOption *opts;
+        if (!(opts = PQconninfoParse(getenv("PRIMARY_CONNINFO"), &err))) E("!PQconninfoParse and %s", err);
+        for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
+            if (!opt->val) continue;
+            I("%s = %s", opt->keyword, opt->val);
+            if (strcmp(opt->keyword, "host")) continue;
+            if (*(opt->val + count) == ',' && strncmp(opt->val, getenv("HOSTNAME"), count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", getenv("HOSTNAME"), getenv("PRIMARY_CONNINFO"));
+        }
+        if (err) PQfreemem(err);
+        PQconninfoFree(opts);
+        main_initdb();
+//        main_conf();
+//        main_hba();
     }
 }
 
