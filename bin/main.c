@@ -1,5 +1,6 @@
 #include "bin.h"
 
+static const char *cluster_name;
 static const char *hostname;
 static const char *pgdata;
 static const char *primary_conninfo;
@@ -39,7 +40,7 @@ static void main_conf(void) {
         "wal_level = 'replica'\n"
         "wal_log_hints = 'on'\n"
         "wal_receiver_create_temp_slot = 'on'\n"
-    , getenv("CLUSTER_NAME") ? getenv("CLUSTER_NAME") : "");
+    , cluster_name ? cluster_name : "");
     fclose(file);
 }
 
@@ -130,10 +131,12 @@ static void main_init(void) {
 }
 
 int main(int argc, char *argv[]) {
+    cluster_name = getenv("CLUSTER_NAME");
     hostname = getenv("HOSTNAME");
     pgdata = getenv("PGDATA");
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     pg_logging_init(argv[0]);
+    I("cluster_name = %s", cluster_name);
     I("hostname = %s", hostname);
     I("pgdata = %s", pgdata);
     I("primary_conninfo = %s", primary_conninfo);
