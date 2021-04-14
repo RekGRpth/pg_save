@@ -1,4 +1,4 @@
-#include "include/save.h"
+#include "save.h"
 
 extern int init_attempt;
 extern state_t init_state;
