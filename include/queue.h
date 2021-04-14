@@ -1,6 +1,8 @@
 #ifndef _QUEUE_H_
 #define _QUEUE_H_
 
+#include <stddef.h>
+
 typedef struct queue_t {
     struct queue_t *prev;
     union {
