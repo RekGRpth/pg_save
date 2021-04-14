@@ -1,6 +1,6 @@
 #include "bin.h"
 
 int main(int argc, char *argv[]) {
-//    D1("hi");
+    D("hi");
     return 0;
 }
