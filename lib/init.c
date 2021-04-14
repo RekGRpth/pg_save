@@ -7,6 +7,7 @@ int init_timeout;
 state_t init_state = state_unknown;
 static bool init_sighup = false;
 static bool standby_signal_file_found = false;
+static char *init_hostname;
 static int init_restart;
 #define XX(name) static char *init_##name;
 STATE_MAP(XX)
@@ -190,6 +191,7 @@ static void init_save(void) {
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
+    DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, getenv("HOSTNAME"), PGC_POSTMASTER, 0, NULL, NULL, NULL);
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
 #undef XX
