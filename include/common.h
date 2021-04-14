@@ -23,8 +23,6 @@
 
 #define countof(array) (sizeof(array)/sizeof(array[0]))
 
-#include "queue.h"
-
 #define STATE_MAP(XX) \
     XX(unknown) \
     XX(initial) \
