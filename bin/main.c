@@ -41,7 +41,9 @@ static void main_check(void) {
 
 static void main_backup(const char *primary) {
     char pgdata[] = "XXXXXX";
+    char standby_signal[MAXPGPATH];
     char str[MAXPGPATH];
+    FILE *file;
     snprintf(str, sizeof(str), "pg_basebackup"
         "--dbname=\"host=%s application_name=%s target_session_attrs=read-write\""
         "--pgdata=\"%s\""
@@ -52,6 +54,9 @@ static void main_backup(const char *primary) {
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(getenv("PGDATA"), true);
     if (rename(pgdata, getenv("PGDATA"))) E("rename(\"%s\", \"%s\") and %m", pgdata, getenv("PGDATA"));
+    snprintf(standby_signal, sizeof(standby_signal), "%s/%s", getenv("PGDATA"), "standby.signal");
+    if (!(file = fopen(standby_signal, "w"))) E("fopen(\"%s\") and %m", standby_signal);
+    fclose(file);
 }
 
 static void main_init(void) {
