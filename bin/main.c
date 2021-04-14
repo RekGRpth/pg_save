@@ -39,6 +39,24 @@ static void main_conf(void) {
     fclose(file);
 }
 
+static void main_hba(void) {
+    FILE *file;
+    char filename[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "pg_hba.conf");
+    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    fprintf(file,
+        "host all all samenet trust\n"
+        "host replication all samenet trust\n"
+    );
+    fclose(file);
+}
+
+static void main_initdb(void) {
+    char str[MAXPGPATH];
+    snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", getenv("PGDATA"));
+    if (system(str)) E("system(\"%s\") and %m", str);
+}
+
 static char *main_primary(void) {
     char *host;
     PGconn *conn;
@@ -66,18 +84,6 @@ static void main_recovery(void) {
     fclose(file);
 }
 
-static void main_hba(void) {
-    FILE *file;
-    char filename[MAXPGPATH];
-    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "pg_hba.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file,
-        "host all all samenet trust\n"
-        "host replication all samenet trust\n"
-    );
-    fclose(file);
-}
-
 static void main_backup(const char *primary) {
     char pgdata[] = "XXXXXX";
     char str[MAXPGPATH];
@@ -92,12 +98,6 @@ static void main_backup(const char *primary) {
     rmtree(getenv("PGDATA"), true);
     if (rename(pgdata, getenv("PGDATA"))) E("rename(\"%s\", \"%s\") and %m", pgdata, getenv("PGDATA"));
     main_recovery();
-}
-
-static void main_initdb(void) {
-    char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", getenv("PGDATA"));
-    if (system(str)) E("system(\"%s\") and %m", str);
 }
 
 static void main_init(void) {
