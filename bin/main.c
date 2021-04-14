@@ -36,33 +36,45 @@ static void main_conf(void) {
     snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
     fprintf(file,
-        "archive_command = 'test ! -f \"$ARCLOG/%%f\" && gzip -9 <\"%%p\" >\"$ARCLOG/%%f\" || echo \"$ARCLOG/%%f already exists!\"'"
-        "archive_mode = 'on'"
-        "auto_explain.log_analyze = 'on'"
-        "auto_explain.log_buffers = 'on'"
-        "auto_explain.log_min_duration = '100'"
-        "auto_explain.log_nested_statements = 'on'"
-        "auto_explain.log_triggers = 'on'"
-        "auto_explain.log_verbose = 'on'"
-        "cluster_name = '%s'"
-        "datestyle = 'iso, dmy'"
-        "hot_standby_feedback = 'on'"
-        "listen_addresses = '*'"
-        "log_connections = 'on'"
-        "log_hostname = 'on'"
-        "log_line_prefix = '%%m [%%p] %%r %%u@%%d/%%a '"
-        "log_min_messages = 'debug1'"
-        "max_logical_replication_workers = '0'"
-        "max_sync_workers_per_subscription = '0'"
-        "max_wal_senders = '3'"
-        "restore_command = 'test -f \"$ARCLOG/%%f\" && gunzip <\"$ARCLOG/%%f\" >\"%%p\" || echo \"$ARCLOG/%%f does not exists!\"'"
-        "shared_preload_libraries = 'auto_explain,pg_async,pg_save'"
-        "trace_notify = 'on'"
-        "wal_compression = 'on'"
-        "wal_level = 'replica'"
-        "wal_log_hints = 'on'"
-        "wal_receiver_create_temp_slot = 'on'"
+        "archive_command = 'test ! -f \"$ARCLOG/%%f\" && gzip -9 <\"%%p\" >\"$ARCLOG/%%f\" || echo \"$ARCLOG/%%f already exists!\"'\n"
+        "archive_mode = 'on'\n"
+        "auto_explain.log_analyze = 'on'\n"
+        "auto_explain.log_buffers = 'on'\n"
+        "auto_explain.log_min_duration = '100'\n"
+        "auto_explain.log_nested_statements = 'on'\n"
+        "auto_explain.log_triggers = 'on'\n"
+        "auto_explain.log_verbose = 'on'\n"
+        "cluster_name = '%s'\n"
+        "datestyle = 'iso, dmy'\n"
+        "hot_standby_feedback = 'on'\n"
+        "listen_addresses = '*'\n"
+        "log_connections = 'on'\n"
+        "log_hostname = 'on'\n"
+        "log_line_prefix = '%%m [%%p] %%r %%u@%%d/%%a '\n"
+        "log_min_messages = 'debug1'\n"
+        "max_logical_replication_workers = '0'\n"
+        "max_sync_workers_per_subscription = '0'\n"
+        "max_wal_senders = '3'\n"
+        "restore_command = 'test -f \"$ARCLOG/%%f\" && gunzip <\"$ARCLOG/%%f\" >\"%%p\" || echo \"$ARCLOG/%%f does not exists!\"'\n"
+        "shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n"
+        "trace_notify = 'on'\n"
+        "wal_compression = 'on'\n"
+        "wal_level = 'replica'\n"
+        "wal_log_hints = 'on'\n"
+        "wal_receiver_create_temp_slot = 'on'\n"
     , getenv("CLUSTER_NAME") ? getenv("CLUSTER_NAME") : "");
+    fclose(file);
+}
+
+static void main_hba(void) {
+    FILE *file;
+    char filename[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "pg_hba.conf");
+    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    fprintf(file,
+        "host all all samenet trust\n"
+        "host replication all samenet trust\n"
+    );
     fclose(file);
 }
 
@@ -109,7 +121,7 @@ static void main_init(void) {
         PQconninfoFree(opts);
         main_initdb();
         main_conf();
-//        main_hba();
+        main_hba();
     }
 }
 
