@@ -31,7 +31,6 @@
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
 #include <sys/stat.h>
-#include <sys/utsname.h>
 #include <tcop/utility.h>
 #include <unistd.h>
 #include <utils/builtins.h>

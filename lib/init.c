@@ -7,7 +7,6 @@ int init_timeout;
 state_t init_state = state_unknown;
 static bool init_sighup = false;
 static bool standby_signal_file_found = false;
-static char *init_hostname;
 static int init_restart;
 #define XX(name) static char *init_##name;
 STATE_MAP(XX)
@@ -46,7 +45,7 @@ static Node *makeStringConst(char *str, int location) {
 
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
-    D1("hostname = %s", init_hostname);
+    D1("HOSTNAME = %s", getenv("HOSTNAME"));
     D1("restart = %i", init_restart);
     D1("state = %s", init_state2char(init_state));
     D1("timeout = %i", init_timeout);
@@ -79,7 +78,7 @@ void init_set_host(const char *host, state_t state) {
 }
 
 static void init_notify(state_t state) {
-    const char *channel = MyBgworkerEntry->bgw_type;
+    const char *channel = getenv("HOSTNAME");
     const char *payload = init_state2char(state);
     const char *channel_quote = quote_identifier(channel);
     const char *payload_quote = quote_literal_cstr(payload);
@@ -107,7 +106,7 @@ void init_set_state(state_t state) {
     D1("state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
-    init_set_host(MyBgworkerEntry->bgw_type, state);
+    init_set_host(getenv("HOSTNAME"), state);
     init_notify(state);
     switch (state) {
         case state_async:
@@ -157,11 +156,11 @@ static void init_work(void) {
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_function_name, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfoString(&buf, init_hostname);
+    appendStringInfoString(&buf, getenv("HOSTNAME"));
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_type, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfo(&buf, "postgres postgres %s", init_hostname);
+    appendStringInfo(&buf, "postgres postgres %s", getenv("HOSTNAME"));
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_name, buf.data, buf.len);
     pfree(buf.data);
@@ -182,18 +181,15 @@ static void readRecoverySignalFile(void) {
 }
 
 static void init_save(void) {
-    struct utsname uts;
     static const struct config_enum_entry init_state_options[] = {
 #define XX(name) {#name, state_##name, false},
         STATE_MAP(XX)
 #undef XX
     };
-    if (uname(&uts)) E("uname");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, uts.nodename, PGC_POSTMASTER, 0, NULL, NULL, NULL);
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
 #undef XX

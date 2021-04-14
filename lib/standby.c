@@ -38,7 +38,7 @@ static void standby_reprimary(Backend *backend) {
     StringInfoData buf;
     if (standby_primary) { init_set_host(standby_primary->host, state_wait_standby); backend_finish(standby_primary); }
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", backend->host, MyBgworkerEntry->bgw_type);
+    appendStringInfo(&buf, "host=%s application_name=%s target_session_attrs=read-write", backend->host, getenv("HOSTNAME"));
     init_set_host(backend->host, state_wait_primary);
     backend_finish(backend);
     init_set_system("primary_conninfo", buf.data);
