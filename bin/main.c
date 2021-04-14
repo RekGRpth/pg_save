@@ -5,7 +5,30 @@ static const char *hostname;
 static const char *pgdata;
 static const char *primary_conninfo;
 
+static char *main_primary(void) {
+    char *host;
+    PGconn *conn;
+    switch (PQping(primary_conninfo)) {
+        case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
+        case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
+        case PQPING_OK: I("PQPING_OK"); break;
+        case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
+    }
+    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
+    host = strdup(PQhost(conn));
+    PQfinish(conn);
+    return host;
+}
+
 static void main_check(void) {
+    char filename[MAXPGPATH];
+    struct stat sb;
+    char *primary = main_primary();
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
+    if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
+        if (!primary) E("!primary");
+    } else {
+    }
 }
 
 static void main_conf(void) {
@@ -60,21 +83,6 @@ static void main_initdb(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", pgdata);
     if (system(str)) E("system(\"%s\") and %m", str);
-}
-
-static char *main_primary(void) {
-    char *host;
-    PGconn *conn;
-    switch (PQping(primary_conninfo)) {
-        case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
-        case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
-        case PQPING_OK: I("PQPING_OK"); break;
-        case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
-    }
-    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
-    host = strdup(PQhost(conn));
-    PQfinish(conn);
-    return host;
 }
 
 static void main_recovery(void) {
