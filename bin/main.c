@@ -15,6 +15,12 @@ static char *main_primary(void) {
     return host;
 }
 
+static void main_check(void) {
+    if (pg_mkdir_p(getenv("PGDATA"), pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", getenv("PGDATA"));
+//    switch (pg_check_dir(getenv("PGDATA"))) {
+//    }
+}
+
 int main(int argc, char *argv[]) {
     char *primary;
     pg_logging_init(argv[0]);
