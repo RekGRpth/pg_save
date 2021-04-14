@@ -1,7 +1,8 @@
 #include "bin.h"
 
-static const char *pgdata;
 static const char *hostname;
+static const char *pgdata;
+static const char *primary_conninfo;
 
 static void main_check(void) {
 }
@@ -63,13 +64,13 @@ static void main_initdb(void) {
 static char *main_primary(void) {
     char *host;
     PGconn *conn;
-    switch (PQping(getenv("PRIMARY_CONNINFO"))) {
+    switch (PQping(primary_conninfo)) {
         case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
         case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
         case PQPING_OK: I("PQPING_OK"); break;
         case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
     }
-    if (!(conn = PQconnectdb(getenv("PRIMARY_CONNINFO")))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
+    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
     host = strdup(PQhost(conn));
     PQfinish(conn);
     return host;
@@ -80,7 +81,7 @@ static void main_recovery(void) {
     char filename[MAXPGPATH];
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = '%s'\n", getenv("PRIMARY_CONNINFO"));
+    fprintf(file, "primary_conninfo = '%s'\n", primary_conninfo);
     fclose(file);
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
@@ -113,12 +114,12 @@ static void main_init(void) {
         size_t count = strlen(hostname);
         char *err;
         PQconninfoOption *opts;
-        if (!(opts = PQconninfoParse(getenv("PRIMARY_CONNINFO"), &err))) E("!PQconninfoParse and %s", err);
+        if (!(opts = PQconninfoParse(primary_conninfo, &err))) E("!PQconninfoParse and %s", err);
         for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
             if (!opt->val) continue;
             I("%s = %s", opt->keyword, opt->val);
             if (strcmp(opt->keyword, "host")) continue;
-            if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, getenv("PRIMARY_CONNINFO"));
+            if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
         }
         if (err) PQfreemem(err);
         PQconninfoFree(opts);
@@ -129,10 +130,13 @@ static void main_init(void) {
 }
 
 int main(int argc, char *argv[]) {
-    pgdata = getenv("PGDATA");
     hostname = getenv("HOSTNAME");
+    pgdata = getenv("PGDATA");
+    primary_conninfo = getenv("PRIMARY_CONNINFO");
     pg_logging_init(argv[0]);
-    I("PRIMARY_CONNINFO = %s", getenv("PRIMARY_CONNINFO"));
+    I("hostname = %s", hostname);
+    I("pgdata = %s", pgdata);
+    I("primary_conninfo = %s", primary_conninfo);
     switch (pg_check_dir(pgdata)) {
         case 0: E("directory \"%s\" does not exist", pgdata); break;
         case 1: I("directory \"%s\" exists and empty", pgdata); main_init(); break;
