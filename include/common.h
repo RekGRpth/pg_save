@@ -1,5 +1,5 @@
-#ifndef _SAVE_H_
-#define _SAVE_H_
+#ifndef _COMMON_H_
+#define _COMMON_H_
 
 #define FORMAT_0(fmt, ...) "%s(%s:%d): %s", __func__, __FILE__, __LINE__, fmt
 #define FORMAT_1(fmt, ...) "%s(%s:%d): " fmt,  __func__, __FILE__, __LINE__
@@ -142,4 +142,4 @@ void standby_timeout(void);
 void standby_updated(Backend *backend);
 void standby_update(state_t state);
 
-#endif // _SAVE_H_
+#endif // _COMMON_H_
