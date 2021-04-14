@@ -1,33 +1,6 @@
 #include "bin.h"
 
-static char *main_primary(void) {
-    char *host;
-    PGconn *conn;
-    switch (PQping(getenv("PRIMARY_CONNINFO"))) {
-        case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
-        case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
-        case PQPING_OK: I("PQPING_OK"); break;
-        case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
-    }
-    if (!(conn = PQconnectdb(getenv("PRIMARY_CONNINFO")))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
-    host = strdup(PQhost(conn));
-    PQfinish(conn);
-    return host;
-}
-
 static void main_check(void) {
-}
-
-static void main_recovery(void) {
-    FILE *file;
-    char filename[MAXPGPATH];
-    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "postgresql.auto.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = '%s'\n", getenv("PRIMARY_CONNINFO"));
-    fclose(file);
-    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "standby.signal");
-    if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
-    fclose(file);
 }
 
 static void main_conf(void) {
@@ -63,6 +36,33 @@ static void main_conf(void) {
         "wal_log_hints = 'on'\n"
         "wal_receiver_create_temp_slot = 'on'\n"
     , getenv("CLUSTER_NAME") ? getenv("CLUSTER_NAME") : "");
+    fclose(file);
+}
+
+static char *main_primary(void) {
+    char *host;
+    PGconn *conn;
+    switch (PQping(getenv("PRIMARY_CONNINFO"))) {
+        case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
+        case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
+        case PQPING_OK: I("PQPING_OK"); break;
+        case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
+    }
+    if (!(conn = PQconnectdb(getenv("PRIMARY_CONNINFO")))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
+    host = strdup(PQhost(conn));
+    PQfinish(conn);
+    return host;
+}
+
+static void main_recovery(void) {
+    FILE *file;
+    char filename[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "postgresql.auto.conf");
+    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    fprintf(file, "primary_conninfo = '%s'\n", getenv("PRIMARY_CONNINFO"));
+    fclose(file);
+    snprintf(filename, sizeof(filename), "%s/%s", getenv("PGDATA"), "standby.signal");
+    if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
     fclose(file);
 }
 
