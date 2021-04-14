@@ -1,6 +1,7 @@
 #include "bin.h"
 
 static const char *pgdata;
+static const char *hostname;
 
 static void main_check(void) {
 }
@@ -94,7 +95,7 @@ static void main_backup(const char *primary) {
         "--pgdata=\"%s\""
         "--progress"
         "--verbose"
-        "--wal-method=stream", primary, getenv("HOSTNAME"), mktemp(tmp));
+        "--wal-method=stream", primary, hostname, mktemp(tmp));
     if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
@@ -109,7 +110,7 @@ static void main_init(void) {
         main_backup(primary);
         free(primary);
     } else {
-        size_t count = strlen(getenv("HOSTNAME"));
+        size_t count = strlen(hostname);
         char *err;
         PQconninfoOption *opts;
         if (!(opts = PQconninfoParse(getenv("PRIMARY_CONNINFO"), &err))) E("!PQconninfoParse and %s", err);
@@ -117,7 +118,7 @@ static void main_init(void) {
             if (!opt->val) continue;
             I("%s = %s", opt->keyword, opt->val);
             if (strcmp(opt->keyword, "host")) continue;
-            if (*(opt->val + count) == ',' && strncmp(opt->val, getenv("HOSTNAME"), count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", getenv("HOSTNAME"), getenv("PRIMARY_CONNINFO"));
+            if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, getenv("PRIMARY_CONNINFO"));
         }
         if (err) PQfreemem(err);
         PQconninfoFree(opts);
@@ -129,6 +130,7 @@ static void main_init(void) {
 
 int main(int argc, char *argv[]) {
     pgdata = getenv("PGDATA");
+    hostname = getenv("HOSTNAME");
     pg_logging_init(argv[0]);
     I("PRIMARY_CONNINFO = %s", getenv("PRIMARY_CONNINFO"));
     switch (pg_check_dir(pgdata)) {
