@@ -12,5 +12,6 @@
 #include <postgres.h>
 
 #include <common/logging.h>
+#include <libpq-fe.h>
 
 #endif // _BIN_H_
