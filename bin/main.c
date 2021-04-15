@@ -59,7 +59,7 @@ static char *main_state(void) {
     if (!(file = fopen(filename, "r"))) E("fopen(\"%s\") and %m", filename);
     while ((read = getline(&line, &len, file)) != -1) {
         if (read > sizeof("pg_save.state = '") - 1 && !strncmp(line, "pg_save.state = '", sizeof("pg_save.state = '") - 1)) {
-            memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1);
+            memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1 - 1);
             if (line) free(line);
             fclose(file);
             I("state = %s", state);
