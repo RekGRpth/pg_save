@@ -219,7 +219,27 @@ void backend_result(const char *host, state_t state) {
 
 void backend_socket(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
+        if (!PQconsumeInput(backend->conn)) {
+            switch (PQstatus(backend->conn)) {
+                case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_AWAITING_RESPONSE: D1("%s:%s CONNECTION_AWAITING_RESPONSE", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_BAD: W("%s:%s CONNECTION_BAD", backend->host, init_state2char(backend->state)); break;
+#if (PG_VERSION_NUM >= 130000)
+                case CONNECTION_CHECK_TARGET: D1("%s:%s CONNECTION_CHECK_TARGET", backend->host, init_state2char(backend->state)); break;
+#endif
+                case CONNECTION_CHECK_WRITABLE: D1("%s:%s CONNECTION_CHECK_WRITABLE", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_CONSUME: D1("%s:%s CONNECTION_CONSUME", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_GSS_STARTUP: D1("%s:%s CONNECTION_GSS_STARTUP", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_MADE: D1("%s:%s CONNECTION_MADE", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_NEEDED: D1("%s:%s CONNECTION_NEEDED", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_OK: D1("%s:%s CONNECTION_OK", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_SETENV: D1("%s:%s CONNECTION_SETENV", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_SSL_STARTUP: D1("%s:%s CONNECTION_SSL_STARTUP", backend->host, init_state2char(backend->state)); break;
+                case CONNECTION_STARTED: D1("%s:%s CONNECTION_STARTED", backend->host, init_state2char(backend->state)); break;
+            }
+            W("%s:%s !PQconsumeInput and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+            return;
+        }
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
