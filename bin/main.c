@@ -6,7 +6,42 @@ static const char *pgdata;
 static const char *primary;
 static const char *primary_conninfo;
 
+static void main_recovery(void) {
+    FILE *file;
+    char filename[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
+    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    fprintf(file, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
+    fclose(file);
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
+    if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
+    fclose(file);
+}
+
+static void main_backup(void) {
+    char tmp[] = "XXXXXX";
+    char str[MAXPGPATH];
+    snprintf(str, sizeof(str), "pg_basebackup"
+        " --dbname=\"host=%s application_name=%s target_session_attrs=read-write\""
+        " --pgdata=\"%s\""
+        " --progress"
+        " --verbose"
+        " --wal-method=stream", primary, hostname, mktemp(tmp));
+    if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
+    if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
+    rmtree(pgdata, true);
+    if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
+}
+
 static void main_rewind(void) {
+    char str[MAXPGPATH];
+    snprintf(str, sizeof(str), "pg_rewind"
+        " --progress"
+        " --restore-target-wal"
+        " --source-server=\"host=%s application_name=%s target_session_attrs=read-write\""
+        " --target-pgdata=\"%s\"", primary, hostname, pgdata);
+    if (system(str)) main_backup();
+    main_recovery();
 }
 
 static char *main_state(void) {
@@ -128,38 +163,11 @@ static void main_initdb(void) {
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
-static void main_recovery(void) {
-    FILE *file;
-    char filename[MAXPGPATH];
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
-    fclose(file);
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
-    if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
-    fclose(file);
-}
-
-static void main_backup(void) {
-    char tmp[] = "XXXXXX";
-    char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "pg_basebackup"
-        "--dbname=\"host=%s application_name=%s target_session_attrs=read-write\""
-        "--pgdata=\"%s\""
-        "--progress"
-        "--verbose"
-        "--wal-method=stream", primary, hostname, mktemp(tmp));
-    if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
-    if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
-    rmtree(pgdata, true);
-    if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
-    main_recovery();
-}
-
 static void main_init(void) {
     I("host = %s", primary ? primary : "(null)");
     if (primary) {
         main_backup();
+        main_recovery();
     } else {
         size_t count = strlen(hostname);
         char *err;
