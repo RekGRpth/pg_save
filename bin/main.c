@@ -13,7 +13,7 @@ static void main_recovery(void) {
     char filename[MAXPGPATH];
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
+    fprintf(file, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
     fclose(file);
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
@@ -81,7 +81,7 @@ static void main_update(void) {
     if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
     while ((read = getline(&line, &len, fin)) != -1) {
         if (read > sizeof("primary_conninfo = '") - 1 && !strncmp(line, "primary_conninfo = '", sizeof("primary_conninfo = '") - 1)) {
-            fprintf(fout, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
+            fprintf(fout, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
         } else if (read > sizeof("pg_save.primary = '") - 1 && !strncmp(line, "pg_save.primary = '", sizeof("pg_save.primary = '") - 1)) {
             fprintf(fout, "pg_save.primary = '%s'\n", primary);
         } else if (read > sizeof("pg_save.wait_primary = '") - 1 && !strncmp(line, "pg_save.wait_primary = '", sizeof("pg_save.wait_primary = '") - 1)) {
