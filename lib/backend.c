@@ -73,30 +73,39 @@ static void backend_fail(Backend *backend) {
     init_reload();
 }
 
+static const char *backend_status(Backend *backend) {
+    switch (PQstatus(backend->conn)) {
+        case CONNECTION_AUTH_OK: return "CONNECTION_AUTH_OK";
+        case CONNECTION_AWAITING_RESPONSE: return "CONNECTION_AWAITING_RESPONSE";
+        case CONNECTION_BAD: return "CONNECTION_BAD";
+#if (PG_VERSION_NUM >= 130000)
+        case CONNECTION_CHECK_TARGET: return "CONNECTION_CHECK_TARGET";
+#endif
+        case CONNECTION_CHECK_WRITABLE: return "CONNECTION_CHECK_WRITABLE";
+        case CONNECTION_CONSUME: return "CONNECTION_CONSUME";
+        case CONNECTION_GSS_STARTUP: return "CONNECTION_GSS_STARTUP";
+        case CONNECTION_MADE: return "CONNECTION_MADE";
+        case CONNECTION_NEEDED: return "CONNECTION_NEEDED";
+        case CONNECTION_OK: return "CONNECTION_OK";
+        case CONNECTION_SETENV: return "CONNECTION_SETENV";
+        case CONNECTION_SSL_STARTUP: return "CONNECTION_SSL_STARTUP";
+        case CONNECTION_STARTED: return "CONNECTION_STARTED";
+    }
+    return "";
+}
+
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
-        case CONNECTION_AUTH_OK: D1("%s:%s CONNECTION_AUTH_OK", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_AWAITING_RESPONSE: D1("%s:%s CONNECTION_AWAITING_RESPONSE", backend->host, init_state2char(backend->state)); break;
         case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
-#if (PG_VERSION_NUM >= 130000)
-        case CONNECTION_CHECK_TARGET: D1("%s:%s CONNECTION_CHECK_TARGET", backend->host, init_state2char(backend->state)); break;
-#endif
-        case CONNECTION_CHECK_WRITABLE: D1("%s:%s CONNECTION_CHECK_WRITABLE", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_CONSUME: D1("%s:%s CONNECTION_CONSUME", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_GSS_STARTUP: D1("%s:%s CONNECTION_GSS_STARTUP", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_MADE: D1("%s:%s CONNECTION_MADE", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_NEEDED: D1("%s:%s CONNECTION_NEEDED", backend->host, init_state2char(backend->state)); break;
         case CONNECTION_OK: D1("%s:%s CONNECTION_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
-        case CONNECTION_SETENV: D1("%s:%s CONNECTION_SETENV", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_SSL_STARTUP: D1("%s:%s CONNECTION_SSL_STARTUP", backend->host, init_state2char(backend->state)); break;
-        case CONNECTION_STARTED: D1("%s:%s CONNECTION_STARTED", backend->host, init_state2char(backend->state)); break;
+        default: break;
     }
     switch (poll(backend->conn)) {
-        case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", backend->host, init_state2char(backend->state)); break;
-        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
-        case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
-        case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE and %s", backend->host, init_state2char(backend->state), backend_status(backend)); break;
+        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
+        case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend_connected(backend); return;
+        case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->events = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
     }
 }
 
@@ -215,27 +224,6 @@ void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
     if (RecoveryInProgress() && !strcmp(host, getenv("HOSTNAME"))) return standby_update(state);
     backend ? backend_update(backend, state) : backend_create(host, state);
-}
-
-static const char *backend_status(Backend *backend) {
-    switch (PQstatus(backend->conn)) {
-        case CONNECTION_AUTH_OK: return "CONNECTION_AUTH_OK";
-        case CONNECTION_AWAITING_RESPONSE: return "CONNECTION_AWAITING_RESPONSE";
-        case CONNECTION_BAD: return "CONNECTION_BAD";
-#if (PG_VERSION_NUM >= 130000)
-        case CONNECTION_CHECK_TARGET: return "CONNECTION_CHECK_TARGET";
-#endif
-        case CONNECTION_CHECK_WRITABLE: return "CONNECTION_CHECK_WRITABLE";
-        case CONNECTION_CONSUME: return "CONNECTION_CONSUME";
-        case CONNECTION_GSS_STARTUP: return "CONNECTION_GSS_STARTUP";
-        case CONNECTION_MADE: return "CONNECTION_MADE";
-        case CONNECTION_NEEDED: return "CONNECTION_NEEDED";
-        case CONNECTION_OK: return "CONNECTION_OK";
-        case CONNECTION_SETENV: return "CONNECTION_SETENV";
-        case CONNECTION_SSL_STARTUP: return "CONNECTION_SSL_STARTUP";
-        case CONNECTION_STARTED: return "CONNECTION_STARTED";
-    }
-    return "";
 }
 
 void backend_socket(Backend *backend) {
