@@ -174,18 +174,20 @@ static void main_init(void) {
         main_backup();
         main_recovery();
     } else {
-        size_t count = strlen(hostname);
-        char *err;
-        PQconninfoOption *opts;
-        if (!(opts = PQconninfoParse(primary_conninfo, &err))) E("!PQconninfoParse and %s", err);
-        for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
-            if (!opt->val) continue;
-            I("%s = %s", opt->keyword, opt->val);
-            if (strcmp(opt->keyword, "host")) continue;
-            if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
+        if (primary_conninfo) {
+            size_t count = strlen(hostname);
+            char *err;
+            PQconninfoOption *opts;
+            if (!(opts = PQconninfoParse(primary_conninfo, &err))) E("!PQconninfoParse and %s", err);
+            for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
+                if (!opt->val) continue;
+                I("%s = %s", opt->keyword, opt->val);
+                if (strcmp(opt->keyword, "host")) continue;
+                if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
+            }
+            if (err) PQfreemem(err);
+            PQconninfoFree(opts);
         }
-        if (err) PQfreemem(err);
-        PQconninfoFree(opts);
         main_initdb();
         main_conf();
         main_hba();
@@ -196,6 +198,7 @@ static char *main_primary(void) {
     static char primary[MAXPGPATH];
     PGconn *conn;
     PGresult *result;
+    if (!primary_conninfo) return NULL;
     switch (PQping(primary_conninfo)) {
         case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
         case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
