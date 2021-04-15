@@ -6,7 +6,10 @@ static const char *pgdata;
 static const char *primary;
 static const char *primary_conninfo;
 
-static void main_update(const char *primary) {
+static char *main_state(void) {
+}
+
+static void main_update(void) {
     char *line = NULL;
     char namein[MAXPGPATH];
     char nameout[MAXPGPATH];
@@ -40,7 +43,7 @@ static void main_check(void) {
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
         if (!primary) return;
-        main_update(primary);
+        main_update();
     } else {
     }
 }
@@ -99,7 +102,7 @@ static void main_initdb(void) {
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
-static void main_recovery(const char *primary) {
+static void main_recovery(void) {
     FILE *file;
     char filename[MAXPGPATH];
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
@@ -111,7 +114,7 @@ static void main_recovery(const char *primary) {
     fclose(file);
 }
 
-static void main_backup(const char *primary) {
+static void main_backup(void) {
     char tmp[] = "XXXXXX";
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), "pg_basebackup"
@@ -124,13 +127,13 @@ static void main_backup(const char *primary) {
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
     if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
-    main_recovery(primary);
+    main_recovery();
 }
 
 static void main_init(void) {
     I("host = %s", primary ? primary : "(null)");
     if (primary) {
-        main_backup(primary);
+        main_backup();
     } else {
         size_t count = strlen(hostname);
         char *err;
