@@ -47,7 +47,7 @@ static void standby_reprimary(Backend *backend) {
 }
 
 void standby_failed(Backend *backend) {
-    if (backend->state > state_primary) { backend_update(backend, state_wait_standby); backend_finish(backend); return; }
+    if (backend->state > state_primary) { /*backend_update(backend, state_wait_standby); */backend_finish(backend); return; }
     if (!backend_nevents()) { backend_update(backend, state_wait_primary); init_set_state(state_wait_standby); if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL); return; }
     switch (init_state) {
         case state_sync: standby_promote(backend); break;
