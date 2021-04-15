@@ -62,6 +62,7 @@ static char *main_state(void) {
             memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1);
             if (line) free(line);
             fclose(file);
+            I("state = %s", state);
             return state;
         }
     }
