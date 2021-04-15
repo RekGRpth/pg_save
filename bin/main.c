@@ -229,5 +229,6 @@ int main(int argc, char *argv[]) {
         case 4: I("directory \"%s\" exists and not empty", pgdata); main_check(); break;
         case -1: E("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
     }
-    exit(EXIT_SUCCESS);
+    execvp("postmaster", NULL);
+    E("execlp(\"postmaster\")");
 }
