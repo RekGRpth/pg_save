@@ -206,15 +206,15 @@ static char *main_primary(void) {
 int main(int argc, char *argv[]) {
     char filename[MAXPGPATH];
     pg_logging_init(argv[0]);
-    arclog = getenv("ARCLOG");
+    if (!(arclog = getenv("ARCLOG"))) E("!getenv(\"ARCLOG\")");
+    if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
+    if (!(pgdata = getenv("PGDATA"))) E("!getenv(\"PGDATA\")");
+    if (!(primary_conninfo = getenv("PRIMARY_CONNINFO"))) E("!getenv(\"PRIMARY_CONNINFO\")");
     cluster_name = getenv("CLUSTER_NAME");
-    hostname = getenv("HOSTNAME");
-    pgdata = getenv("PGDATA");
-    primary_conninfo = getenv("PRIMARY_CONNINFO");
     primary = main_primary();
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
     I("arclog = %s", arclog);
-    I("cluster_name = %s", cluster_name);
+    I("cluster_name = %s", cluster_name ? cluster_name : "(null)");
     I("hostname = %s", hostname);
     I("pgdata = %s", pgdata);
     I("primary_conninfo = %s", primary_conninfo);
