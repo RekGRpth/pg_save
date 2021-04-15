@@ -6,6 +6,9 @@ static const char *pgdata;
 static const char *primary;
 static const char *primary_conninfo;
 
+static void main_rewind(void) {
+}
+
 static char *main_state(void) {
     char filename[MAXPGPATH];
     char *line = NULL;
@@ -66,6 +69,8 @@ static void main_check(void) {
         main_update();
     } else {
         if (!(state = main_state())) E("!main_state");
+        if (!strcmp(state, "wait_standby") && !primary) E("pg_save.state == wait_standby && !primary");
+        if (primary) main_rewind();
     }
 }
 
