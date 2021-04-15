@@ -1,5 +1,6 @@
 #include "bin.h"
 
+static const char *arclog;
 static const char *cluster_name;
 static const char *hostname;
 static const char *pgdata;
@@ -203,17 +204,23 @@ static char *main_primary(void) {
 }
 
 int main(int argc, char *argv[]) {
+    char filename[MAXPGPATH];
     pg_logging_init(argv[0]);
+    arclog = getenv("ARCLOG");
     cluster_name = getenv("CLUSTER_NAME");
     hostname = getenv("HOSTNAME");
     pgdata = getenv("PGDATA");
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     primary = main_primary();
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
+    I("arclog = %s", arclog);
     I("cluster_name = %s", cluster_name);
     I("hostname = %s", hostname);
     I("pgdata = %s", pgdata);
     I("primary_conninfo = %s", primary_conninfo);
     I("primary = %s", primary ? primary : "(null)");
+    if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
+    if (pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
     switch (pg_check_dir(pgdata)) {
         case 0: E("directory \"%s\" does not exist", pgdata); break;
         case 1: I("directory \"%s\" exists and empty", pgdata); main_init(); break;
