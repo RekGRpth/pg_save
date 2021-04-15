@@ -205,7 +205,6 @@ static char *main_primary(void) {
 }
 
 int main(int argc, char *argv[]) {
-    char *arg[] = {NULL};
     char filename[MAXPGPATH];
     pg_logging_init(argv[0]);
     progname = get_progname(argv[0]);
@@ -233,6 +232,6 @@ int main(int argc, char *argv[]) {
         case 4: I("directory \"%s\" exists and not empty", pgdata); main_check(); break;
         case -1: E("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
     }
-    execvp("postmaster", arg);
+    execlp("postmaster", "postmaster", NULL);
     E("execlp(\"postmaster\")");
 }
