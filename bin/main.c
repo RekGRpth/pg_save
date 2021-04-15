@@ -30,6 +30,7 @@ static void main_backup(void) {
         " --verbose"
         " --wal-method=stream", primary, hostname, mktemp(tmp));
     if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
+    I(str);
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
     if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
@@ -42,6 +43,7 @@ static void main_rewind(void) {
         " --restore-target-wal"
         " --source-server=\"host=%s application_name=%s target_session_attrs=read-write\""
         " --target-pgdata=\"%s\"", primary, hostname, pgdata);
+    I(str);
     if (system(str)) main_backup();
     main_recovery();
 }
@@ -162,6 +164,7 @@ static void main_hba(void) {
 static void main_initdb(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", pgdata);
+    I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
