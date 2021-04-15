@@ -6,6 +6,7 @@ static const char *hostname;
 static const char *pgdata;
 static const char *primary;
 static const char *primary_conninfo;
+static const char *progname;
 
 static void main_recovery(void) {
     FILE *file;
@@ -206,6 +207,8 @@ static char *main_primary(void) {
 int main(int argc, char *argv[]) {
     char filename[MAXPGPATH];
     pg_logging_init(argv[0]);
+    progname = get_progname(argv[0]);
+    set_pglocale_pgservice(argv[0], PG_TEXTDOMAIN("pg_save"));
     if (!(arclog = getenv("ARCLOG"))) E("!getenv(\"ARCLOG\")");
     if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
     if (!(pgdata = getenv("PGDATA"))) E("!getenv(\"PGDATA\")");
