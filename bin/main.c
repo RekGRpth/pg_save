@@ -6,7 +6,7 @@ static const char *pgdata;
 static const char *primary_conninfo;
 
 static char *main_primary(void) {
-    char *host;
+    static char primary[MAXPGPATH];
     PGconn *conn;
     switch (PQping(primary_conninfo)) {
         case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
@@ -15,9 +15,9 @@ static char *main_primary(void) {
         case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
     }
     if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
-    host = strdup(PQhost(conn));
+    strcpy(primary, PQhost(conn));
     PQfinish(conn);
-    return host;
+    return primary;
 }
 
 static void main_update(const char *primary) {
@@ -58,7 +58,6 @@ static void main_check(void) {
         main_update(primary);
     } else {
     }
-    if (primary) free(primary);
 }
 
 static void main_conf(void) {
@@ -148,7 +147,6 @@ static void main_init(void) {
     I("host = %s", primary ? primary : "(null)");
     if (primary) {
         main_backup(primary);
-        free(primary);
     } else {
         size_t count = strlen(hostname);
         char *err;
