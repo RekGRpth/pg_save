@@ -21,18 +21,24 @@ static char *main_primary(void) {
 }
 
 static void main_update(const char *primary) {
-    char *line;
+    char *line = NULL;
     char namein[MAXPGPATH];
     char nameout[MAXPGPATH];
     FILE *fin, *fout;
-    size_t len;
+    size_t len = 0;
     ssize_t read;
     snprintf(namein, sizeof(namein), "%s/%s", pgdata, "postgresql.auto.conf");
     snprintf(nameout, sizeof(nameout), "%s/%s", pgdata, "postgresql.auto.conf.new");
     if (!(fin = fopen(namein, "r"))) E("fopen(\"%s\") and %m", namein);
     if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
     while ((read = getline(&line, &len, fin)) != -1) {
+        if (read > sizeof("primary_conninfo = ") - 1 && !strncmp(line, "primary_conninfo = ", sizeof("primary_conninfo = ") - 1)) {
+            fprintf(fout, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'", primary, hostname);
+        } else {
+            fputs(line, fout);
+        }
     }
+    if (line) free(line);
     fclose(fout);
     fclose(fin);
 }
@@ -104,12 +110,12 @@ static void main_initdb(void) {
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
-static void main_recovery(void) {
+static void main_recovery(const char *primary) {
     FILE *file;
     char filename[MAXPGPATH];
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = '%s'\n", primary_conninfo);
+    fprintf(file, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
     fclose(file);
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
@@ -129,7 +135,7 @@ static void main_backup(const char *primary) {
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
     if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
-    main_recovery();
+    main_recovery(primary);
 }
 
 static void main_init(void) {
