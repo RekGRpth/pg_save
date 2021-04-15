@@ -7,6 +7,25 @@ static const char *primary;
 static const char *primary_conninfo;
 
 static char *main_state(void) {
+    char filename[MAXPGPATH];
+    char *line = NULL;
+    FILE *file;
+    size_t len = 0;
+    ssize_t read;
+    static char state[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
+    if (!(file = fopen(filename, "r"))) E("fopen(\"%s\") and %m", filename);
+    while ((read = getline(&line, &len, file)) != -1) {
+        if (read > sizeof("pg_save.state = '") - 1 && !strncmp(line, "pg_save.state = '", sizeof("pg_save.state = '") - 1)) {
+            memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1);
+            if (line) free(line);
+            fclose(file);
+            return state;
+        }
+    }
+    if (line) free(line);
+    fclose(file);
+    return NULL;
 }
 
 static void main_update(void) {
@@ -21,11 +40,11 @@ static void main_update(void) {
     if (!(fin = fopen(namein, "r"))) E("fopen(\"%s\") and %m", namein);
     if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
     while ((read = getline(&line, &len, fin)) != -1) {
-        if (read > sizeof("primary_conninfo = ") - 1 && !strncmp(line, "primary_conninfo = ", sizeof("primary_conninfo = ") - 1)) {
+        if (read > sizeof("primary_conninfo = '") - 1 && !strncmp(line, "primary_conninfo = '", sizeof("primary_conninfo = '") - 1)) {
             fprintf(fout, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
-        } else if (read > sizeof("pg_save.primary = ") - 1 && !strncmp(line, "pg_save.primary = ", sizeof("pg_save.primary = ") - 1)) {
+        } else if (read > sizeof("pg_save.primary = '") - 1 && !strncmp(line, "pg_save.primary = '", sizeof("pg_save.primary = '") - 1)) {
             fprintf(fout, "pg_save.primary = '%s'\n", primary);
-        } else if (read > sizeof("pg_save.wait_primary = ") - 1 && !strncmp(line, "pg_save.wait_primary = ", sizeof("pg_save.wait_primary = ") - 1)) {
+        } else if (read > sizeof("pg_save.wait_primary = '") - 1 && !strncmp(line, "pg_save.wait_primary = '", sizeof("pg_save.wait_primary = '") - 1)) {
             fprintf(fout, "pg_save.wait_primary = '%s'\n", primary);
         } else {
             fputs(line, fout);
@@ -188,5 +207,5 @@ int main(int argc, char *argv[]) {
         case 4: I("directory \"%s\" exists and not empty", pgdata); main_check(); break;
         case -1: E("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
     }
-    return 0;
+    exit(EXIT_SUCCESS);
 }
