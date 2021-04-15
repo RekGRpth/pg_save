@@ -33,7 +33,11 @@ static void main_update(const char *primary) {
     if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
     while ((read = getline(&line, &len, fin)) != -1) {
         if (read > sizeof("primary_conninfo = ") - 1 && !strncmp(line, "primary_conninfo = ", sizeof("primary_conninfo = ") - 1)) {
-            fprintf(fout, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'", primary, hostname);
+            fprintf(fout, "primary_conninfo = '\"host=%s application_name=%s target_session_attrs=read-write\"'\n", primary, hostname);
+        } else if (read > sizeof("pg_save.primary = ") - 1 && !strncmp(line, "pg_save.primary = ", sizeof("pg_save.primary = ") - 1)) {
+            fprintf(fout, "pg_save.primary = '%s'\n", primary);
+        } else if (read > sizeof("pg_save.wait_primary = ") - 1 && !strncmp(line, "pg_save.wait_primary = ", sizeof("pg_save.wait_primary = ") - 1)) {
+            fprintf(fout, "pg_save.wait_primary = '%s'\n", primary);
         } else {
             fputs(line, fout);
         }
@@ -41,6 +45,7 @@ static void main_update(const char *primary) {
     if (line) free(line);
     fclose(fout);
     fclose(fin);
+    if (rename(nameout, namein)) E("rename(\"%s\", \"%s\") and %m", nameout, namein);
 }
 
 static void main_check(void) {
