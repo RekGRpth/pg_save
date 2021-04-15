@@ -195,6 +195,7 @@ static void main_init(void) {
 static char *main_primary(void) {
     static char primary[MAXPGPATH];
     PGconn *conn;
+    PGresult *result;
     switch (PQping(primary_conninfo)) {
         case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
         case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
@@ -202,7 +203,11 @@ static char *main_primary(void) {
         case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
     }
     if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
-    strcpy(primary, PQhost(conn));
+    if (!(result = PQexec(conn, "SELECT current_setting('pg_save.hostname', false) AS hostname"))) { W("!PQexec and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); PQfinish(conn); return NULL; }
+    if (PQresultStatus(result) != PGRES_TUPLES_OK) { W("PQresultStatus = %s and %.*s", PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); PQclear(result); PQfinish(conn); return NULL; }
+    if (PQntuples(result) != 1) { W("PQntuples != 1"); PQclear(result); PQfinish(conn); return NULL; }
+    strcpy(primary, PQgetvalue(result, 0, PQfnumber(result, "hostname")));
+    PQclear(result);
     PQfinish(conn);
     return primary;
 }
