@@ -22,15 +22,19 @@ static char *main_primary(void) {
 
 static void main_update(const char *primary) {
     char *line;
-    FILE *file;
+    char namein[MAXPGPATH];
+    char nameout[MAXPGPATH];
+    FILE *fin, *fout;
     size_t len;
     ssize_t read;
-    char filename[MAXPGPATH];
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
-    if (!(file = fopen(filename, "a+"))) E("fopen(\"%s\") and %m", filename);
-    while ((read = getline(&line, &len, file)) != -1) {
+    snprintf(namein, sizeof(namein), "%s/%s", pgdata, "postgresql.auto.conf");
+    snprintf(nameout, sizeof(nameout), "%s/%s", pgdata, "postgresql.auto.conf.new");
+    if (!(fin = fopen(namein, "r"))) E("fopen(\"%s\") and %m", namein);
+    if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
+    while ((read = getline(&line, &len, fin)) != -1) {
     }
-    fclose(file);
+    fclose(fout);
+    fclose(fin);
 }
 
 static void main_check(void) {
