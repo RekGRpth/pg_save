@@ -58,12 +58,14 @@ static void main_update(void) {
 
 static void main_check(void) {
     char filename[MAXPGPATH];
+    const char *state;
     struct stat sb;
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
         if (!primary) return;
         main_update();
     } else {
+        if (!(state = main_state())) E("!main_state");
     }
 }
 
