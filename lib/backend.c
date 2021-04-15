@@ -217,30 +217,30 @@ void backend_result(const char *host, state_t state) {
     backend ? backend_update(backend, state) : backend_create(host, state);
 }
 
+static const char *backend_status(Backend *backend) {
+    switch (PQstatus(backend->conn)) {
+        case CONNECTION_AUTH_OK: return "CONNECTION_AUTH_OK";
+        case CONNECTION_AWAITING_RESPONSE: return "CONNECTION_AWAITING_RESPONSE";
+        case CONNECTION_BAD: return "CONNECTION_BAD";
+#if (PG_VERSION_NUM >= 130000)
+        case CONNECTION_CHECK_TARGET: return "CONNECTION_CHECK_TARGET";
+#endif
+        case CONNECTION_CHECK_WRITABLE: return "CONNECTION_CHECK_WRITABLE";
+        case CONNECTION_CONSUME: return "CONNECTION_CONSUME";
+        case CONNECTION_GSS_STARTUP: return "CONNECTION_GSS_STARTUP";
+        case CONNECTION_MADE: return "CONNECTION_MADE";
+        case CONNECTION_NEEDED: return "CONNECTION_NEEDED";
+        case CONNECTION_OK: return "CONNECTION_OK";
+        case CONNECTION_SETENV: return "CONNECTION_SETENV";
+        case CONNECTION_SSL_STARTUP: return "CONNECTION_SSL_STARTUP";
+        case CONNECTION_STARTED: return "CONNECTION_STARTED";
+    }
+    return "";
+}
+
 void backend_socket(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) {
-            const char *status = "";
-            switch (PQstatus(backend->conn)) {
-                case CONNECTION_AUTH_OK: status = "CONNECTION_AUTH_OK"; break;
-                case CONNECTION_AWAITING_RESPONSE: status = "CONNECTION_AWAITING_RESPONSE"; break;
-                case CONNECTION_BAD: status = "CONNECTION_BAD"; break;
-#if (PG_VERSION_NUM >= 130000)
-                case CONNECTION_CHECK_TARGET: status = "CONNECTION_CHECK_TARGET"; break;
-#endif
-                case CONNECTION_CHECK_WRITABLE: status = "CONNECTION_CHECK_WRITABLE"; break;
-                case CONNECTION_CONSUME: status = "CONNECTION_CONSUME"; break;
-                case CONNECTION_GSS_STARTUP: status = "CONNECTION_GSS_STARTUP"; break;
-                case CONNECTION_MADE: status = "CONNECTION_MADE"; break;
-                case CONNECTION_NEEDED: status = "CONNECTION_NEEDED"; break;
-                case CONNECTION_OK: status = "CONNECTION_OK"; break;
-                case CONNECTION_SETENV: status = "CONNECTION_SETENV"; break;
-                case CONNECTION_SSL_STARTUP: status = "CONNECTION_SSL_STARTUP"; break;
-                case CONNECTION_STARTED: status = "CONNECTION_STARTED"; break;
-            }
-            W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), status, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-            return;
-        }
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
         if (PQisBusy(backend->conn)) { backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
