@@ -44,6 +44,12 @@ static Node *makeStringConst(char *str, int location) {
     return (Node *)n;
 }
 
+void init_backend(void) {
+#define XX(name) if (init_state != state_##name && init_##name) backend_create(init_##name, state_##name);
+    STATE_MAP(XX)
+#undef XX
+}
+
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
     D1("HOSTNAME = '%s'", getenv("HOSTNAME"));

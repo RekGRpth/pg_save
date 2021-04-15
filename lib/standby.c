@@ -69,7 +69,7 @@ void standby_fini(void) {
 
 void standby_init(void) {
     if (init_state <= state_primary) init_set_state(state_initial);
-    standby_create(PrimaryConnInfo);
+    if (!standby_primary) standby_create(PrimaryConnInfo);
 }
 
 void standby_notify(Backend *backend, state_t state) {

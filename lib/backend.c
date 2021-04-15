@@ -212,6 +212,7 @@ void backend_idle(Backend *backend) {
 
 void backend_init(void) {
     queue_init(&backend_queue);
+    init_backend();
     RecoveryInProgress() ? standby_init() : primary_init();
     init_reload();
 }
