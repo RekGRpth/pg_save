@@ -20,15 +20,30 @@ static char *main_primary(void) {
     return host;
 }
 
+static void main_update(const char *primary) {
+    char *line;
+    FILE *file;
+    size_t len;
+    ssize_t read;
+    char filename[MAXPGPATH];
+    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
+    if (!(file = fopen(filename, "a+"))) E("fopen(\"%s\") and %m", filename);
+    while ((read = getline(&line, &len, file)) != -1) {
+    }
+    fclose(file);
+}
+
 static void main_check(void) {
     char filename[MAXPGPATH];
     struct stat sb;
     char *primary = main_primary();
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
-        if (!primary) E("!primary");
+        if (!primary) return;
+        main_update(primary);
     } else {
     }
+    if (primary) free(primary);
 }
 
 static void main_conf(void) {
