@@ -46,17 +46,17 @@ static Node *makeStringConst(char *str, int location) {
 
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
-    D1("HOSTNAME = %s", getenv("HOSTNAME"));
+    D1("HOSTNAME = '%s'", getenv("HOSTNAME"));
     D1("restart = %i", init_restart);
-    D1("state = %s", init_state2char(init_state));
+    D1("state = '%s'", init_state2char(init_state));
     D1("timeout = %i", init_timeout);
-#define XX(name) if (init_##name) D1(#name" = %s", init_##name);
+#define XX(name) if (init_##name) D1(#name" = '%s'", init_##name);
     STATE_MAP(XX)
 #undef XX
-    D1("standby_signal_file_found = %s", standby_signal_file_found ? "true" : "false");
-    if (IsBackgroundWorker) D1("RecoveryInProgress = %s", RecoveryInProgress() ? "true" : "false");
-    if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = %s", PrimaryConnInfo);
-    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = %s", SyncRepStandbyNames);
+    D1("standby_signal_file_found = '%s'", standby_signal_file_found ? "true" : "false");
+    if (IsBackgroundWorker) D1("RecoveryInProgress = '%s'", RecoveryInProgress() ? "true" : "false");
+    if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = '%s'", PrimaryConnInfo);
+    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = '%s'", SyncRepStandbyNames);
 }
 
 void init_reload(void) {

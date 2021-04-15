@@ -216,12 +216,12 @@ int main(int argc, char *argv[]) {
     cluster_name = getenv("CLUSTER_NAME");
     primary = main_primary();
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
-    I("arclog = %s", arclog);
-    I("cluster_name = %s", cluster_name ? cluster_name : "(null)");
-    I("hostname = %s", hostname);
-    I("pgdata = %s", pgdata);
-    I("primary_conninfo = %s", primary_conninfo);
-    I("primary = %s", primary ? primary : "(null)");
+    I("arclog = '%s'", arclog);
+    I("cluster_name = '%s'", cluster_name ? cluster_name : "(null)");
+    I("hostname = '%s'", hostname);
+    I("pgdata = '%s'", pgdata);
+    I("primary_conninfo = '%s'", primary_conninfo);
+    I("primary = '%s'", primary ? primary : "(null)");
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
     if (pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
     switch (pg_check_dir(pgdata)) {
