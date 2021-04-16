@@ -2,7 +2,6 @@
 #define _LIB_H_
 
 #include "common.h"
-#include "queue.h"
 
 #define D1(fmt, ...) ereport(DEBUG1, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
 #define D2(fmt, ...) ereport(DEBUG2, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
@@ -30,6 +29,7 @@
 #include <postmaster/interrupt.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <tcop/utility.h>
 #include <unistd.h>
@@ -46,8 +46,8 @@ typedef struct Backend {
     char *host;
     int attempt;
     int events;
+    LIST_ENTRY(Backend) item;
     PGconn *conn;
-    queue_t queue;
     state_t state;
     void (*socket) (struct Backend *backend);
 } Backend;
