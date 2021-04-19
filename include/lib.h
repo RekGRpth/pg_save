@@ -29,7 +29,6 @@
 #include <postmaster/interrupt.h>
 #include <replication/walsender_private.h>
 #include <storage/ipc.h>
-#include <sys/queue.h>
 #include <sys/stat.h>
 #include <tcop/utility.h>
 #include <unistd.h>
@@ -44,9 +43,9 @@ typedef enum state_t {
 
 typedef struct Backend {
     char *host;
+    dlist_node item;
     int attempt;
     int events;
-    LIST_ENTRY(Backend) item;
     PGconn *conn;
     state_t state;
     void (*socket) (struct Backend *backend);
