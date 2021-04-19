@@ -7,7 +7,7 @@ static dlist_head backends = DLIST_STATIC_INIT(backends);
 Backend *backend_host(const char *host) {
     dlist_iter iter;
     if (host) dlist_foreach(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         if (!strcmp(host, backend->host)) return backend;
     }
     return NULL;
@@ -16,7 +16,7 @@ Backend *backend_host(const char *host) {
 Backend *backend_state(state_t state) {
     dlist_iter iter;
     if (state != state_unknown) dlist_foreach(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         if (backend->state == state) return backend;
     }
     return NULL;
@@ -26,7 +26,7 @@ int backend_nevents(void) {
     int nevents = 0;
     dlist_iter iter;
     dlist_foreach(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if (PQsocket(backend->conn) < 0) continue;
         nevents++;
@@ -154,7 +154,7 @@ void backend_create(const char *host, state_t state) {
     backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->host = MemoryContextStrdup(TopMemoryContext, host);
     backend->state = state;
-    dlist_push_head(&backends, &backend->item);
+    dlist_push_head(&backends, &backend->node);
     backend_connect_or_reset(backend);
     backend_created(backend);
 }
@@ -162,7 +162,7 @@ void backend_create(const char *host, state_t state) {
 void backend_event(WaitEventSet *set) {
     dlist_iter iter;
     dlist_foreach(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         int fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if ((fd = PQsocket(backend->conn)) < 0) continue;
@@ -182,7 +182,7 @@ static void backend_finished(Backend *backend) {
 }
 
 void backend_finish(Backend *backend) {
-    dlist_delete(&backend->item);
+    dlist_delete(&backend->node);
     backend_finished(backend);
     PQfinish(backend->conn);
     pfree(backend->host);
@@ -192,7 +192,7 @@ void backend_finish(Backend *backend) {
 void backend_fini(void) {
     dlist_mutable_iter iter;
     dlist_foreach_modify(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         backend_finish(backend);
     }
     RecoveryInProgress() ? standby_fini() : primary_fini();
@@ -242,7 +242,7 @@ void backend_socket(Backend *backend) {
 void backend_timeout(void) {
     dlist_iter iter;
     dlist_foreach(iter, &backends) {
-        Backend *backend = dlist_container(Backend, item, iter.cur);
+        Backend *backend = dlist_container(Backend, node, iter.cur);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();

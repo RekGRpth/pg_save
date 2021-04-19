@@ -43,7 +43,7 @@ typedef enum state_t {
 
 typedef struct Backend {
     char *host;
-    dlist_node item;
+    dlist_node node;
     int attempt;
     int events;
     PGconn *conn;
