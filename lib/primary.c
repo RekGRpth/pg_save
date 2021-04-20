@@ -13,7 +13,6 @@ void primary_created(Backend *backend) {
 }
 
 void primary_failed(Backend *backend) {
-    //backend_update(backend, state_wait_standby);
     backend_finish(backend);
     if (init_state != state_primary) return;
     if (backend_nevents()) return;
@@ -53,13 +52,11 @@ static void primary_result(void) {
         case state_primary: init_set_state(state_wait_primary); break;
         case state_single: break;
         case state_wait_primary: break;
-//        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
         case state_primary: break;
         case state_single: init_set_state(state_wait_primary); break;
         case state_wait_primary: break;
-//        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
     for (uint64 row = 0; row < SPI_tuptable->numvals; row++) {

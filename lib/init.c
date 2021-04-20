@@ -176,9 +176,8 @@ static void init_work(void) {
 
 static void readRecoverySignalFile(void) {
     struct stat buf;
-    //if (IsBootstrapProcessingMode()) return;
     if (!stat(STANDBY_SIGNAL_FILE, &buf)) {
-        int fd = BasicOpenFilePerm(STANDBY_SIGNAL_FILE, O_RDWR | PG_BINARY /*| get_sync_bit(sync_method)*/, S_IRUSR | S_IWUSR);
+        int fd = BasicOpenFilePerm(STANDBY_SIGNAL_FILE, O_RDWR | PG_BINARY, S_IRUSR | S_IWUSR);
         if (fd >= 0) {
             (void) pg_fsync(fd);
             close(fd);
