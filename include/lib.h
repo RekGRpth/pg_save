@@ -57,7 +57,7 @@ Backend *backend_host(const char *host);
 Backend *backend_state(state_t state);
 char *TextDatumGetCStringMy(MemoryContextData *memoryContext, Datum datum);
 const char *init_state2char(state_t state);
-Datum SPI_getbinval_my(HeapTuple tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
+Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 int backend_nevents(void);
 SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 state_t init_char2state(const char *state);
