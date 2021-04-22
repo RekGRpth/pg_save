@@ -66,14 +66,14 @@ static void backend_connected(Backend *backend) {
     init_set_host(backend->host, backend->state);
     backend_query(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
-    init_reload();
+//    init_reload();
 }
 
 static void backend_fail(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     D1("%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
-    init_reload();
+//    init_reload();
 }
 
 static const char *backend_status(Backend *backend) {
@@ -178,7 +178,7 @@ void backend_event(WaitEventSet *set) {
 static void backend_finished(Backend *backend) {
     D1("%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
-    init_reload();
+//    init_reload();
 }
 
 void backend_finish(Backend *backend) {
@@ -218,7 +218,7 @@ void backend_idle(Backend *backend) {
 void backend_init(void) {
     init_backend();
     RecoveryInProgress() ? standby_init() : primary_init();
-    init_reload();
+//    init_reload();
 }
 
 void backend_reset(Backend *backend) {
@@ -228,7 +228,7 @@ void backend_reset(Backend *backend) {
 static void backend_updated(Backend *backend) {
     D1("%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
-    init_reload();
+//    init_reload();
 }
 
 static void backend_update(Backend *backend, state_t state) {

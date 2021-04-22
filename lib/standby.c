@@ -94,7 +94,7 @@ static void standby_result(PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         backend_result(host, init_char2state(state));
     }
-    init_reload();
+//    init_reload();
 }
 
 static void standby_query_socket(Backend *backend) {
@@ -128,5 +128,5 @@ void standby_updated(Backend *backend) {
 void standby_update(state_t state) {
     if (init_state == state) return;
     init_set_state(state);
-    init_reload();
+//    init_reload();
 }
