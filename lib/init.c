@@ -73,11 +73,11 @@ void init_reload(void) {
 
 void init_set_host(const char *host, state_t state) {
     StringInfoData buf;
-    if (state == state_unknown) return;
     D1("host = %s, state = %s", host, init_state2char(state));
 #define XX(name) if (state != state_##name && init_##name && !strcmp(init_##name, host)) init_set_system("pg_save."#name, NULL);
     STATE_MAP(XX)
 #undef XX
+    if (state == state_unknown) return;
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "pg_save.%s", init_state2char(state));
     init_set_system(buf.data, host);

@@ -72,6 +72,7 @@ static void backend_connected(Backend *backend) {
 static void backend_fail(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
     D1("%s:%s", backend->host, init_state2char(backend->state));
+    init_set_host(backend->host, state_unknown);
     RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
 //    init_reload();
 }
