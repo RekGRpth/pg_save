@@ -142,9 +142,9 @@ void standby_update(state_t state) {
     if (init_state == state) return;
     init_set_state(state);
     switch (init_state) {
-        case state_async:
-        case state_potential:
-        case state_quorum:
+        case state_async: init_set_host(standby_primary->host, state_primary); break;
+        case state_potential: init_set_host(standby_primary->host, state_primary); break;
+        case state_quorum: init_set_host(standby_primary->host, state_primary); break;
         case state_sync: init_set_host(standby_primary->host, state_primary); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
