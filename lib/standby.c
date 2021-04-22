@@ -75,6 +75,7 @@ void standby_init(void) {
         case state_single: init_set_state(state_initial); break;
         case state_sync: break;
         case state_unknown: init_set_state(state_initial); break;
+        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
     if (!standby_primary) standby_create(PrimaryConnInfo);
