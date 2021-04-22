@@ -106,7 +106,7 @@ static void standby_result(PGresult *result) {
         case state_potential: break;
         case state_quorum: break;
         case state_sync: break;
-//        case state_wait_standby: break;
+        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
 //    init_reload();
