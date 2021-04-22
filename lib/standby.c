@@ -81,12 +81,12 @@ static void standby_result(PGresult *result) {
         case state_potential: init_set_state(state_wait_standby); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
-        case state_async:
-        case state_initial:
-        case state_potential:
-        case state_quorum:
-        case state_sync: if (standby_primary->state == state_wait_primary) init_set_host(standby_primary->host, state_primary); break;
-        case state_wait_standby: break;
+//        case state_async:
+//        case state_initial:
+//        case state_potential:
+//        case state_quorum:
+//        case state_sync: if (standby_primary->state == state_wait_primary) init_set_host(standby_primary->host, state_primary); break;
+//        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
     for (int row = 0; row < PQntuples(result); row++) {
@@ -128,5 +128,12 @@ void standby_updated(Backend *backend) {
 void standby_update(state_t state) {
     if (init_state == state) return;
     init_set_state(state);
+    switch (init_state) {
+        case state_async:
+        case state_potential:
+        case state_quorum:
+        case state_sync: init_set_host(standby_primary->host, state_primary); break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    }
 //    init_reload();
 }
