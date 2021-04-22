@@ -85,7 +85,7 @@ static void standby_result(PGresult *result) {
         case state_initial:
         case state_potential:
         case state_quorum:
-        case state_sync: init_set_host(standby_primary->host, state_primary); break;
+        case state_sync: if (standby_primary->state == state_wait_primary) init_set_host(standby_primary->host, state_primary); break;
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
