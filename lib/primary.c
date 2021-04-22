@@ -47,6 +47,13 @@ static void primary_demote(void) {
 }
 
 static void primary_result(void) {
+    for (uint64 row = 0; row < SPI_tuptable->numvals; row++) {
+        char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
+        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", false));
+        backend_result(host, init_char2state(state));
+        pfree(host);
+        pfree(state);
+    }
     if (!SPI_tuptable->numvals) switch (init_state) {
         case state_initial: init_set_state(state_single); break;
         case state_primary: init_set_state(state_wait_primary); break;
@@ -58,13 +65,6 @@ static void primary_result(void) {
         case state_single: init_set_state(state_wait_primary); break;
         case state_wait_primary: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
-    }
-    for (uint64 row = 0; row < SPI_tuptable->numvals; row++) {
-        char *host = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "application_name", false));
-        char *state = TextDatumGetCStringMy(TopMemoryContext, SPI_getbinval_my(SPI_tuptable->vals[row], SPI_tuptable->tupdesc, "sync_state", false));
-        backend_result(host, init_char2state(state));
-        pfree(host);
-        pfree(state);
     }
 //    init_reload();
 }

@@ -77,22 +77,27 @@ void standby_notify(Backend *backend, state_t state) {
 }
 
 static void standby_result(PGresult *result) {
-    if (!PQntuples(result)) switch (init_state) {
-        case state_potential: init_set_state(state_wait_standby); break;
-        default: E("init_state = %s", init_state2char(init_state)); break;
-    } else switch (init_state) {
-//        case state_async:
-//        case state_initial:
-//        case state_potential:
-//        case state_quorum:
-//        case state_sync: if (standby_primary->state == state_wait_primary) init_set_host(standby_primary->host, state_primary); break;
-//        case state_wait_standby: break;
-        default: E("init_state = %s", init_state2char(init_state)); break;
-    }
     for (int row = 0; row < PQntuples(result); row++) {
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         backend_result(host, init_char2state(state));
+    }
+    if (!PQntuples(result)) switch (init_state) {
+        case state_async:
+        case state_potential:
+        case state_quorum:
+        case state_sync:
+            init_set_state(state_wait_standby); break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    } else switch (init_state) {
+        case state_async:
+//        case state_initial:
+        case state_potential:
+        case state_quorum:
+        case state_sync:
+            break;
+//        case state_wait_standby: break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
     }
 //    init_reload();
 }
