@@ -30,6 +30,7 @@ void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
     switch (init_state) {
         case state_primary: break;
+        case state_single: break;
         case state_unknown: init_set_state(state_initial); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
