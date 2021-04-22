@@ -28,11 +28,19 @@ void primary_fini(void) {
 
 void primary_init(void) {
     init_set_system("primary_conninfo", NULL);
-    if (init_state <= state_unknown) init_set_state(state_initial);
+    switch (init_state) {
+        case state_primary: break;
+        case state_unknown: init_set_state(state_initial); break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    }
 }
 
 void primary_notify(Backend *backend, state_t state) {
-    if (init_state == state_wait_primary) init_set_state(state_primary);
+    switch (init_state) {
+        case state_primary: break;
+        case state_wait_primary: init_set_state(state_primary); break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
+    }
 }
 
 static void primary_demote(void) {
