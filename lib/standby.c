@@ -92,19 +92,18 @@ static void standby_result(PGresult *result) {
         backend_result(host, init_char2state(state));
     }
     if (!PQntuples(result)) switch (init_state) {
-        case state_async:
-        case state_potential:
-        case state_quorum:
-        case state_sync:
-            init_set_state(state_wait_standby); break;
+        case state_async: init_set_state(state_wait_standby); break;
+        case state_potential: init_set_state(state_wait_standby); break;
+        case state_quorum: init_set_state(state_wait_standby); break;
+        case state_sync: init_set_state(state_wait_standby); break;
+        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
-        case state_async:
-//        case state_initial:
-        case state_potential:
-        case state_quorum:
-        case state_sync:
-            break;
+        case state_async: break;
+//        case state_initial: break;
+        case state_potential: break;
+        case state_quorum: break;
+        case state_sync: break;
 //        case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
