@@ -68,6 +68,7 @@ void standby_fini(void) {
 }
 
 void standby_init(void) {
+    init_set_system("synchronous_standby_names", NULL);
     switch (init_state) {
         case state_async: break;
         case state_potential: break;
