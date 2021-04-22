@@ -32,6 +32,7 @@ void primary_init(void) {
         case state_primary: break;
         case state_single: break;
         case state_unknown: init_set_state(state_initial); break;
+        case state_wait_primary: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
 }
