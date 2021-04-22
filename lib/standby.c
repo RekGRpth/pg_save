@@ -111,7 +111,7 @@ static void standby_result(PGresult *result) {
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
-//    init_reload();
+    init_reload();
 }
 
 static void standby_query_socket(Backend *backend) {
@@ -152,5 +152,5 @@ void standby_update(state_t state) {
         case state_sync: init_set_host(standby_primary->host, state_primary); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
-//    init_reload();
+    init_reload();
 }

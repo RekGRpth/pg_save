@@ -77,7 +77,7 @@ static void primary_result(void) {
         case state_wait_primary: init_set_state(state_primary); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
-//    init_reload();
+    init_reload();
 }
 
 void primary_timeout(void) {
