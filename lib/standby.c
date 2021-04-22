@@ -48,7 +48,7 @@ static void standby_reprimary(Backend *backend) {
 
 void standby_failed(Backend *backend) {
     if (backend->state > state_primary) { backend_finish(backend); return; }
-    if (!backend_nevents()) { backend_update(backend, state_wait_primary); if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL); return; }
+    if (!backend_nevents()) { init_set_host(backend->host, state_wait_primary); if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL); return; }
     switch (init_state) {
         case state_sync: standby_promote(backend); break;
         case state_potential: if (backend->attempt >= 2 * init_attempt) {
@@ -81,11 +81,11 @@ static void standby_result(PGresult *result) {
         case state_potential: init_set_state(state_wait_standby); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
-        case state_async: backend_update(standby_primary, state_primary); break;
-        case state_initial: backend_update(standby_primary, state_primary); break;
-        case state_potential: backend_update(standby_primary, state_primary); break;
-        case state_quorum: backend_update(standby_primary, state_primary); break;
-        case state_sync: backend_update(standby_primary, state_primary); break;
+        case state_async:
+        case state_initial:
+        case state_potential:
+        case state_quorum:
+        case state_sync: init_set_host(standby_primary->host, state_primary); break;
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }

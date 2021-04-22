@@ -225,6 +225,19 @@ void backend_reset(Backend *backend) {
     backend_connect_or_reset(backend);
 }
 
+static void backend_updated(Backend *backend) {
+    D1("%s:%s", backend->host, init_state2char(backend->state));
+    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
+    init_reload();
+}
+
+static void backend_update(Backend *backend, state_t state) {
+    if (backend->state == state) return;
+    backend->state = state;
+    init_set_host(backend->host, state);
+    backend_updated(backend);
+}
+
 void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
     if (RecoveryInProgress() && !strcmp(host, getenv("HOSTNAME"))) return standby_update(state);
@@ -247,17 +260,4 @@ void backend_timeout(void) {
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
     init_reload();
-}
-
-static void backend_updated(Backend *backend) {
-    D1("%s:%s", backend->host, init_state2char(backend->state));
-    RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
-    init_reload();
-}
-
-void backend_update(Backend *backend, state_t state) {
-    if (backend->state == state) return;
-    backend->state = state;
-    init_set_host(backend->host, state);
-    backend_updated(backend);
 }
