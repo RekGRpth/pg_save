@@ -139,7 +139,7 @@ static void main_conf(void) {
         "max_logical_replication_workers = '0'\n"
         "max_sync_workers_per_subscription = '0'\n"
         "max_wal_senders = '3'\n"
-        "restore_command = 'test -f \"$ARCLOG/%%f\" && gunzip <\"$ARCLOG/%%f\" >\"%%p\" || echo \"$ARCLOG/%%f does not exists!\"'\n"
+        "restore_command = 'test -f \"$ARCLOG/%%f\" && gunzip <\"$ARCLOG/%%f\" >\"%%p\" || echo \"$ARCLOG/%%f does not exist!\"'\n"
         "shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n"
         "trace_notify = 'on'\n"
         "wal_compression = 'on'\n"
