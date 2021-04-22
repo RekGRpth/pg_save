@@ -117,6 +117,7 @@ void init_set_state(state_t state) {
     init_notify(state);
     switch (state) {
         case state_async: break;
+        case state_initial: break;
         case state_potential: break;
         case state_primary: init_set_system("synchronous_standby_names", getenv("SYNCHRONOUS_STANDBY_NAMES")); break;
         case state_quorum: break;
