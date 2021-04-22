@@ -116,15 +116,17 @@ void init_set_state(state_t state) {
     init_set_host(getenv("HOSTNAME"), state);
     init_notify(state);
     switch (state) {
-        case state_async:
-        case state_potential:
-        case state_primary:
-        case state_quorum:
-        case state_single:
-        case state_sync: RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE)); break;
-        default: break;
+        case state_async: init_set_system("synchronous_standby_names", NULL); break;
+        case state_potential: init_set_system("synchronous_standby_names", NULL); break;
+        case state_primary: init_set_system("synchronous_standby_names", getenv("SYNCHRONOUS_STANDBY_NAMES")); break;
+        case state_quorum: init_set_system("synchronous_standby_names", NULL); break;
+        case state_single: init_set_system("synchronous_standby_names", NULL); break;
+        case state_sync: init_set_system("synchronous_standby_names", NULL); break;
+        case state_wait_primary: break;
+        case state_wait_standby: init_set_system("synchronous_standby_names", NULL); break;
+        default: E("init_state = %s", init_state2char(init_state)); break;
     }
-    if (state == state_primary && getenv("SYNCHRONOUS_STANDBY_NAMES")) init_set_system("synchronous_standby_names", getenv("SYNCHRONOUS_STANDBY_NAMES"));
+    RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE));
 }
 
 void init_set_system(const char *name, const char *new) {
