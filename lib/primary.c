@@ -62,8 +62,8 @@ static void primary_result(void) {
         default: E("init_state = %s", init_state2char(init_state)); break;
     } else switch (init_state) {
         case state_primary: break;
-//        case state_single: init_set_state(state_wait_primary); break;
-//        case state_wait_primary: break;
+        case state_single: init_set_state(state_wait_primary); break;
+        case state_wait_primary: init_set_state(state_primary); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
 //    init_reload();
@@ -83,6 +83,8 @@ void primary_timeout(void) {
 
 void primary_updated(Backend *backend) {
     switch (init_state) {
+        case state_primary: break;
+        case state_single: init_set_state(state_wait_primary); break;
         case state_wait_primary: init_set_state(state_primary); break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
