@@ -5,8 +5,8 @@ extern state_t init_state;
 static dlist_head backends = DLIST_STATIC_INIT(backends);
 
 Backend *backend_host(const char *host) {
-    dlist_iter iter;
-    if (host) dlist_foreach(iter, &backends) {
+    dlist_mutable_iter iter;
+    if (host) dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         if (!strcmp(host, backend->host)) return backend;
     }
@@ -14,8 +14,8 @@ Backend *backend_host(const char *host) {
 }
 
 Backend *backend_state(state_t state) {
-    dlist_iter iter;
-    if (state != state_unknown) dlist_foreach(iter, &backends) {
+    dlist_mutable_iter iter;
+    if (state != state_unknown) dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         if (backend->state == state) return backend;
     }
@@ -24,8 +24,8 @@ Backend *backend_state(state_t state) {
 
 int backend_nevents(void) {
     int nevents = 0;
-    dlist_iter iter;
-    dlist_foreach(iter, &backends) {
+    dlist_mutable_iter iter;
+    dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if (PQsocket(backend->conn) < 0) continue;
@@ -161,8 +161,8 @@ void backend_create(const char *host, state_t state) {
 }
 
 void backend_event(WaitEventSet *set) {
-    dlist_iter iter;
-    dlist_foreach(iter, &backends) {
+    dlist_mutable_iter iter;
+    dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         int fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
@@ -254,8 +254,8 @@ void backend_socket(Backend *backend) {
 }
 
 void backend_timeout(void) {
-    dlist_iter iter;
-    dlist_foreach(iter, &backends) {
+    dlist_mutable_iter iter;
+    dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
     }
