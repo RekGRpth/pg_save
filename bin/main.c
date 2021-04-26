@@ -210,7 +210,6 @@ static char *main_primary(void) {
 }
 
 int main(int argc, char *argv[]) {
-    char filename[MAXPGPATH];
     pg_logging_init(argv[0]);
     progname = get_progname(argv[0]);
     set_pglocale_pgservice(argv[0], PG_TEXTDOMAIN("pg_save"));
@@ -220,15 +219,18 @@ int main(int argc, char *argv[]) {
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     cluster_name = getenv("CLUSTER_NAME");
     primary = main_primary();
-    I("arclog = '%s'", arclog ? arclog : "(null)");
-    I("cluster_name = '%s'", cluster_name ? cluster_name : "(null)");
+    if (arclog) I("arclog = '%s'", arclog);
+    if (cluster_name) I("cluster_name = '%s'", cluster_name);
     I("hostname = '%s'", hostname);
     I("pgdata = '%s'", pgdata);
-    I("primary_conninfo = '%s'", primary_conninfo ? primary_conninfo : "(null)");
-    I("primary = '%s'", primary ? primary : "(null)");
+    if (primary_conninfo) I("primary_conninfo = '%s'", primary_conninfo);
+    if (primary) I("primary = '%s'", primary);
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
-    if (arclog) snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
-    if (arclog && pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
+    if (arclog) {
+        char filename[MAXPGPATH];
+        snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
+        if (pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
+    }
     snprintf(pg_hba_conf, sizeof(pg_hba_conf), "%s/%s", pgdata, "pg_hba.conf");
     snprintf(postgresql_auto_conf, sizeof(postgresql_auto_conf), "%s/%s", pgdata, "postgresql.auto.conf");
     snprintf(standby_signal, sizeof(standby_signal), "%s/%s", pgdata, "standby.signal");
