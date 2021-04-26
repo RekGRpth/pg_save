@@ -74,10 +74,13 @@ static char *main_state(void) {
 static void main_update(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), "sed -i \"/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\" \"%s/%s\"", primary, hostname, pgdata, "postgresql.auto.conf");
+    I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), "sed -i \"/^pg_save.primary/cpg_save.primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), "sed -i \"/^pg_save.wait_primary/cpg_save.wait_primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
