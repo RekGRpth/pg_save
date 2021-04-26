@@ -2,6 +2,7 @@
 
 PG_MODULE_MAGIC;
 
+char *hostname;
 int init_attempt;
 int init_timeout;
 state_t init_state = state_unknown;
@@ -51,7 +52,7 @@ void init_backend(void) {
 
 void init_debug(void) {
     D1("attempt = %i", init_attempt);
-    D1("HOSTNAME = '%s'", getenv("HOSTNAME"));
+    D1("HOSTNAME = '%s'", hostname);
     D1("restart = %i", init_restart);
     D1("state = '%s'", init_state2char(init_state));
     D1("timeout = %i", init_timeout);
@@ -83,7 +84,7 @@ void init_set_host(const char *host, state_t state) {
 }
 
 static void init_notify(state_t state) {
-    const char *channel = getenv("HOSTNAME");
+    const char *channel = hostname;
     const char *payload = init_state2char(state);
     const char *channel_quote = quote_identifier(channel);
     const char *payload_quote = quote_literal_cstr(payload);
@@ -111,7 +112,7 @@ void init_set_state(state_t state) {
     D1("state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
-    init_set_host(getenv("HOSTNAME"), state);
+    init_set_host(hostname, state);
     init_notify(state);
     switch (state) {
         case state_async: break;
@@ -149,7 +150,7 @@ void init_set_system(const char *name, const char *new) {
 }
 
 static const char *init_show(void) {
-    return getenv("HOSTNAME");
+    return hostname;
 }
 
 static void init_work(void) {
@@ -168,11 +169,11 @@ static void init_work(void) {
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_function_name, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfoString(&buf, getenv("HOSTNAME"));
+    appendStringInfoString(&buf, hostname);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_type, buf.data, buf.len);
     resetStringInfo(&buf);
-    appendStringInfo(&buf, "postgres postgres %s", getenv("HOSTNAME"));
+    appendStringInfo(&buf, "postgres postgres %s", hostname);
     if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
     memcpy(worker.bgw_name, buf.data, buf.len);
     pfree(buf.data);
@@ -185,11 +186,12 @@ static void init_save(void) {
         STATE_MAP(XX)
 #undef XX
     };
+    if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.timeout", "pg_save timeout", NULL, &init_timeout, 1000, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
-    DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, getenv("HOSTNAME"), PGC_POSTMASTER, 0, NULL, NULL, init_show);
+    DefineCustomStringVariable("pg_save.hostname", "pg_save hostname", NULL, &init_hostname, hostname, PGC_POSTMASTER, 0, NULL, NULL, init_show);
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
 #undef XX

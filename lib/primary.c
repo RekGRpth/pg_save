@@ -1,5 +1,6 @@
 #include "lib.h"
 
+extern char *hostname;
 extern int init_attempt;
 extern state_t init_state;
 static int primary_attempt = 0;
@@ -49,7 +50,7 @@ static void primary_demote(void) {
     Backend *backend;
     if (backend_nevents() < 2) return;
     if (!(backend = backend_state(state_sync))) return;
-    if (strcmp(backend->host, getenv("HOSTNAME")) > 0) return;
+    if (strcmp(backend->host, hostname) > 0) return;
     W("%i < %i", primary_attempt, init_attempt);
     if (primary_attempt++ < init_attempt) return;
     init_set_state(state_wait_standby);

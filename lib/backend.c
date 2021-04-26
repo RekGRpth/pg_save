@@ -1,5 +1,6 @@
 #include "lib.h"
 
+extern char *hostname;
 extern int init_attempt;
 extern state_t init_state;
 static dlist_head backends = DLIST_STATIC_INIT(backends);
@@ -123,7 +124,7 @@ static void backend_reset_socket(Backend *backend) {
 
 static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
-    const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, getenv("HOSTNAME"), backend->state <= state_primary ? "read-write" : "any", NULL};
+    const char *values[] = {backend->host, getenv("PGPORT") ? getenv("PGPORT") : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, backend->state <= state_primary ? "read-write" : "any", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
     switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
@@ -150,7 +151,7 @@ static void backend_created(Backend *backend) {
 
 void backend_create(const char *host, state_t state) {
     Backend *backend;
-    if (!strcmp(host, getenv("HOSTNAME"))) { W("backend with host \"%s\" is local!", host); return; }
+    if (!strcmp(host, hostname)) { W("backend with host \"%s\" is local!", host); return; }
     if ((backend = backend_host(host))) { W("backend with host \"%s\" already exists!", host); return; }
     backend = MemoryContextAllocZero(TopMemoryContext, sizeof(*backend));
     backend->host = MemoryContextStrdup(TopMemoryContext, host);
@@ -241,7 +242,7 @@ static void backend_update(Backend *backend, state_t state) {
 
 void backend_result(const char *host, state_t state) {
     Backend *backend = backend_host(host);
-    if (RecoveryInProgress() && !strcmp(host, getenv("HOSTNAME"))) return standby_update(state);
+    if (RecoveryInProgress() && !strcmp(host, hostname)) return standby_update(state);
     backend ? backend_update(backend, state) : backend_create(host, state);
 }
 

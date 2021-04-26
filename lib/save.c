@@ -1,5 +1,6 @@
 #include "lib.h"
 
+extern char *hostname;
 extern int init_timeout;
 
 static void save_exit(int code, Datum arg) {
@@ -13,12 +14,12 @@ static void save_init(void) {
     if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
     if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
-    set_config_option("application_name", getenv("HOSTNAME"), PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
+    set_config_option("application_name", hostname, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     on_proc_exit(save_exit, PointerGetDatum(NULL));
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
-    pgstat_report_appname(getenv("HOSTNAME"));
+    pgstat_report_appname(hostname);
     process_session_preload_libraries();
     backend_init();
 }
