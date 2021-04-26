@@ -172,11 +172,11 @@ void backend_event(WaitEventSet *set) {
         int fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if ((fd = PQsocket(backend->conn)) < 0) continue;
-        if (backend->event & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
+        /*if (backend->event & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
             case 0: break;
             case 1: D1("PQflush = 1"); break;
             default: D1("PQflush = default"); break;
-        }
+        }*/
         AddWaitEventToSet(set, backend->event, fd, NULL, backend);
     }
 }
