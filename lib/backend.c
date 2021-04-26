@@ -92,6 +92,14 @@ static const char *backend_status(Backend *backend) {
     return "";
 }
 
+static void backend_fail(Backend *backend) {
+    if (backend->attempt++ < init_attempt) return;
+    D1("%s:%s", backend->host, init_state2char(backend->state));
+    init_set_host(backend->host, state_unknown);
+    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
+    init_reload();
+}
+
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
@@ -168,14 +176,6 @@ void backend_event(WaitEventSet *set) {
         }
         AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
     }
-}
-
-void backend_fail(Backend *backend) {
-    if (backend->attempt++ < init_attempt) return;
-    D1("%s:%s", backend->host, init_state2char(backend->state));
-    init_set_host(backend->host, state_unknown);
-    RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
-    init_reload();
 }
 
 static void backend_finished(Backend *backend) {

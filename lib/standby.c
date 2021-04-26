@@ -134,7 +134,6 @@ static void standby_query(Backend *backend) {
         backend->events = WL_SOCKET_WRITEABLE;
         backend->socket = standby_query_socket;
     }
-    backend_fail(standby_primary);
 }
 
 void standby_timeout(void) {
