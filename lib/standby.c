@@ -129,12 +129,12 @@ static void standby_query(Backend *backend) {
     static char *command = "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)";
     if (PQisBusy(backend->conn)) {
         W("%s:%s PQisBusy", backend->host, init_state2char(backend->state));
-        backend->events = WL_SOCKET_READABLE;
+        backend->event = WL_SOCKET_READABLE;
     } else if (!PQsendQuery(backend->conn, command)) {
         W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->events = WL_SOCKET_WRITEABLE;
+        backend->event = WL_SOCKET_WRITEABLE;
         backend->socket = standby_query_socket;
     }
 }

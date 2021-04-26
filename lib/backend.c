@@ -54,12 +54,12 @@ static void backend_query(Backend *backend) {
     if (channel_quote != channel) pfree((void *)channel_quote);
     if (PQisBusy(backend->conn)) {
         W("%s:%s PQisBusy", backend->host, init_state2char(backend->state));
-        backend->events = WL_SOCKET_READABLE;
+        backend->event = WL_SOCKET_READABLE;
     } else if (!PQsendQuery(backend->conn, buf.data)) {
         W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
     } else {
-        backend->events = WL_SOCKET_WRITEABLE;
+        backend->event = WL_SOCKET_WRITEABLE;
         backend->socket = backend_query_socket;
     }
     pfree(buf.data);
@@ -113,8 +113,8 @@ static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingSta
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE and %s", backend->host, init_state2char(backend->state), backend_status(backend)); break;
         case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
         case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend_connected(backend); return;
-        case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->events = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->events = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->event = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->event = WL_SOCKET_WRITEABLE; break;
     }
 }
 
@@ -146,7 +146,7 @@ static void backend_connect_or_reset(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s PQstatus == CONNECTION_BAD and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) { W("%s:%s PQsetnonblocking == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
-    backend->events = WL_SOCKET_WRITEABLE;
+    backend->event = WL_SOCKET_WRITEABLE;
 }
 
 static void backend_created(Backend *backend) {
@@ -172,12 +172,12 @@ void backend_event(WaitEventSet *set) {
         int fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if ((fd = PQsocket(backend->conn)) < 0) continue;
-        if (backend->events & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
+        if (backend->event & WL_SOCKET_WRITEABLE) switch (PQflush(backend->conn)) {
             case 0: break;
             case 1: D1("PQflush = 1"); break;
             default: D1("PQflush = default"); break;
         }
-        AddWaitEventToSet(set, backend->events & WL_SOCKET_MASK, fd, NULL, backend);
+        AddWaitEventToSet(set, backend->event, fd, NULL, backend);
     }
 }
 
@@ -217,7 +217,7 @@ static void backend_idle_socket(Backend *backend) {
 }
 
 void backend_idle(Backend *backend) {
-    backend->events = WL_SOCKET_READABLE;
+    backend->event = WL_SOCKET_READABLE;
     backend->socket = backend_idle_socket;
 }
 

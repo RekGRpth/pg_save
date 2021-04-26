@@ -45,7 +45,7 @@ typedef struct Backend {
     char *host;
     dlist_node node;
     int attempt;
-    int events;
+    int event;
     PGconn *conn;
     state_t state;
     void (*socket) (struct Backend *backend);
