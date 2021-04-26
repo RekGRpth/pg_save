@@ -121,7 +121,7 @@ static void main_conf(void) {
         "listen_addresses = '*'\n"
         "log_connections = 'on'\n"
         "log_hostname = 'on'\n"
-        "log_line_prefix = '%%m [%%p] %%r %%u@%%d/%%a '\n"
+        "log_line_prefix = '%m [%p] %r %u@%d/%a '\n"
         "log_min_messages = 'debug1'\n"
         "max_logical_replication_workers = '0'\n"
         "max_sync_workers_per_subscription = '0'\n"
