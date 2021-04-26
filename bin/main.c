@@ -103,16 +103,19 @@ static void main_conf(void) {
     PQExpBufferData buf;
     if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
-    appendPQExpBuffer(&buf,
-        "archive_command = 'gzip -cfk9 \"%%p\" >\"$ARCLOG/%%f.gz\"'\n"
-        "archive_mode = 'on'\n"
+    if (arclog) appendPQExpBuffer(&buf,
+        "archive_command = 'gzip -cfk9 \"%%p\" >\"%s/%%f.gz\"'\n"
+        "archive_mode = 'on'\n", arclog);
+    appendPQExpBufferStr(&buf,
         "auto_explain.log_analyze = 'on'\n"
         "auto_explain.log_buffers = 'on'\n"
         "auto_explain.log_min_duration = '100'\n"
         "auto_explain.log_nested_statements = 'on'\n"
         "auto_explain.log_triggers = 'on'\n"
         "auto_explain.log_verbose = 'on'\n"
-        "cluster_name = '%s'\n"
+    );
+    if (cluster_name) appendPQExpBuffer(&buf, "cluster_name = '%s'\n", cluster_name);
+    appendPQExpBufferStr(&buf,
         "datestyle = 'iso, dmy'\n"
         "hot_standby_feedback = 'on'\n"
         "listen_addresses = '*'\n"
@@ -123,14 +126,16 @@ static void main_conf(void) {
         "max_logical_replication_workers = '0'\n"
         "max_sync_workers_per_subscription = '0'\n"
         "max_wal_senders = '3'\n"
-        "restore_command = 'gunzip -cfk \"$ARCLOG/%%f.gz\" >\"%%p\"'\n"
+    );
+    if (arclog) appendPQExpBuffer(&buf, "restore_command = 'gunzip -cfk \"%s/%%f.gz\" >\"%%p\"'\n", arclog);
+    appendPQExpBufferStr(&buf,
         "shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n"
         "trace_notify = 'on'\n"
         "wal_compression = 'on'\n"
         "wal_level = 'replica'\n"
         "wal_log_hints = 'on'\n"
         "wal_receiver_create_temp_slot = 'on'\n"
-    , cluster_name ? cluster_name : "");
+    );
     if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
