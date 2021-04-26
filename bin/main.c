@@ -121,7 +121,7 @@ static void main_conf(void) {
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
     fprintf(file,
 //        "archive_command = 'test ! -f \"$ARCLOG/%%f\" && gzip -9 <\"%%p\" >\"$ARCLOG/%%f\" || echo \"$ARCLOG/%%f already exists!\"'\n"
-        "archive_command = 'set -ex && gzip -f9 <\"%%p\" >\"$ARCLOG/%%f\"'\n"
+        "archive_command = 'set -ex && gzip -f9 <\"%%p\" >\"$ARCLOG/%%f.gz\"'\n"
         "archive_mode = 'on'\n"
         "auto_explain.log_analyze = 'on'\n"
         "auto_explain.log_buffers = 'on'\n"
@@ -141,7 +141,7 @@ static void main_conf(void) {
         "max_sync_workers_per_subscription = '0'\n"
         "max_wal_senders = '3'\n"
 //        "restore_command = 'test -f \"$ARCLOG/%%f\" && gunzip <\"$ARCLOG/%%f\" >\"%%p\" || echo \"$ARCLOG/%%f does not exist!\"'\n"
-        "restore_command = 'set -ex && gunzip <\"$ARCLOG/%%f\" >\"%%p\"'\n"
+        "restore_command = 'set -ex && gunzip <\"$ARCLOG/%%f.gz\" >\"%%p\"'\n"
         "shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n"
         "trace_notify = 'on'\n"
         "wal_compression = 'on'\n"
