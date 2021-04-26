@@ -215,7 +215,6 @@ int main(int argc, char *argv[]) {
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     cluster_name = getenv("CLUSTER_NAME");
     primary = main_primary();
-    if (arclog) snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
     I("arclog = '%s'", arclog ? arclog : "(null)");
     I("cluster_name = '%s'", cluster_name ? cluster_name : "(null)");
     I("hostname = '%s'", hostname);
@@ -223,6 +222,7 @@ int main(int argc, char *argv[]) {
     I("primary_conninfo = '%s'", primary_conninfo ? primary_conninfo : "(null)");
     I("primary = '%s'", primary ? primary : "(null)");
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
+    if (arclog) snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
     if (arclog && pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
     snprintf(pg_hba_conf, sizeof(pg_hba_conf), "%s/%s", pgdata, "pg_hba.conf");
     snprintf(postgresql_auto_conf, sizeof(postgresql_auto_conf), "%s/%s", pgdata, "postgresql.auto.conf");
