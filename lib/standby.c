@@ -90,7 +90,7 @@ void standby_notify(Backend *backend, state_t state) {
     if (backend->state == state_sync && init_state == state_potential && (state == state_wait_primary || state == state_primary)) standby_reprimary(backend);
 }
 
-static void standby_result(PGresult *result) {
+static void standby_result(Backend *backend, PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
@@ -112,13 +112,14 @@ static void standby_result(PGresult *result) {
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
+    backend->attempt = 0;
     init_reload();
 }
 
 static void standby_query_socket(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_TUPLES_OK: ok = true; standby_result(result); break;
+        case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
         default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
     ok ? backend_idle(backend) : backend_finish(backend);
@@ -138,6 +139,7 @@ static void standby_query(Backend *backend) {
 void standby_timeout(void) {
     if (!standby_primary) standby_create(PrimaryConnInfo);
     else if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
+    backend_fail(standby_primary);
 }
 
 void standby_updated(Backend *backend) {

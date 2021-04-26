@@ -64,6 +64,7 @@ state_t init_char2state(const char *state);
 state_t init_host(const char *host);
 void backend_create(const char *host, state_t state);
 void backend_event(WaitEventSet *set);
+void backend_fail(Backend *backend);
 void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
