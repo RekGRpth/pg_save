@@ -72,31 +72,13 @@ static char *main_state(void) {
 }
 
 static void main_update(void) {
-    char *line = NULL;
-    char namein[MAXPGPATH];
-    char nameout[MAXPGPATH];
-    FILE *fin, *fout;
-    size_t len = 0;
-    ssize_t read;
-    snprintf(namein, sizeof(namein), "%s/%s", pgdata, "postgresql.auto.conf");
-    snprintf(nameout, sizeof(nameout), "%s/%s", pgdata, "postgresql.auto.conf.new");
-    if (!(fin = fopen(namein, "r"))) E("fopen(\"%s\") and %m", namein);
-    if (!(fout = fopen(nameout, "w"))) E("fopen(\"%s\") and %m", nameout);
-    while ((read = getline(&line, &len, fin)) != -1) {
-        if (read > sizeof("primary_conninfo = '") - 1 && !strncmp(line, "primary_conninfo = '", sizeof("primary_conninfo = '") - 1)) {
-            fprintf(fout, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
-        } else if (read > sizeof("pg_save.primary = '") - 1 && !strncmp(line, "pg_save.primary = '", sizeof("pg_save.primary = '") - 1)) {
-            fprintf(fout, "pg_save.primary = '%s'\n", primary);
-        } else if (read > sizeof("pg_save.wait_primary = '") - 1 && !strncmp(line, "pg_save.wait_primary = '", sizeof("pg_save.wait_primary = '") - 1)) {
-            fprintf(fout, "pg_save.wait_primary = '%s'\n", primary);
-        } else {
-            fputs(line, fout);
-        }
-    }
-    if (line) free(line);
-    fclose(fout);
-    fclose(fin);
-    if (rename(nameout, namein)) E("rename(\"%s\", \"%s\") and %m", nameout, namein);
+    char str[MAXPGPATH];
+    snprintf(str, sizeof(str), "sed -i \"/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\" \"%s/%s\"", primary, hostname, pgdata, "postgresql.auto.conf");
+    if (system(str)) E("system(\"%s\") and %m", str);
+    snprintf(str, sizeof(str), "sed -i \"/^pg_save.primary/cpg_save.primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    if (system(str)) E("system(\"%s\") and %m", str);
+    snprintf(str, sizeof(str), "sed -i \"/^pg_save.wait_primary/cpg_save.wait_primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    if (system(str)) E("system(\"%s\") and %m", str);
 }
 
 static void main_check(void) {

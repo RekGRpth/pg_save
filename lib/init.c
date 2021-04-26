@@ -6,7 +6,6 @@ int init_attempt;
 int init_timeout;
 state_t init_state = state_unknown;
 static bool init_sighup = false;
-static bool standby_signal_file_found = false;
 static char *init_hostname;
 static int init_restart;
 #define XX(name) static char *init_##name;
@@ -59,7 +58,6 @@ void init_debug(void) {
 #define XX(name) if (init_##name) D1(#name" = '%s'", init_##name);
     STATE_MAP(XX)
 #undef XX
-    D1("standby_signal_file_found = '%s'", standby_signal_file_found ? "true" : "false");
     if (IsBackgroundWorker) D1("RecoveryInProgress = '%s'", RecoveryInProgress() ? "true" : "false");
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = '%s'", PrimaryConnInfo);
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = '%s'", SyncRepStandbyNames);
@@ -177,18 +175,6 @@ static void init_work(void) {
     RegisterBackgroundWorker(&worker);
 }
 
-static void readRecoverySignalFile(void) {
-    struct stat buf;
-    if (!stat(STANDBY_SIGNAL_FILE, &buf)) {
-        int fd = BasicOpenFilePerm(STANDBY_SIGNAL_FILE, O_RDWR | PG_BINARY, S_IRUSR | S_IWUSR);
-        if (fd >= 0) {
-            (void) pg_fsync(fd);
-            close(fd);
-        }
-        standby_signal_file_found = true;
-    }
-}
-
 static void init_save(void) {
     static const struct config_enum_entry init_state_options[] = {
 #define XX(name) {#name, state_##name, false},
@@ -203,7 +189,6 @@ static void init_save(void) {
 #define XX(name) DefineCustomStringVariable("pg_save."#name, "pg_save "#name, NULL, &init_##name, NULL, PGC_SIGHUP, 0, NULL, NULL, NULL);
     STATE_MAP(XX)
 #undef XX
-    readRecoverySignalFile();
     init_debug();
     init_work();
 }
