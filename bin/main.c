@@ -9,11 +9,15 @@ static const char *primary_conninfo;
 static const char *progname;
 
 static void main_recovery(void) {
-    FILE *file;
     char filename[MAXPGPATH];
+    FILE *file;
+    PQExpBufferData buf;
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
+    initPQExpBuffer(&buf);
+    appendPQExpBuffer(&buf, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
+    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    termPQExpBuffer(&buf);
     fclose(file);
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
@@ -99,11 +103,13 @@ static void main_check(void) {
 }
 
 static void main_conf(void) {
-    FILE *file;
     char filename[MAXPGPATH];
+    FILE *file;
+    PQExpBufferData buf;
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file,
+    initPQExpBuffer(&buf);
+    appendPQExpBuffer(&buf,
         "archive_command = 'gzip -cfk9 \"%%p\" >\"$ARCLOG/%%f.gz\"'\n"
         "archive_mode = 'on'\n"
         "auto_explain.log_analyze = 'on'\n"
@@ -131,18 +137,24 @@ static void main_conf(void) {
         "wal_log_hints = 'on'\n"
         "wal_receiver_create_temp_slot = 'on'\n"
     , cluster_name ? cluster_name : "");
+    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    termPQExpBuffer(&buf);
     fclose(file);
 }
 
 static void main_hba(void) {
-    FILE *file;
     char filename[MAXPGPATH];
+    FILE *file;
+    PQExpBufferData buf;
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "pg_hba.conf");
     if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
-    fprintf(file,
+    initPQExpBuffer(&buf);
+    appendPQExpBufferStr(&buf,
         "host all all samenet trust\n"
         "host replication all samenet trust\n"
     );
+    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    termPQExpBuffer(&buf);
     fclose(file);
 }
 

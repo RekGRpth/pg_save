@@ -14,6 +14,7 @@
 #include <common/file_perm.h>
 #include <common/logging.h>
 #include <libpq-fe.h>
+#include <pqexpbuffer.h>
 #include <unistd.h>
 
 #endif // _BIN_H_
