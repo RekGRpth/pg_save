@@ -56,7 +56,8 @@ void save_worker(Datum main_arg) {
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
-            if (event->events & WL_SOCKET_MASK) backend_socket(event->user_data);
+            if (event->events & WL_SOCKET_READABLE) backend_readable(event->user_data);
+            if (event->events & WL_SOCKET_WRITEABLE) backend_writeable(event->user_data);
         }
         if (init_timeout >= 0) {
             INSTR_TIME_SET_CURRENT(cur_time);
