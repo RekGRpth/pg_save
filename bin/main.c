@@ -1,5 +1,7 @@
 #include "bin.h"
 
+static char postgresql_auto_conf[MAXPGPATH];
+static char standby_signal[MAXPGPATH];
 static const char *arclog;
 static const char *cluster_name;
 static const char *hostname;
@@ -9,18 +11,15 @@ static const char *primary_conninfo;
 static const char *progname;
 
 static void main_recovery(void) {
-    char filename[MAXPGPATH];
     FILE *file;
     PQExpBufferData buf;
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
     appendPQExpBuffer(&buf, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
     if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
-    if (!(file = fopen(filename, "w"))) E("fopen(\"%s\") and %m", filename);
+    if (!(file = fopen(standby_signal, "w"))) E("fopen(\"%s\") and %m", standby_signal);
     fclose(file);
 }
 
@@ -53,14 +52,12 @@ static void main_rewind(void) {
 }
 
 static char *main_state(void) {
-    char filename[MAXPGPATH];
     char *line = NULL;
     FILE *file;
     size_t len = 0;
     ssize_t read;
     static char state[MAXPGPATH];
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
-    if (!(file = fopen(filename, "r"))) E("fopen(\"%s\") and %m", filename);
+    if (!(file = fopen(postgresql_auto_conf, "r"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     while ((read = getline(&line, &len, file)) != -1) {
         if (read > sizeof("pg_save.state = '") - 1 && !strncmp(line, "pg_save.state = '", sizeof("pg_save.state = '") - 1)) {
             memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1 - 1);
@@ -77,23 +74,21 @@ static char *main_state(void) {
 
 static void main_update(void) {
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "sed -i \"/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\" \"%s/%s\"", primary, hostname, pgdata, "postgresql.auto.conf");
+    snprintf(str, sizeof(str), "sed -i \"/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\" \"%s\"", primary, hostname, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
-    snprintf(str, sizeof(str), "sed -i \"/^pg_save.primary/cpg_save.primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    snprintf(str, sizeof(str), "sed -i \"/^pg_save.primary/cpg_save.primary = '%s'\" \"%s\"", primary, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
-    snprintf(str, sizeof(str), "sed -i \"/^pg_save.wait_primary/cpg_save.wait_primary = '%s'\" \"%s/%s\"", primary, pgdata, "postgresql.auto.conf");
+    snprintf(str, sizeof(str), "sed -i \"/^pg_save.wait_primary/cpg_save.wait_primary = '%s'\" \"%s\"", primary, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
 static void main_check(void) {
-    char filename[MAXPGPATH];
     const char *state;
     struct stat sb;
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
-    if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
+    if (!stat(standby_signal, &sb) && S_ISREG(sb.st_mode)) {
         if (primary) main_update();
     } else {
         if (!(state = main_state())) E("!main_state");
@@ -103,11 +98,9 @@ static void main_check(void) {
 }
 
 static void main_conf(void) {
-    char filename[MAXPGPATH];
     FILE *file;
     PQExpBufferData buf;
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "postgresql.auto.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
     appendPQExpBuffer(&buf,
         "archive_command = 'gzip -cfk9 \"%%p\" >\"$ARCLOG/%%f.gz\"'\n"
@@ -232,6 +225,8 @@ int main(int argc, char *argv[]) {
     I("primary = '%s'", primary ? primary : "(null)");
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
     if (arclog && pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
+    snprintf(postgresql_auto_conf, sizeof(postgresql_auto_conf), "%s/%s", pgdata, "postgresql.auto.conf");
+    snprintf(standby_signal, sizeof(standby_signal), "%s/%s", pgdata, "standby.signal");
     switch (pg_check_dir(pgdata)) {
         case 0: E("directory \"%s\" does not exist", pgdata); break;
         case 1: I("directory \"%s\" exists and empty", pgdata); main_init(); break;
