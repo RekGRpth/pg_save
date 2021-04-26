@@ -29,8 +29,8 @@ static void standby_create(const char *conninfo) {
 static void standby_promote(Backend *backend) {
     D1("state = %s", init_state2char(init_state));
     init_set_host(backend->host, state_wait_standby);
-    backend_finish(backend);
     init_set_state(state_wait_primary);
+    backend_finish(backend);
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     else primary_init();
 }
