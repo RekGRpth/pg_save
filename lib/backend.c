@@ -250,7 +250,6 @@ void backend_result(const char *host, state_t state) {
 void backend_socket(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->events = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
 }
