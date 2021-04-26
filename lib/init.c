@@ -8,6 +8,7 @@ int init_timeout;
 state_t init_state = state_unknown;
 static bool init_sighup = false;
 static char *init_hostname;
+static char *synchronous_standby_names;
 static int init_restart;
 #define XX(name) static char *init_##name;
 STATE_MAP(XX)
@@ -118,7 +119,7 @@ void init_set_state(state_t state) {
         case state_async: break;
         case state_initial: break;
         case state_potential: break;
-        case state_primary: init_set_system("synchronous_standby_names", getenv("SYNCHRONOUS_STANDBY_NAMES")); break;
+        case state_primary: init_set_system("synchronous_standby_names", synchronous_standby_names); break;
         case state_quorum: break;
         case state_single: break;
         case state_sync: break;
@@ -187,6 +188,7 @@ static void init_save(void) {
 #undef XX
     };
     if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
+    if (!(synchronous_standby_names = getenv("SYNCHRONOUS_STANDBY_NAMES"))) E("!getenv(\"SYNCHRONOUS_STANDBY_NAMES\")");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
