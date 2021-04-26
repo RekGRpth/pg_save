@@ -69,7 +69,6 @@ void backend_finish(Backend *backend);
 void backend_fini(void);
 void backend_idle(Backend *backend);
 void backend_init(void);
-void backend_reset(Backend *backend);
 void backend_result(const char *host, state_t state);
 void backend_socket(Backend *backend);
 void backend_timeout(void);

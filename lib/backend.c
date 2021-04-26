@@ -225,10 +225,6 @@ void backend_init(void) {
     init_reload();
 }
 
-void backend_reset(Backend *backend) {
-    backend_connect_or_reset(backend);
-}
-
 static void backend_updated(Backend *backend) {
     D1("%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
@@ -260,7 +256,7 @@ void backend_timeout(void) {
     dlist_mutable_iter iter;
     dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
-        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_reset(backend);
+        if (PQstatus(backend->conn) == CONNECTION_BAD) backend_connect_or_reset(backend);
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
     init_reload();
