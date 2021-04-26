@@ -87,8 +87,7 @@ static void main_check(void) {
     struct stat sb;
     snprintf(filename, sizeof(filename), "%s/%s", pgdata, "standby.signal");
     if (!stat(filename, &sb) && S_ISREG(sb.st_mode)) {
-        if (!primary) return;
-        main_update();
+        if (primary) main_update();
     } else {
         if (!(state = main_state())) E("!main_state");
         if (!strcmp(state, "wait_standby") && !primary) E("pg_save.state == wait_standby && !primary");
