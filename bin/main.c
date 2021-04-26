@@ -1,5 +1,6 @@
 #include "bin.h"
 
+static char pg_hba_conf[MAXPGPATH];
 static char postgresql_auto_conf[MAXPGPATH];
 static char standby_signal[MAXPGPATH];
 static const char *arclog;
@@ -136,11 +137,9 @@ static void main_conf(void) {
 }
 
 static void main_hba(void) {
-    char filename[MAXPGPATH];
     FILE *file;
     PQExpBufferData buf;
-    snprintf(filename, sizeof(filename), "%s/%s", pgdata, "pg_hba.conf");
-    if (!(file = fopen(filename, "a"))) E("fopen(\"%s\") and %m", filename);
+    if (!(file = fopen(pg_hba_conf, "a"))) E("fopen(\"%s\") and %m", pg_hba_conf);
     initPQExpBuffer(&buf);
     appendPQExpBufferStr(&buf,
         "host all all samenet trust\n"
@@ -225,6 +224,7 @@ int main(int argc, char *argv[]) {
     I("primary = '%s'", primary ? primary : "(null)");
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
     if (arclog && pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
+    snprintf(pg_hba_conf, sizeof(pg_hba_conf), "%s/%s", pgdata, "pg_hba.conf");
     snprintf(postgresql_auto_conf, sizeof(postgresql_auto_conf), "%s/%s", pgdata, "postgresql.auto.conf");
     snprintf(standby_signal, sizeof(standby_signal), "%s/%s", pgdata, "standby.signal");
     switch (pg_check_dir(pgdata)) {
