@@ -134,12 +134,12 @@ static void standby_query(Backend *backend) {
         backend->events = WL_SOCKET_WRITEABLE;
         backend->socket = standby_query_socket;
     }
+    backend_fail(standby_primary);
 }
 
 void standby_timeout(void) {
     if (!standby_primary) standby_create(PrimaryConnInfo);
-    else if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
-    backend_fail(standby_primary);
+    if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
 }
 
 void standby_updated(Backend *backend) {
