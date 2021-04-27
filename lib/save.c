@@ -45,11 +45,11 @@ void save_worker(Datum main_arg) {
         int nevents = 2 + backend_nevents();
         WaitEvent *events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         WaitEventSet *set = CreateWaitEventSet(TopMemoryContext, nevents);
+        backend_event(set);
         if (init_timeout >= 0 && cur_timeout <= 0) {
             INSTR_TIME_SET_CURRENT(start_time);
             cur_timeout = init_timeout;
         }
-        backend_event(set);
         nevents = WaitEventSetWait(set, cur_timeout, events, nevents, PG_WAIT_EXTENSION);
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
