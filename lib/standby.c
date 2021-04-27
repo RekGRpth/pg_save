@@ -148,6 +148,7 @@ void standby_updated(Backend *backend) {
 
 void standby_update(state_t state) {
     if (init_state == state) return;
+    D1("%s:%s->%s", hostname, init_state2char(init_state), init_state2char(state));
     init_set_state(state);
     switch (init_state) {
         case state_async: init_set_host(standby_primary->host, state_primary); break;

@@ -233,6 +233,7 @@ static void backend_updated(Backend *backend) {
 
 static void backend_update(Backend *backend, state_t state) {
     if (backend->state == state) return;
+    D1("%s:%s->%s", backend->host, init_state2char(backend->state), init_state2char(state));
     backend->state = state;
     init_set_host(backend->host, state);
     backend_updated(backend);
