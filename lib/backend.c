@@ -246,6 +246,7 @@ static void backend_update(Backend *backend, state_t state) {
 void backend_readable(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
+        if (PQflush(backend->conn) < 0) { W("%s:%s PQflush < 0 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
 //        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
     }
     backend->socket(backend);
