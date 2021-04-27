@@ -42,7 +42,8 @@ static void backend_query_socket(Backend *backend) {
         case PGRES_COMMAND_OK: ok = true; break;
         default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    ok ? backend_idle(backend) : backend_finish(backend);
+    if (ok) backend_idle(backend);
+    else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
 }
 
 static void backend_query(Backend *backend) {
