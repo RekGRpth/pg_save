@@ -49,6 +49,7 @@ static void backend_query(Backend *backend) {
     if (PQisBusy(backend->conn)) {
         W("%s:%s PQisBusy", backend->host, init_state2char(backend->state));
         backend->event = WL_SOCKET_READABLE;
+        backend->socket = backend_query;
     } else {
         const char *channel = backend->host;
         const char *channel_quote = quote_identifier(channel);
