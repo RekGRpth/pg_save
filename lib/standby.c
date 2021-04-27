@@ -133,6 +133,9 @@ static void standby_query(Backend *backend) {
     } else if (!PQsendQuery(backend->conn, command)) {
         W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
         backend_finish(backend);
+    } else if (PQflush(backend->conn) < 0) {
+        W("%s:%s PQflush < 0 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+        backend_finish(backend);
     } else {
         backend->event = WL_SOCKET_WRITEABLE;
         backend->socket = standby_query_socket;
