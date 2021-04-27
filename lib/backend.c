@@ -46,26 +46,28 @@ static void backend_query_socket(Backend *backend) {
 }
 
 static void backend_query(Backend *backend) {
-    const char *channel = backend->host;
-    const char *channel_quote = quote_identifier(channel);
-    StringInfoData buf;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "LISTEN %s", channel_quote);
-    if (channel_quote != channel) pfree((void *)channel_quote);
     if (PQisBusy(backend->conn)) {
         W("%s:%s PQisBusy", backend->host, init_state2char(backend->state));
         backend->event = WL_SOCKET_READABLE;
-    } else if (!PQsendQuery(backend->conn, buf.data)) {
-        W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
-    } else if (PQflush(backend->conn) < 0) {
-        W("%s:%s PQflush < 0 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
-        backend_finish(backend);
     } else {
-        backend->event = WL_SOCKET_WRITEABLE;
-        backend->socket = backend_query_socket;
+        const char *channel = backend->host;
+        const char *channel_quote = quote_identifier(channel);
+        StringInfoData buf;
+        initStringInfoMy(TopMemoryContext, &buf);
+        appendStringInfo(&buf, "LISTEN %s", channel_quote);
+        if (channel_quote != channel) pfree((void *)channel_quote);
+        if (!PQsendQuery(backend->conn, buf.data)) {
+            W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+            backend_finish(backend);
+        } else if (PQflush(backend->conn) < 0) {
+            W("%s:%s PQflush < 0 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn));
+            backend_finish(backend);
+        } else {
+            backend->event = WL_SOCKET_WRITEABLE;
+            backend->socket = backend_query_socket;
+        }
+        pfree(buf.data);
     }
-    pfree(buf.data);
 }
 
 static void backend_connected(Backend *backend) {
