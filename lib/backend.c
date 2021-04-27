@@ -231,14 +231,6 @@ static void backend_updated(Backend *backend) {
     init_reload();
 }
 
-static void backend_update(Backend *backend, state_t state) {
-    if (backend->state == state) return;
-    D1("%s:%s->%s", backend->host, init_state2char(backend->state), init_state2char(state));
-    backend->state = state;
-    init_set_host(backend->host, state);
-    backend_updated(backend);
-}
-
 void backend_readable(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
@@ -266,6 +258,14 @@ void backend_timeout(void) {
     }
     RecoveryInProgress() ? standby_timeout() : primary_timeout();
     init_reload();
+}
+
+void backend_update(Backend *backend, state_t state) {
+    if (backend->state == state) return;
+    D1("%s:%s->%s", backend->host, init_state2char(backend->state), init_state2char(state));
+    backend->state = state;
+    init_set_host(backend->host, state);
+    backend_updated(backend);
 }
 
 void backend_writeable(Backend *backend) {

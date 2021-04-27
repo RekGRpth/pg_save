@@ -71,6 +71,7 @@ void backend_init(void);
 void backend_readable(Backend *backend);
 void backend_result(const char *host, state_t state);
 void backend_timeout(void);
+void backend_update(Backend *backend, state_t state);
 void backend_writeable(Backend *backend);
 void init_backend(void);
 void init_debug(void);

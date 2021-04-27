@@ -96,6 +96,7 @@ static void standby_result(Backend *backend, PGresult *result) {
         const char *state = PQgetvalue(result, row, PQfnumber(result, "sync_state"));
         backend_result(host, init_char2state(state));
     }
+    backend_update(backend, PQntuples(result) ? state_primary : state_wait_primary);
     if (!PQntuples(result)) switch (init_state) {
         case state_async: init_set_state(state_wait_standby); break;
         case state_potential: init_set_state(state_wait_standby); break;
