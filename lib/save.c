@@ -5,7 +5,6 @@ extern int init_timeout;
 
 static void save_exit(int code, Datum arg) {
     D1("code = %i", code);
-    backend_fini();
 }
 
 static void save_init(void) {
@@ -16,6 +15,7 @@ static void save_init(void) {
     if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     set_config_option("application_name", hostname, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
+    pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
     on_proc_exit(save_exit, PointerGetDatum(NULL));
     BackgroundWorkerUnblockSignals();
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
@@ -41,7 +41,7 @@ void save_worker(Datum main_arg) {
     instr_time start_time;
     long cur_timeout = -1;
     save_init();
-    for (;;) {
+    while (!ShutdownRequestPending) {
         int nevents = 2 + backend_nevents();
         WaitEvent *events = MemoryContextAllocZero(TopMemoryContext, nevents * sizeof(*events));
         WaitEventSet *set = CreateWaitEventSet(TopMemoryContext, nevents);
@@ -54,6 +54,7 @@ void save_worker(Datum main_arg) {
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();
+            if (event->events & WL_POSTMASTER_DEATH) ShutdownRequestPending = true;
             if (event->events & WL_SOCKET_READABLE) backend_readable(event->user_data);
             if (event->events & WL_SOCKET_WRITEABLE) backend_writeable(event->user_data);
         }
@@ -66,5 +67,5 @@ void save_worker(Datum main_arg) {
         FreeWaitEventSet(set);
         pfree(events);
     }
-    proc_exit(1);
+    backend_fini();
 }
