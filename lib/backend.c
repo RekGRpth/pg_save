@@ -201,16 +201,10 @@ void backend_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
-static void backend_notify(Backend *backend, state_t state) {
-    D1("%s:%s state = %s", backend->host, init_state2char(backend->state), init_state2char(state));
-    RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
-}
-
 static void backend_idle_socket(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
     }
-    for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
 }
 
 void backend_idle(Backend *backend) {
@@ -223,6 +217,11 @@ void backend_init(void) {
     init_backend();
     RecoveryInProgress() ? standby_init() : primary_init();
     init_reload();
+}
+
+static void backend_notify(Backend *backend, state_t state) {
+    D1("%s:%s state = %s", backend->host, init_state2char(backend->state), init_state2char(state));
+    RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
 }
 
 static void backend_updated(Backend *backend) {
@@ -246,6 +245,7 @@ void backend_readable(Backend *backend) {
             case 1: backend->event = WL_SOCKET_MASK; return;
             case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
         }
+        for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
     }
     backend->socket(backend);
 }
