@@ -167,6 +167,8 @@ void backend_create(const char *host, state_t state) {
 
 void backend_event(WaitEventSet *set) {
     dlist_mutable_iter iter;
+    AddWaitEventToSet(set, WL_LATCH_SET, PGINVALID_SOCKET, MyLatch, NULL);
+    AddWaitEventToSet(set, WL_EXIT_ON_PM_DEATH, PGINVALID_SOCKET, NULL, NULL);
     dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         int fd;
