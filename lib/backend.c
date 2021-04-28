@@ -59,7 +59,7 @@ static void backend_query(Backend *backend) {
     pfree(buf.data);
     switch (PQflush(backend->conn)) {
         case 0: break;
-        case 1: backend->event = WL_SOCKET_MASK; return;
+        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
         case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
     }
     backend->event = WL_SOCKET_WRITEABLE;
@@ -236,7 +236,7 @@ void backend_readable(Backend *backend) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
         switch (PQflush(backend->conn)) {
             case 0: break;
-            case 1: backend->event = WL_SOCKET_MASK; return;
+            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
             case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
         }
         for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));

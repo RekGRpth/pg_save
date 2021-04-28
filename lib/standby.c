@@ -132,7 +132,7 @@ static void standby_query(Backend *backend) {
     if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)")) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     switch (PQflush(backend->conn)) {
         case 0: break;
-        case 1: backend->event = WL_SOCKET_MASK; return;
+        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
         case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
     }
     backend->event = WL_SOCKET_WRITEABLE;
