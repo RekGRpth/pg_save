@@ -28,7 +28,6 @@
 #include <postmaster/bgwriter.h>
 #include <postmaster/interrupt.h>
 #include <replication/walsender_private.h>
-#include <storage/ipc.h>
 #include <sys/stat.h>
 #include <tcop/utility.h>
 #include <unistd.h>
