@@ -36,7 +36,7 @@ int backend_nevents(void) {
     return nevents;
 }
 
-static void backend_query_socket(Backend *backend) {
+static void backend_listen_result(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_COMMAND_OK: ok = true; break;
@@ -46,11 +46,11 @@ static void backend_query_socket(Backend *backend) {
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
 }
 
-static void backend_query(Backend *backend) {
+static void backend_listen(Backend *backend) {
     const char *channel = backend->host;
     const char *channel_quote;
     StringInfoData buf;
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; backend->socket = backend_query; return; }
+    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; backend->socket = backend_listen; return; }
     channel_quote = quote_identifier(channel);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "LISTEN %s", channel_quote);
@@ -63,14 +63,14 @@ static void backend_query(Backend *backend) {
         case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
     }
     backend->event = WL_SOCKET_WRITEABLE;
-    backend->socket = backend_query_socket;
+    backend->socket = backend_listen_result;
 }
 
 static void backend_connected(Backend *backend) {
     D1("%s:%s", backend->host, init_state2char(backend->state));
     backend->attempt = 0;
     init_set_host(backend->host, backend->state);
-    backend_query(backend);
+    backend_listen(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
 }

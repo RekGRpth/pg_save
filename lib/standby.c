@@ -117,7 +117,7 @@ static void standby_result(Backend *backend, PGresult *result) {
     init_reload();
 }
 
-static void standby_query_socket(Backend *backend) {
+static void standby_select_result(Backend *backend) {
     bool ok = false;
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
         case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
@@ -127,8 +127,8 @@ static void standby_query_socket(Backend *backend) {
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
 }
 
-static void standby_query(Backend *backend) {
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; backend->socket = standby_query; return; }
+static void standby_select(Backend *backend) {
+    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; backend->socket = standby_select; return; }
     if (!PQsendQuery(backend->conn, "SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)")) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     switch (PQflush(backend->conn)) {
         case 0: break;
@@ -136,12 +136,12 @@ static void standby_query(Backend *backend) {
         case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
     }
     backend->event = WL_SOCKET_WRITEABLE;
-    backend->socket = standby_query_socket;
+    backend->socket = standby_select_result;
 }
 
 void standby_timeout(void) {
     if (!standby_primary) standby_create(PrimaryConnInfo);
-    if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_query(standby_primary);
+    if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_select(standby_primary);
 }
 
 void standby_updated(Backend *backend) {
