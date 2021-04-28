@@ -50,7 +50,7 @@ static void backend_listen(Backend *backend) {
     const char *channel = backend->host;
     const char *channel_quote;
     StringInfoData buf;
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; backend->socket = backend_listen; return; }
+    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; backend->socket = backend_listen; return; }
     channel_quote = quote_identifier(channel);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, "LISTEN %s", channel_quote);
@@ -62,7 +62,7 @@ static void backend_listen(Backend *backend) {
         case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
         case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
     }
-    backend->event = WL_SOCKET_WRITEABLE;
+    backend->event = WL_SOCKET_READABLE;
     backend->socket = backend_listen_result;
 }
 
