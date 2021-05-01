@@ -27,12 +27,14 @@ static void main_recovery(void) {
 static void main_backup(void) {
     char tmp[] = "XXXXXX";
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "pg_basebackup"
-        " --dbname=\"host=%s application_name=%s target_session_attrs=read-write\""
-        " --pgdata=\"%s\""
-        " --progress"
-        " --verbose"
-        " --wal-method=stream", primary, hostname, mktemp(tmp));
+    snprintf(str, sizeof(str), CMD(
+        pg_basebackup
+            --dbname="host=%s application_name=%s target_session_attrs=read-write"
+            --pgdata="%s"
+            --progress
+            --verbose
+            --wal-method=stream
+    ), primary, hostname, mktemp(tmp));
     if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
     I(str);
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
@@ -42,11 +44,13 @@ static void main_backup(void) {
 
 static void main_rewind(void) {
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "pg_rewind"
-        " --progress"
-        " --restore-target-wal"
-        " --source-server=\"host=%s application_name=%s target_session_attrs=read-write\""
-        " --target-pgdata=\"%s\"", primary, hostname, pgdata);
+    snprintf(str, sizeof(str), CMD(
+        pg_rewind
+            --progress
+            --restore-target-wal
+            --source-server="host=%s application_name=%s target_session_attrs=read-write"
+            --target-pgdata="%s"
+    ), primary, hostname, pgdata);
     I(str);
     if (system(str)) main_backup();
     main_recovery();
@@ -75,13 +79,13 @@ static char *main_state(void) {
 
 static void main_update(void) {
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "sed -i \"/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\" \"%s\"", primary, hostname, postgresql_auto_conf);
+    snprintf(str, sizeof(str), CMD(sed -i "/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'" "%s"), primary, hostname, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
-    snprintf(str, sizeof(str), "sed -i \"/^pg_save.primary/cpg_save.primary = '%s'\" \"%s\"", primary, postgresql_auto_conf);
+    snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.primary/cpg_save.primary = '%s'" "%s"), primary, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
-    snprintf(str, sizeof(str), "sed -i \"/^pg_save.wait_primary/cpg_save.wait_primary = '%s'\" \"%s\"", primary, postgresql_auto_conf);
+    snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.wait_primary/cpg_save.wait_primary = '%s'" "%s"), primary, postgresql_auto_conf);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
@@ -103,39 +107,40 @@ static void main_conf(void) {
     PQExpBufferData buf;
     if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
-    if (arclog) appendPQExpBuffer(&buf,
-        "archive_command = 'gzip -cfk9 \"%%p\" >\"%s/%%f.gz\"'\n"
-        "archive_mode = 'on'\n", arclog);
-    appendPQExpBufferStr(&buf,
-        "auto_explain.log_analyze = 'on'\n"
-        "auto_explain.log_buffers = 'on'\n"
-        "auto_explain.log_min_duration = '100'\n"
-        "auto_explain.log_nested_statements = 'on'\n"
-        "auto_explain.log_triggers = 'on'\n"
-        "auto_explain.log_verbose = 'on'\n"
-    );
-    if (cluster_name) appendPQExpBuffer(&buf, "cluster_name = '%s'\n", cluster_name);
-    appendPQExpBufferStr(&buf,
-        "datestyle = 'iso, dmy'\n"
-        "hot_standby_feedback = 'on'\n"
-        "listen_addresses = '*'\n"
-        "log_connections = 'on'\n"
-        "log_hostname = 'on'\n"
-        "log_line_prefix = '%m [%p] %r %u@%d/%a '\n"
-        "log_min_messages = 'debug1'\n"
-        "max_logical_replication_workers = '0'\n"
-        "max_sync_workers_per_subscription = '0'\n"
-        "max_wal_senders = '3'\n"
-    );
-    if (arclog) appendPQExpBuffer(&buf, "restore_command = 'gunzip -cfk \"%s/%%f.gz\" >\"%%p\"'\n", arclog);
-    appendPQExpBufferStr(&buf,
-        "shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n"
-        "trace_notify = 'on'\n"
-        "wal_compression = 'on'\n"
-        "wal_level = 'replica'\n"
-        "wal_log_hints = 'on'\n"
-        "wal_receiver_create_temp_slot = 'on'\n"
-    );
+    if (arclog) appendPQExpBuffer(&buf, CONF(
+        archive_command = 'gzip -cfk9 "%%p" >"%s/%%f.gz"'\n
+        archive_mode = 'on'\n
+    ), arclog);
+    appendPQExpBufferStr(&buf, CONF(
+        auto_explain.log_analyze = 'on'\n
+        auto_explain.log_buffers = 'on'\n
+        auto_explain.log_min_duration = '100'\n
+        auto_explain.log_nested_statements = 'on'\n
+        auto_explain.log_triggers = 'on'\n
+        auto_explain.log_verbose = 'on'\n
+    ));
+    if (cluster_name) appendPQExpBuffer(&buf, CONF(cluster_name = '%s'\n), cluster_name);
+    appendPQExpBufferStr(&buf, CONF(
+        datestyle = 'iso, dmy'\n
+        hot_standby_feedback = 'on'\n
+        listen_addresses = '*'\n
+        log_connections = 'on'\n
+        log_hostname = 'on'\n
+        log_line_prefix = '%m [%p] %r %u@%d/%a '\n
+        log_min_messages = 'debug1'\n
+        max_logical_replication_workers = '0'\n
+        max_sync_workers_per_subscription = '0'\n
+        max_wal_senders = '3'\n
+    ));
+    if (arclog) appendPQExpBuffer(&buf, CONF(restore_command = 'gunzip -cfk "%s/%%f.gz" >"%%p"'\n), arclog);
+    appendPQExpBufferStr(&buf, CONF(
+        shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n
+        trace_notify = 'on'\n
+        wal_compression = 'on'\n
+        wal_level = 'replica'\n
+        wal_log_hints = 'on'\n
+        wal_receiver_create_temp_slot = 'on'\n
+    ));
     if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
@@ -146,10 +151,10 @@ static void main_hba(void) {
     PQExpBufferData buf;
     if (!(file = fopen(pg_hba_conf, "a"))) E("fopen(\"%s\") and %m", pg_hba_conf);
     initPQExpBuffer(&buf);
-    appendPQExpBufferStr(&buf,
-        "host all all samenet trust\n"
-        "host replication all samenet trust\n"
-    );
+    appendPQExpBufferStr(&buf, CONF(
+        host all all samenet trust\n
+        host replication all samenet trust\n
+    ));
     if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
@@ -157,7 +162,7 @@ static void main_hba(void) {
 
 static void main_initdb(void) {
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), "initdb --pgdata=\"%s\"", pgdata);
+    snprintf(str, sizeof(str), CMD(initdb --pgdata="%s"), pgdata);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }

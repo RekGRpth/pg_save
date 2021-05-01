@@ -22,6 +22,9 @@
      _70, format, ...) FORMAT_ ## format(fmt)
 
 #define countof(array) (sizeof(array)/sizeof(array[0]))
+#define CMD(...) #__VA_ARGS__
+#define CONF(...) #__VA_ARGS__
+#define SQL(...) #__VA_ARGS__
 
 #define STATE_MAP(XX) \
     XX(unknown) \

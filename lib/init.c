@@ -99,7 +99,7 @@ static void init_notify(state_t state) {
     n->conditionname = (char *)channel;
     n->payload = (char *)payload;
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "NOTIFY %s, %s", channel_quote, payload_quote);
+    appendStringInfo(&buf, SQL(NOTIFY %s, %s), channel_quote, payload_quote);
     if (channel_quote != channel) pfree((void *)channel_quote);
     pfree((void *)payload_quote);
     if (idle) StartTransactionCommand();

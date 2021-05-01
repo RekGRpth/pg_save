@@ -53,7 +53,7 @@ static void backend_listen(Backend *backend) {
     if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; backend->socket = backend_listen; return; }
     channel_quote = quote_identifier(channel);
     initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, "LISTEN %s", channel_quote);
+    appendStringInfo(&buf, SQL(LISTEN %s), channel_quote);
     if (channel_quote != channel) pfree((void *)channel_quote);
     if (!PQsendQuery(backend->conn, buf.data)) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
     pfree(buf.data);
