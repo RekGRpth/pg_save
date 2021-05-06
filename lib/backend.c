@@ -211,7 +211,7 @@ void backend_fini(void) {
     RecoveryInProgress() ? standby_fini() : primary_fini();
 }
 
-static void backend_idle_socket(Backend *backend) {
+static void backend_idle_result(Backend *backend) {
     for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) {
         switch (PQresultStatus(result)) {
             default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
@@ -228,7 +228,7 @@ static void backend_idle_socket(Backend *backend) {
 
 void backend_idle(Backend *backend) {
     backend->event = WL_SOCKET_READABLE;
-    backend->socket = backend_idle_socket;
+    backend->socket = backend_idle_result;
 }
 
 void backend_init(void) {
