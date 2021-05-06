@@ -119,18 +119,21 @@ static void standby_result(Backend *backend, PGresult *result) {
 
 static void standby_select_result(Backend *backend) {
     bool ok = false;
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) {
+    PGresult *result;
+    while (PQstatus(backend->conn) == CONNECTION_OK) {
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
+        switch (PQflush(backend->conn)) {
+            case 0: break;
+            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
+            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
+        }
+        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
+        if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
             default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
         }
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return; }
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; PQclear(result); return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return;
-        }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; PQclear(result); return; }
+        PQclear(result);
     }
     if (ok) backend_idle(backend);
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
