@@ -54,6 +54,10 @@ typedef struct _SPI_plan SPI_plan;
 
 Backend *backend_host(const char *host);
 Backend *backend_state(state_t state);
+bool backend_busy(Backend *backend, int event);
+bool backend_consume(Backend *backend);
+bool backend_consume_flush_busy(Backend *backend);
+bool backend_flush(Backend *backend);
 char *TextDatumGetCStringMy(MemoryContextData *memoryContext, Datum datum);
 const char *backend_status(Backend *backend);
 const char *init_state2char(state_t state);
