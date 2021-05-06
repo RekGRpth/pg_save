@@ -103,7 +103,8 @@ static void backend_listen(Backend *backend) {
     const char *channel = backend->host;
     const char *channel_quote;
     StringInfoData buf;
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; backend->socket = backend_listen; return; }
+    backend->socket = backend_listen;
+    if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
     channel_quote = quote_identifier(channel);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, SQL(LISTEN %s), channel_quote);

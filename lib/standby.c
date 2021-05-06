@@ -134,7 +134,8 @@ static void standby_select_result(Backend *backend) {
 }
 
 static void standby_select(Backend *backend) {
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; backend->socket = standby_select; return; }
+    backend->socket = standby_select;
+    if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
     if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
     backend->socket = standby_select_result;
     if (!backend_flush(backend)) return;
