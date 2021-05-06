@@ -57,17 +57,27 @@ int backend_nevents(void) {
     return nevents;
 }
 
+static bool backend_flush(Backend *backend) {
+    switch (PQflush(backend->conn)) {
+        case 0: break;
+        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
+        case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false;
+    }
+    return true;
+}
+
+static bool backend_consume_flush_busy(Backend *backend) {
+    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false; }
+    if (!backend_flush(backend)) return false;
+    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return false; }
+    return true;
+}
+
 static void backend_listen_result(Backend *backend) {
     bool ok = false;
     PGresult *result;
     while (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
-        }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
+        if (!backend_consume_flush_busy(backend)) return;
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_COMMAND_OK: ok = true; break;
@@ -90,13 +100,9 @@ static void backend_listen(Backend *backend) {
     if (channel_quote != channel) pfree((void *)channel_quote);
     if (!PQsendQuery(backend->conn, buf.data)) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
     pfree(buf.data);
-    switch (PQflush(backend->conn)) {
-        case 0: break;
-        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; backend->socket = backend_listen_result; return;
-        case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
-    }
-    backend->event = WL_SOCKET_READABLE;
     backend->socket = backend_listen_result;
+    if (!backend_flush(backend)) return;
+    backend->event = WL_SOCKET_READABLE;
 }
 
 static void backend_connected(Backend *backend) {
@@ -217,13 +223,7 @@ void backend_fini(void) {
 static void backend_idle_result(Backend *backend) {
     PGresult *result;
     while (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
-        }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
+        if (!backend_consume_flush_busy(backend)) return;
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
@@ -258,13 +258,7 @@ static void backend_updated(Backend *backend) {
 void backend_readable(Backend *backend) {
     PGnotify *notify;
     while (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
-        }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
+        if (!backend_consume_flush_busy(backend)) return;
         if (!(notify = PQnotifies(backend->conn))) break;
         if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
         PQfreemem(notify);
@@ -297,12 +291,6 @@ void backend_update(Backend *backend, state_t state) {
 }
 
 void backend_writeable(Backend *backend) {
-    if (PQstatus(backend->conn) == CONNECTION_OK) {
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
-        }
-    }
+    if (PQstatus(backend->conn) == CONNECTION_OK) if (!backend_flush(backend)) return;
     backend->socket(backend);
 }
