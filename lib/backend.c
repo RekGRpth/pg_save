@@ -24,6 +24,27 @@ Backend *backend_state(state_t state) {
     return NULL;
 }
 
+const char *backend_status(Backend *backend) {
+    switch (PQstatus(backend->conn)) {
+        case CONNECTION_AUTH_OK: return "CONNECTION_AUTH_OK";
+        case CONNECTION_AWAITING_RESPONSE: return "CONNECTION_AWAITING_RESPONSE";
+        case CONNECTION_BAD: return "CONNECTION_BAD";
+#if (PG_VERSION_NUM >= 130000)
+        case CONNECTION_CHECK_TARGET: return "CONNECTION_CHECK_TARGET";
+#endif
+        case CONNECTION_CHECK_WRITABLE: return "CONNECTION_CHECK_WRITABLE";
+        case CONNECTION_CONSUME: return "CONNECTION_CONSUME";
+        case CONNECTION_GSS_STARTUP: return "CONNECTION_GSS_STARTUP";
+        case CONNECTION_MADE: return "CONNECTION_MADE";
+        case CONNECTION_NEEDED: return "CONNECTION_NEEDED";
+        case CONNECTION_OK: return "CONNECTION_OK";
+        case CONNECTION_SETENV: return "CONNECTION_SETENV";
+        case CONNECTION_SSL_STARTUP: return "CONNECTION_SSL_STARTUP";
+        case CONNECTION_STARTED: return "CONNECTION_STARTED";
+    }
+    return "";
+}
+
 int backend_nevents(void) {
     int nevents = 0;
     dlist_mutable_iter iter;
@@ -38,9 +59,18 @@ int backend_nevents(void) {
 
 static void backend_listen_result(Backend *backend) {
     bool ok = false;
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        case PGRES_COMMAND_OK: ok = true; break;
-        default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) {
+        switch (PQresultStatus(result)) {
+            case PGRES_COMMAND_OK: ok = true; break;
+            default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+        }
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return; }
+        switch (PQflush(backend->conn)) {
+            case 0: break;
+            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; PQclear(result); return;
+            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return;
+        }
+        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; PQclear(result); return; }
     }
     if (ok) backend_idle(backend);
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
@@ -73,27 +103,6 @@ static void backend_connected(Backend *backend) {
     backend_listen(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
-}
-
-static const char *backend_status(Backend *backend) {
-    switch (PQstatus(backend->conn)) {
-        case CONNECTION_AUTH_OK: return "CONNECTION_AUTH_OK";
-        case CONNECTION_AWAITING_RESPONSE: return "CONNECTION_AWAITING_RESPONSE";
-        case CONNECTION_BAD: return "CONNECTION_BAD";
-#if (PG_VERSION_NUM >= 130000)
-        case CONNECTION_CHECK_TARGET: return "CONNECTION_CHECK_TARGET";
-#endif
-        case CONNECTION_CHECK_WRITABLE: return "CONNECTION_CHECK_WRITABLE";
-        case CONNECTION_CONSUME: return "CONNECTION_CONSUME";
-        case CONNECTION_GSS_STARTUP: return "CONNECTION_GSS_STARTUP";
-        case CONNECTION_MADE: return "CONNECTION_MADE";
-        case CONNECTION_NEEDED: return "CONNECTION_NEEDED";
-        case CONNECTION_OK: return "CONNECTION_OK";
-        case CONNECTION_SETENV: return "CONNECTION_SETENV";
-        case CONNECTION_SSL_STARTUP: return "CONNECTION_SSL_STARTUP";
-        case CONNECTION_STARTED: return "CONNECTION_STARTED";
-    }
-    return "";
 }
 
 static void backend_fail(Backend *backend) {
@@ -203,8 +212,17 @@ void backend_fini(void) {
 }
 
 static void backend_idle_socket(Backend *backend) {
-    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) switch (PQresultStatus(result)) {
-        default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+    for (PGresult *result; (result = PQgetResult(backend->conn)); PQclear(result)) {
+        switch (PQresultStatus(result)) {
+            default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+        }
+        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return; }
+        switch (PQflush(backend->conn)) {
+            case 0: break;
+            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; PQclear(result); return;
+            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQclear(result); return;
+        }
+        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; PQclear(result); return; }
     }
 }
 
@@ -240,7 +258,16 @@ void backend_readable(Backend *backend) {
             case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
         }
         if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
-        for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
+        for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) {
+            if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
+            if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQfreemem(notify); return; }
+            switch (PQflush(backend->conn)) {
+                case 0: break;
+                case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; PQfreemem(notify); return;
+                case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQfreemem(notify); return;
+            }
+            if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; PQfreemem(notify); return; }
+        }
     }
     backend->socket(backend);
 }
