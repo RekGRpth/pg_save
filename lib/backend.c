@@ -250,7 +250,8 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_readable(Backend *backend) {
-    if (PQstatus(backend->conn) == CONNECTION_OK) {
+    PGnotify *notify;
+    while (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
         switch (PQflush(backend->conn)) {
             case 0: break;
@@ -258,16 +259,9 @@ void backend_readable(Backend *backend) {
             case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
         }
         if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
-        for (PGnotify *notify; (notify = PQnotifies(backend->conn)); PQfreemem(notify)) {
-            if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
-            if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQfreemem(notify); return; }
-            switch (PQflush(backend->conn)) {
-                case 0: break;
-                case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; PQfreemem(notify); return;
-                case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); PQfreemem(notify); return;
-            }
-            if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; PQfreemem(notify); return; }
-        }
+        if (!(notify = PQnotifies(backend->conn))) break;
+        if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
+        PQfreemem(notify);
     }
     backend->socket(backend);
 }
