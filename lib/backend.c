@@ -60,7 +60,7 @@ int backend_nevents(void) {
 static void backend_listen_result(Backend *backend) {
     bool ok = false;
     PGresult *result;
-    while (true) {
+    while (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
         switch (PQflush(backend->conn)) {
             case 0: break;
