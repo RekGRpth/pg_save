@@ -121,13 +121,7 @@ static void standby_select_result(Backend *backend) {
     bool ok = false;
     PGresult *result;
     while (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return; }
-        switch (PQflush(backend->conn)) {
-            case 0: break;
-            case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return;
-            case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return;
-        }
-        if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; return; }
+        if (!backend_consume_flush_busy(backend)) return;
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
@@ -142,13 +136,9 @@ static void standby_select_result(Backend *backend) {
 static void standby_select(Backend *backend) {
     if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; backend->socket = standby_select; return; }
     if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
-    switch (PQflush(backend->conn)) {
-        case 0: break;
-        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; backend->socket = standby_select_result; return;
-        case -1: W("%s:%s PQflush == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return;
-    }
-    backend->event = WL_SOCKET_READABLE;
     backend->socket = standby_select_result;
+    if (!backend_flush(backend)) return;
+    backend->event = WL_SOCKET_READABLE;
 }
 
 void standby_timeout(void) {
