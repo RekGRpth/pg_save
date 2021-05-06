@@ -24,13 +24,20 @@ Backend *backend_state(state_t state) {
     return NULL;
 }
 
+bool backend_busy(Backend *backend, int event) {
+    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = event; return false; }
+    return true;
+}
+
 bool backend_consume(Backend *backend) {
     if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false; }
     return true;
 }
 
-bool backend_busy(Backend *backend, int event) {
-    if (PQisBusy(backend->conn)) { W("%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = event; return false; }
+bool backend_consume_flush_busy(Backend *backend) {
+    if (!backend_consume(backend)) return false;
+    if (!backend_flush(backend)) return false;
+    if (!backend_busy(backend, WL_SOCKET_READABLE)) return false;
     return true;
 }
 
@@ -40,13 +47,6 @@ bool backend_flush(Backend *backend) {
         case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
         case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false;
     }
-    return true;
-}
-
-bool backend_consume_flush_busy(Backend *backend) {
-    if (!backend_consume(backend)) return false;
-    if (!backend_flush(backend)) return false;
-    if (!backend_busy(backend, WL_SOCKET_READABLE)) return false;
     return true;
 }
 
