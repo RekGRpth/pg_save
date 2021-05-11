@@ -121,13 +121,13 @@ static void standby_select_result(Backend *backend) {
     bool ok = false;
     PGresult *result;
     while (PQstatus(backend->conn) == CONNECTION_OK) {
-        if (!backend_consume_flush_busy(backend)) return;
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
             default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
         }
         PQclear(result);
+        if (!backend_consume_flush_busy(backend)) return;
     }
     if (ok) backend_idle(backend);
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
