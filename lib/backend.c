@@ -201,7 +201,7 @@ void backend_event(WaitEventSet *set) {
     AddWaitEventToSet(set, WL_POSTMASTER_DEATH, PGINVALID_SOCKET, NULL, NULL);
     dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
-        int fd;
+        pgsocket fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
         if ((fd = PQsocket(backend->conn)) == PGINVALID_SOCKET) continue;
         AddWaitEventToSet(set, backend->event, fd, NULL, backend);
