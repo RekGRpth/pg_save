@@ -1,5 +1,5 @@
 PROGRAM = pg_save
-OBJS = main.o
+OBJS = main.o ../fe-exec.o
 PG_CONFIG = pg_config
 PG_LIBS = $(libpq)
 PG_CPPFLAGS += -I../include

@@ -1,6 +1,9 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+#include <libpq-fe.h>
+#include <string.h>
+
 #define FORMAT_0(fmt, ...) "%s(%s:%d): %s", __func__, __FILE__, __LINE__, fmt
 #define FORMAT_1(fmt, ...) "%s(%s:%d): " fmt,  __func__, __FILE__, __LINE__
 #define GET_FORMAT(fmt, ...) GET_FORMAT_PRIVATE(fmt, 0, ##__VA_ARGS__, 1, \
@@ -37,5 +40,8 @@
     XX(potential) \
     XX(quorum) \
     XX(async)
+
+char *PQerrorMessageMy(const PGconn *conn);
+char *PQresultErrorMessageMy(const PGresult *res);
 
 #endif // _COMMON_H_

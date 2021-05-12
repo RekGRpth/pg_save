@@ -30,7 +30,7 @@ bool backend_busy(Backend *backend, int event) {
 }
 
 bool backend_consume(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false; }
+    if (!PQconsumeInput(backend->conn)) { W("%s:%s !PQconsumeInput and %s and %s", backend->host, init_state2char(backend->state), backend_status(backend), PQerrorMessageMy(backend->conn)); return false; }
     return true;
 }
 
@@ -45,7 +45,7 @@ bool backend_flush(Backend *backend) {
     switch (PQflush(backend->conn)) {
         case 0: break;
         case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
-        case -1: W("%s:%s PQflush == -1 and %s and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); return false;
+        case -1: W("%s:%s PQflush == -1 and %s and %s", backend->host, init_state2char(backend->state), backend_status(backend), PQerrorMessageMy(backend->conn)); return false;
     }
     return true;
 }
@@ -90,7 +90,7 @@ static void backend_listen_result(Backend *backend) {
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_COMMAND_OK: ok = true; break;
-            default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+            default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
         if (!backend_consume_flush_busy(backend)) return;
@@ -109,7 +109,7 @@ static void backend_listen(Backend *backend) {
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, SQL(LISTEN %s), channel_quote);
     if (channel_quote != channel) pfree((void *)channel_quote);
-    if (!PQsendQuery(backend->conn, buf.data)) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
+    if (!PQsendQuery(backend->conn, buf.data)) { W("%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
     pfree(buf.data);
     backend->socket = backend_listen_result;
     if (!backend_flush(backend)) return;
@@ -135,13 +135,13 @@ static void backend_fail(Backend *backend) {
 
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
-        case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
+        case CONNECTION_BAD: W("%s:%s CONNECTION_BAD and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return;
         case CONNECTION_OK: D1("%s:%s CONNECTION_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
         default: break;
     }
     switch (poll(backend->conn)) {
         case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE and %s", backend->host, init_state2char(backend->state), backend_status(backend)); break;
-        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend_status(backend), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return;
+        case PGRES_POLLING_FAILED: W("%s:%s PGRES_POLLING_FAILED and %s and %i < %i and %s", backend->host, init_state2char(backend->state), backend_status(backend), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return;
         case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend_connected(backend); return;
         case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->event = WL_SOCKET_READABLE; break;
         case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING and %s", backend->host, init_state2char(backend->state), backend_status(backend)); backend->event = WL_SOCKET_WRITEABLE; break;
@@ -167,14 +167,14 @@ static void backend_connect_or_reset(Backend *backend) {
         case PQPING_REJECT: W("%s:%s PQPING_REJECT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
     }
     if (!backend->conn) {
-        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
+        if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
     } else {
-        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %.*s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_fail(backend); return; }
+        if (!(PQresetStart(backend->conn))) { W("%s:%s !PQresetStart and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_reset_socket;
     }
-    if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s PQstatus == CONNECTION_BAD and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
-    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) { W("%s:%s PQsetnonblocking == -1 and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
+    if (PQstatus(backend->conn) == CONNECTION_BAD) { W("%s:%s PQstatus == CONNECTION_BAD and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
+    if (!PQisnonblocking(backend->conn) && PQsetnonblocking(backend->conn, true) == -1) { W("%s:%s PQsetnonblocking == -1 and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
     if (PQclientEncoding(backend->conn) != GetDatabaseEncoding()) PQsetClientEncoding(backend->conn, GetDatabaseEncodingName());
     backend->event = WL_SOCKET_MASK;
 }
@@ -236,7 +236,7 @@ static void backend_idle_result(Backend *backend) {
     while (PQstatus(backend->conn) == CONNECTION_OK) {
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
-            default: D1("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+            default: D1("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
         if (!backend_consume_flush_busy(backend)) return;

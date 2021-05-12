@@ -21,7 +21,6 @@
 #include <commands/async.h>
 #include <executor/spi.h>
 #include <funcapi.h>
-#include <libpq-fe.h>
 #include <libpq/libpq-be.h>
 #include <pgstat.h>
 #include <postmaster/bgworker.h>

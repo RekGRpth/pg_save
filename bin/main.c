@@ -204,9 +204,9 @@ static char *main_primary(void) {
         case PQPING_OK: I("PQPING_OK"); break;
         case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
     }
-    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); return NULL; }
-    if (!(result = PQexec(conn, "SELECT current_setting('pg_save.hostname', false) AS hostname"))) { W("!PQexec and %.*s", (int)strlen(PQerrorMessage(conn)) - 1, PQerrorMessage(conn)); PQfinish(conn); return NULL; }
-    if (PQresultStatus(result) != PGRES_TUPLES_OK) { W("PQresultStatus = %s and %.*s", PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); PQclear(result); PQfinish(conn); return NULL; }
+    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %s", PQerrorMessageMy(conn)); return NULL; }
+    if (!(result = PQexec(conn, "SELECT current_setting('pg_save.hostname', false) AS hostname"))) { W("!PQexec and %s", PQerrorMessageMy(conn)); PQfinish(conn); return NULL; }
+    if (PQresultStatus(result) != PGRES_TUPLES_OK) { W("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); PQclear(result); PQfinish(conn); return NULL; }
     if (PQntuples(result) != 1) { W("PQntuples != 1"); PQclear(result); PQfinish(conn); return NULL; }
     strcpy(primary, PQgetvalue(result, 0, PQfnumber(result, "hostname")));
     PQclear(result);

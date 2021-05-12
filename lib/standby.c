@@ -124,7 +124,7 @@ static void standby_select_result(Backend *backend) {
         if (!(result = PQgetResult(backend->conn))) break;
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
-            default: W("%s:%s PQresultStatus = %s and %.*s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), (int)strlen(PQresultErrorMessage(result)) - 1, PQresultErrorMessage(result)); break;
+            default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
         if (!backend_consume_flush_busy(backend)) return;
@@ -136,7 +136,7 @@ static void standby_select_result(Backend *backend) {
 static void standby_select(Backend *backend) {
     backend->socket = standby_select;
     if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
-    if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { W("%s:%s !PQsendQuery and %.*s", backend->host, init_state2char(backend->state), (int)strlen(PQerrorMessage(backend->conn)) - 1, PQerrorMessage(backend->conn)); backend_finish(backend); return; }
+    if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { W("%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
     backend->socket = standby_select_result;
     if (!backend_flush(backend)) return;
     backend->event = WL_SOCKET_READABLE;

@@ -1,6 +1,6 @@
 EXTENSION = pg_save
 MODULE_big = $(EXTENSION)
-OBJS = init.o save.o spi.o primary.o standby.o backend.o varlena.o stringinfo.o
+OBJS = init.o save.o spi.o primary.o standby.o backend.o varlena.o stringinfo.o ../fe-exec.o
 PG_CONFIG = pg_config
 SHLIB_LINK = $(libpq)
 PG_CPPFLAGS += -I../include
