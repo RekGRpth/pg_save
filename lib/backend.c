@@ -77,7 +77,7 @@ int backend_nevents(void) {
     dlist_foreach_modify(iter, &backends) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
-        if (PQsocket(backend->conn) < 0) continue;
+        if (PQsocket(backend->conn) == PGINVALID_SOCKET) continue;
         nevents++;
     }
     return nevents;
@@ -203,7 +203,7 @@ void backend_event(WaitEventSet *set) {
         Backend *backend = dlist_container(Backend, node, iter.cur);
         int fd;
         if (PQstatus(backend->conn) == CONNECTION_BAD) continue;
-        if ((fd = PQsocket(backend->conn)) < 0) continue;
+        if ((fd = PQsocket(backend->conn)) == PGINVALID_SOCKET) continue;
         AddWaitEventToSet(set, backend->event, fd, NULL, backend);
     }
 }
