@@ -119,8 +119,7 @@ static void standby_result(Backend *backend, PGresult *result) {
 
 static void standby_select_result(Backend *backend) {
     bool ok = false;
-    PGresult *result;
-    while (PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn))) {
+    for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
             default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;

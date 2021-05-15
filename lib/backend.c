@@ -85,8 +85,7 @@ int backend_nevents(void) {
 
 static void backend_listen_result(Backend *backend) {
     bool ok = false;
-    PGresult *result;
-    while (PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn))) {
+    for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
         switch (PQresultStatus(result)) {
             case PGRES_COMMAND_OK: ok = true; break;
             default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
@@ -231,8 +230,7 @@ void backend_fini(void) {
 }
 
 static void backend_idle_result(Backend *backend) {
-    PGresult *result;
-    while (PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn))) {
+    for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
         switch (PQresultStatus(result)) {
             default: D1("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
@@ -265,9 +263,8 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_readable(Backend *backend) {
-    PGnotify *notify;
     if (!backend_consume_flush_busy(backend)) return;
-    while (PQstatus(backend->conn) == CONNECTION_OK && (notify = PQnotifies(backend->conn))) {
+    for (PGnotify *notify; PQstatus(backend->conn) == CONNECTION_OK && (notify = PQnotifies(backend->conn)); ) {
         if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
         PQfreemem(notify);
         if (!backend_consume_flush_busy(backend)) return;
