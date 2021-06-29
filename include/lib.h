@@ -31,6 +31,7 @@
 #include <tcop/utility.h>
 #include <unistd.h>
 #include <utils/builtins.h>
+#include <utils/snapmgr.h>
 #include <utils/timeout.h>
 
 typedef enum state_t {
