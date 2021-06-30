@@ -158,12 +158,12 @@ static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
     const char *values[] = {backend->host, pgport ? pgport : DEF_PGPORT_STR, MyProcPort->user_name, MyProcPort->database_name, hostname, backend->state <= state_primary ? "read-write" : "any", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    switch (PQpingParams(keywords, values, false)) {
+    /*switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: W("%s:%s PQPING_NO_ATTEMPT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
         case PQPING_NO_RESPONSE: W("%s:%s PQPING_NO_RESPONSE and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
         case PQPING_OK: D1("%s:%s PQPING_OK", backend->host, init_state2char(backend->state)); break;
         case PQPING_REJECT: W("%s:%s PQPING_REJECT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
-    }
+    }*/
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { W("%s:%s !PQconnectStartParams and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
