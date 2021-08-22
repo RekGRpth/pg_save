@@ -103,7 +103,11 @@ static void init_notify(state_t state) {
     if (channel_quote != channel) pfree((void *)channel_quote);
     pfree((void *)payload_quote);
     if (idle) StartTransactionCommand();
+#if (PG_VERSION_NUM >= 140000)
+    ProcessUtility(pstmt, buf.data, false, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
+#else
     ProcessUtility(pstmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
+#endif
     if (idle) CommitTransactionCommand();
     MemoryContextSwitchTo(TopMemoryContext);
     pfree(buf.data);
