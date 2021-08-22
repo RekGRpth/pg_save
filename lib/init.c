@@ -156,29 +156,15 @@ static const char *init_show(void) {
 }
 
 static void init_work(void) {
-    StringInfoData buf;
     BackgroundWorker worker;
     MemSet(&worker, 0, sizeof(worker));
+    if (strlcpy(worker.bgw_function_name, "save_worker", sizeof(worker.bgw_function_name)) >= sizeof(worker.bgw_function_name)) E("strlcpy");
+    if (strlcpy(worker.bgw_library_name, "pg_save", sizeof(worker.bgw_library_name)) >= sizeof(worker.bgw_library_name)) E("strlcpy");
+    if (snprintf(worker.bgw_type, sizeof(worker.bgw_type) - 1, "pg_save %s", hostname) >= sizeof(worker.bgw_type) - 1) E("snprintf");
+    if (snprintf(worker.bgw_name, sizeof(worker.bgw_name) - 1, "postgres postgres %s", worker.bgw_type) >= sizeof(worker.bgw_name) - 1) E("snprintf");
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
     worker.bgw_start_time = BgWorkerStart_ConsistentState;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfoString(&buf, "pg_save");
-    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
-    memcpy(worker.bgw_library_name, buf.data, buf.len);
-    resetStringInfo(&buf);
-    appendStringInfoString(&buf, "save_worker");
-    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
-    memcpy(worker.bgw_function_name, buf.data, buf.len);
-    resetStringInfo(&buf);
-    appendStringInfoString(&buf, hostname);
-    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
-    memcpy(worker.bgw_type, buf.data, buf.len);
-    resetStringInfo(&buf);
-    appendStringInfo(&buf, "postgres postgres %s", hostname);
-    if (buf.len + 1 > BGW_MAXLEN) E("%i > BGW_MAXLEN", buf.len + 1);
-    memcpy(worker.bgw_name, buf.data, buf.len);
-    pfree(buf.data);
     RegisterBackgroundWorker(&worker);
 }
 
@@ -187,9 +173,10 @@ static void init_save(void) {
 #define XX(name) {#name, state_##name, false},
         STATE_MAP(XX)
 #undef XX
+        {NULL, 0, false}
     };
     if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
-    if (!(synchronous_standby_names = getenv("SYNCHRONOUS_STANDBY_NAMES"))) E("!getenv(\"SYNCHRONOUS_STANDBY_NAMES\")");
+    synchronous_standby_names = getenv("SYNCHRONOUS_STANDBY_NAMES");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.restart", "pg_save restart", NULL, &init_restart, 10, 1, INT_MAX, PGC_POSTMASTER, 0, NULL, NULL, NULL);
