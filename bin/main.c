@@ -162,7 +162,7 @@ static void main_hba(void) {
 
 static void main_initdb(void) {
     char str[MAXPGPATH];
-    snprintf(str, sizeof(str), CMD(initdb --pgdata="%s"), pgdata);
+    snprintf(str, sizeof(str), CMD(initdb --data-checksums --pgdata="%s"), pgdata);
     I(str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
