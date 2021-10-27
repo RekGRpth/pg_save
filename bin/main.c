@@ -108,7 +108,7 @@ static void main_conf(void) {
     if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
     if (arclog) appendPQExpBuffer(&buf, CONF(
-        archive_command = 'gzip -cfk9 "%%p" >"%s/%%f.gz"'\n
+        archive_command = 'gzip -cfk "%%p" >"%s/%%f.gz"'\n
         archive_mode = 'on'\n
     ), arclog);
     appendPQExpBufferStr(&buf, CONF(
