@@ -27,7 +27,7 @@
 #include <postmaster/bgwriter.h>
 #include <postmaster/interrupt.h>
 #include <replication/walsender_private.h>
-#if (PG_VERSION_NUM >= 140000)
+#if PG_VERSION_NUM >= 140000
 #include <storage/proc.h>
 #endif
 #include <sys/stat.h>
