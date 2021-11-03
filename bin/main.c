@@ -111,31 +111,18 @@ static void main_conf(void) {
         archive_command = 'gzip -cfk "%%p" >"%s/%%f.gz"'\n
         archive_mode = 'on'\n
     ), arclog);
-    appendPQExpBufferStr(&buf, CONF(
-        auto_explain.log_analyze = 'on'\n
-        auto_explain.log_buffers = 'on'\n
-        auto_explain.log_min_duration = '100'\n
-        auto_explain.log_nested_statements = 'on'\n
-        auto_explain.log_triggers = 'on'\n
-        auto_explain.log_verbose = 'on'\n
-    ));
     if (cluster_name) appendPQExpBuffer(&buf, CONF(cluster_name = '%s'\n), cluster_name);
     appendPQExpBufferStr(&buf, CONF(
         datestyle = 'iso, dmy'\n
         hot_standby_feedback = 'on'\n
         listen_addresses = '*'\n
-        log_connections = 'on'\n
-        log_hostname = 'on'\n
-        log_line_prefix = '%m [%p] %r %u@%d/%a '\n
-        log_min_messages = 'debug1'\n
         max_logical_replication_workers = '0'\n
         max_sync_workers_per_subscription = '0'\n
         max_wal_senders = '3'\n
     ));
     if (arclog) appendPQExpBuffer(&buf, CONF(restore_command = 'gunzip -cfk "%s/%%f.gz" >"%%p"'\n), arclog);
     appendPQExpBufferStr(&buf, CONF(
-        shared_preload_libraries = 'auto_explain,pg_async,pg_save'\n
-        trace_notify = 'on'\n
+        shared_preload_libraries = 'pg_async,pg_save'\n
         wal_compression = 'on'\n
         wal_level = 'replica'\n
         wal_log_hints = 'on'\n
