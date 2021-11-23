@@ -25,7 +25,9 @@
 #include <pgstat.h>
 #include <postmaster/bgworker.h>
 #include <postmaster/bgwriter.h>
+#if PG_VERSION_NUM >= 130000
 #include <postmaster/interrupt.h>
+#endif
 #include <replication/walsender_private.h>
 #if PG_VERSION_NUM >= 140000
 #include <storage/proc.h>
@@ -62,7 +64,6 @@ bool backend_consume(Backend *backend);
 bool backend_consume_flush_busy(Backend *backend);
 bool backend_flush(Backend *backend);
 char *TextDatumGetCStringMy(MemoryContextData *memoryContext, Datum datum);
-const char *backend_status(Backend *backend);
 const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDescData *tupdesc, const char *fname, bool allow_null);
 int backend_nevents(void);
