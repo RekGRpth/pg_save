@@ -27,6 +27,10 @@
 #include <postmaster/bgwriter.h>
 #if PG_VERSION_NUM >= 130000
 #include <postmaster/interrupt.h>
+#else
+extern PGDLLIMPORT volatile sig_atomic_t ShutdownRequestPending;
+extern void SignalHandlerForConfigReload(SIGNAL_ARGS);
+extern void SignalHandlerForShutdownRequest(SIGNAL_ARGS);
 #endif
 #include <replication/walsender_private.h>
 #include <miscadmin.h>

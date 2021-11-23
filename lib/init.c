@@ -198,3 +198,30 @@ void _PG_init(void) {
     if (!process_shared_preload_libraries_in_progress) F("!process_shared_preload_libraries_in_progress");
     init_save();
 }
+
+#if PG_VERSION_NUM >= 130000
+#else
+volatile sig_atomic_t ShutdownRequestPending;
+
+void
+SignalHandlerForConfigReload(SIGNAL_ARGS)
+{
+	int			save_errno = errno;
+
+	ConfigReloadPending = true;
+	SetLatch(MyLatch);
+
+	errno = save_errno;
+}
+
+void
+SignalHandlerForShutdownRequest(SIGNAL_ARGS)
+{
+	int			save_errno = errno;
+
+	ShutdownRequestPending = true;
+	SetLatch(MyLatch);
+
+	errno = save_errno;
+}
+#endif
