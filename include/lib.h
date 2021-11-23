@@ -29,6 +29,7 @@
 #include <postmaster/interrupt.h>
 #endif
 #include <replication/walsender_private.h>
+#include <miscadmin.h>
 #if PG_VERSION_NUM >= 140000
 #include <storage/proc.h>
 #endif
