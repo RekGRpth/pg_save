@@ -14,6 +14,8 @@
 #include <common/file_perm.h>
 #if PG_VERSION_NUM >= 120000
 #include <common/logging.h>
+#else
+#include "logging.h"
 #endif
 #include <pqexpbuffer.h>
 #include <unistd.h>

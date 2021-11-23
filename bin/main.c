@@ -237,3 +237,8 @@ int main(int argc, char *argv[]) {
     execlp("postmaster", "postmaster", NULL);
     E("execlp(\"postmaster\")");
 }
+
+#if PG_VERSION_NUM >= 120000
+#else
+#include "logging.c"
+#endif
