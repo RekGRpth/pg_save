@@ -81,7 +81,7 @@ static void primary_result(void) {
 }
 
 void primary_timeout(void) {
-    static SPI_plan *plan = NULL;
+    static SPIPlanPtr plan = NULL;
     static char *command = SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup));
     SPI_connect_my(command);
     if (!plan) plan = SPI_prepare_my(command, 0, NULL);

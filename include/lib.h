@@ -60,8 +60,6 @@ typedef struct Backend {
     void (*socket) (struct Backend *backend);
 } Backend;
 
-typedef struct _SPI_plan SPI_plan;
-
 Backend *backend_host(const char *host);
 Backend *backend_state(state_t state);
 bool backend_busy(Backend *backend, int event);
@@ -72,7 +70,7 @@ char *TextDatumGetCStringMy(MemoryContextData *memoryContext, Datum datum);
 const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 int backend_nevents(void);
-SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
+SPIPlanPtr SPI_prepare_my(const char *src, int nargs, Oid *argtypes);
 state_t init_char2state(const char *state);
 state_t init_host(const char *host);
 void backend_create(const char *host, state_t state);
@@ -106,7 +104,7 @@ void primary_updated(Backend *backend);
 void save_worker(Datum main_arg);
 void SPI_commit_my(void);
 void SPI_connect_my(const char *src);
-void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit);
+void SPI_execute_plan_my(SPIPlanPtr plan, Datum *values, const char *nulls, int res, bool commit);
 void SPI_execute_with_args_my(const char *src, int nargs, Oid *argtypes, Datum *values, const char *nulls, int res, bool commit);
 void SPI_finish_my(void);
 void SPI_start_transaction_my(const char *src);

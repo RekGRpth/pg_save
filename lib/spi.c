@@ -8,9 +8,9 @@ Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDesc tupdesc, const char *fnam
     return datum;
 }
 
-SPI_plan *SPI_prepare_my(const char *src, int nargs, Oid *argtypes) {
+SPIPlanPtr SPI_prepare_my(const char *src, int nargs, Oid *argtypes) {
     int rc;
-    SPI_plan *plan;
+    SPIPlanPtr plan;
     if (!(plan = SPI_prepare(src, nargs, argtypes))) E("SPI_prepare = %s", SPI_result_code_string(SPI_result));
     if ((rc = SPI_keepplan(plan))) E("SPI_keepplan = %s", SPI_result_code_string(rc));
     return plan;
@@ -31,12 +31,17 @@ void SPI_connect_my(const char *src) {
 #if PG_VERSION_NUM >= 110000
     if ((rc = SPI_connect_ext(SPI_OPT_NONATOMIC)) != SPI_OK_CONNECT) E("SPI_connect_ext = %s", SPI_result_code_string(rc));
 #else
+    if (true) {
+        MemoryContext oldcontext = CurrentMemoryContext;
+        StartTransactionCommand();
+        MemoryContextSwitchTo(oldcontext);
+    }
     if ((rc = SPI_connect()) != SPI_OK_CONNECT) E("SPI_connect = %s", SPI_result_code_string(rc));
 #endif
     SPI_start_transaction_my(src);
 }
 
-void SPI_execute_plan_my(SPI_plan *plan, Datum *values, const char *nulls, int res, bool commit) {
+void SPI_execute_plan_my(SPIPlanPtr plan, Datum *values, const char *nulls, int res, bool commit) {
     int rc;
     if ((rc = SPI_execute_plan(plan, values, nulls, false, 0)) != res) E("SPI_execute_plan = %s", SPI_result_code_string(rc));
     if (commit) SPI_commit_my();
@@ -52,9 +57,15 @@ void SPI_finish_my(void) {
     int rc;
     if ((rc = SPI_finish()) != SPI_OK_FINISH) E("SPI_finish = %s", SPI_result_code_string(rc));
 #if PG_VERSION_NUM >= 110000
-    if (!SPI_inside_nonatomic_context())
+    if (!SPI_inside_nonatomic_context()) ProcessCompletedNotifies();
+#else
+    ProcessCompletedNotifies();
+    if (true) {
+        MemoryContext oldcontext = CurrentMemoryContext;
+        CommitTransactionCommand();
+        MemoryContextSwitchTo(oldcontext);
+    }
 #endif
-        ProcessCompletedNotifies();
 }
 
 void SPI_start_transaction_my(const char *src) {
