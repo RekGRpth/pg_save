@@ -31,8 +31,10 @@ static void standby_promote(Backend *backend) {
     init_set_host(backend->host, state_wait_standby);
     init_set_state(state_wait_primary);
     backend_finish(backend);
+#if PG_VERSION_NUM >= 120000
     if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
     else primary_init();
+#endif
 }
 
 static void standby_reprimary(Backend *backend) {
@@ -83,7 +85,9 @@ void standby_init(void) {
         case state_wait_standby: break;
         default: E("init_state = %s", init_state2char(init_state)); break;
     }
+#if PG_VERSION_NUM >= 120000
     if (!standby_primary) standby_create(PrimaryConnInfo);
+#endif
 }
 
 void standby_notify(Backend *backend, state_t state) {
@@ -141,7 +145,9 @@ static void standby_select(Backend *backend) {
 }
 
 void standby_timeout(void) {
+#if PG_VERSION_NUM >= 120000
     if (!standby_primary) standby_create(PrimaryConnInfo);
+#endif
     if (PQstatus(standby_primary->conn) == CONNECTION_OK) standby_select(standby_primary);
 }
 

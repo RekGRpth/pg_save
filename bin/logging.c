@@ -194,7 +194,11 @@ pg_logging_set_locus_callback(void (*cb) (const char **filename, uint64 *lineno)
 }
 
 void
+#if PG_VERSION_NUM >= 110000
 pg_log_generic(enum pg_log_level level, const char *pg_restrict fmt,...)
+#else
+pg_log_generic(enum pg_log_level level, const char *fmt,...)
+#endif
 {
 	va_list		ap;
 
@@ -204,7 +208,11 @@ pg_log_generic(enum pg_log_level level, const char *pg_restrict fmt,...)
 }
 
 void
+#if PG_VERSION_NUM >= 110000
 pg_log_generic_v(enum pg_log_level level, const char *pg_restrict fmt, va_list ap)
+#else
+pg_log_generic_v(enum pg_log_level level, const char *fmt, va_list ap)
+#endif
 {
 	int			save_errno = errno;
 	const char *filename = NULL;

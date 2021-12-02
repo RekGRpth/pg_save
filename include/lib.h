@@ -41,8 +41,14 @@ extern void SignalHandlerForShutdownRequest(SIGNAL_ARGS);
 #include <tcop/utility.h>
 #include <unistd.h>
 #include <utils/builtins.h>
+#include <utils/memutils.h>
 #include <utils/snapmgr.h>
 #include <utils/timeout.h>
+
+#if PG_VERSION_NUM >= 100000
+#else
+#define WL_SOCKET_MASK (WL_SOCKET_READABLE | WL_SOCKET_WRITEABLE)
+#endif
 
 typedef enum state_t {
 #define XX(name) state_##name,
@@ -66,7 +72,7 @@ bool backend_busy(Backend *backend, int event);
 bool backend_consume(Backend *backend);
 bool backend_consume_flush_busy(Backend *backend);
 bool backend_flush(Backend *backend);
-char *TextDatumGetCStringMy(MemoryContextData *memoryContext, Datum datum);
+char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum);
 const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDesc tupdesc, const char *fname, bool allow_null);
 int backend_nevents(void);
@@ -90,7 +96,7 @@ void init_reload(void);
 void init_set_host(const char *host, state_t state);
 void init_set_state(state_t state);
 void init_set_system(const char *name, const char *new);
-void initStringInfoMy(MemoryContextData *memoryContext, StringInfoData *buf);
+void initStringInfoMy(MemoryContext memoryContext, StringInfoData *buf);
 void _PG_init(void);
 void primary_connected(Backend *backend);
 void primary_created(Backend *backend);

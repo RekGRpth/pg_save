@@ -70,8 +70,13 @@ void		pg_logging_increase_verbosity(void);
 void		pg_logging_set_pre_callback(void (*cb) (void));
 void		pg_logging_set_locus_callback(void (*cb) (const char **filename, uint64 *lineno));
 
+#if PG_VERSION_NUM >= 110000
 void		pg_log_generic(enum pg_log_level level, const char *pg_restrict fmt,...) pg_attribute_printf(2, 3);
 void		pg_log_generic_v(enum pg_log_level level, const char *pg_restrict fmt, va_list ap) pg_attribute_printf(2, 0);
+#else
+void		pg_log_generic(enum pg_log_level level, const char *fmt,...) pg_attribute_printf(2, 3);
+void		pg_log_generic_v(enum pg_log_level level, const char *fmt, va_list ap) pg_attribute_printf(2, 0);
+#endif
 
 #define pg_log_fatal(...) do { \
 		if (likely(__pg_log_level <= PG_LOG_FATAL)) pg_log_generic(PG_LOG_FATAL, __VA_ARGS__); \

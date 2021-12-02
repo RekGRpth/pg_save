@@ -13,7 +13,11 @@ static void save_init(void) {
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
     BackgroundWorkerUnblockSignals();
+#if PG_VERSION_NUM >= 110000
     BackgroundWorkerInitializeConnection("postgres", "postgres", 0);
+#else
+    BackgroundWorkerInitializeConnection("postgres", "postgres");
+#endif
     pgstat_report_appname(hostname);
     process_session_preload_libraries();
     backend_init();
@@ -45,7 +49,11 @@ void save_worker(Datum main_arg) {
             INSTR_TIME_SET_CURRENT(start_time);
             cur_timeout = init_timeout;
         }
+#if PG_VERSION_NUM >= 100000
         nevents = WaitEventSetWait(set, cur_timeout, events, nevents, PG_WAIT_EXTENSION);
+#else
+        nevents = WaitEventSetWait(set, cur_timeout, events, nevents);
+#endif
         for (int i = 0; i < nevents; i++) {
             WaitEvent *event = &events[i];
             if (event->events & WL_LATCH_SET) save_latch();

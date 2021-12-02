@@ -14,6 +14,17 @@ static int init_restart;
 STATE_MAP(XX)
 #undef XX
 
+static char *text_to_cstring_my(MemoryContext memoryContext, const text *t) {
+    MemoryContext oldMemoryContext = MemoryContextSwitchTo(memoryContext);
+    char *result = text_to_cstring(t);
+    MemoryContextSwitchTo(oldMemoryContext);
+    return result;
+}
+
+char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum) {
+    return datum ? text_to_cstring_my(memoryContext, (text *)DatumGetPointer(datum)) : NULL;
+}
+
 const char *init_state2char(state_t state) {
     switch (state) {
 #define XX(name) case state_##name: return #name;
@@ -61,7 +72,9 @@ void init_debug(void) {
     STATE_MAP(XX)
 #undef XX
     if (IsBackgroundWorker) D1("RecoveryInProgress = '%s'", RecoveryInProgress() ? "true" : "false");
+#if PG_VERSION_NUM >= 120000
     if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = '%s'", PrimaryConnInfo);
+#endif
     if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = '%s'", SyncRepStandbyNames);
 }
 
@@ -105,8 +118,10 @@ static void init_notify(state_t state) {
     if (idle) StartTransactionCommand();
 #if PG_VERSION_NUM >= 140000
     ProcessUtility(pstmt, buf.data, false, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
-#else
+#elif PG_VERSION_NUM >= 100000
     ProcessUtility(pstmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
+#else
+    ProcessUtility(pstmt->utilityStmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, None_Receiver, NULL);
 #endif
     if (idle) CommitTransactionCommand();
     MemoryContextSwitchTo(TopMemoryContext);
@@ -155,6 +170,12 @@ void init_set_system(const char *name, const char *new) {
     init_sighup = true;
 }
 
+void initStringInfoMy(MemoryContext memoryContext, StringInfoData *buf) {
+    MemoryContext oldMemoryContext = MemoryContextSwitchTo(memoryContext);
+    initStringInfo(buf);
+    MemoryContextSwitchTo(oldMemoryContext);
+}
+
 static const char *init_show(void) {
     return hostname;
 }
@@ -164,8 +185,10 @@ static void init_work(void) {
     MemSet(&worker, 0, sizeof(worker));
     if (strlcpy(worker.bgw_function_name, "save_worker", sizeof(worker.bgw_function_name)) >= sizeof(worker.bgw_function_name)) E("strlcpy");
     if (strlcpy(worker.bgw_library_name, "pg_save", sizeof(worker.bgw_library_name)) >= sizeof(worker.bgw_library_name)) E("strlcpy");
+    if (snprintf(worker.bgw_name, sizeof(worker.bgw_name) - 1, "postgres postgres pg_save %s", hostname) >= sizeof(worker.bgw_name) - 1) E("snprintf");
+#if PG_VERSION_NUM >= 110000
     if (snprintf(worker.bgw_type, sizeof(worker.bgw_type) - 1, "pg_save %s", hostname) >= sizeof(worker.bgw_type) - 1) E("snprintf");
-    if (snprintf(worker.bgw_name, sizeof(worker.bgw_name) - 1, "postgres postgres %s", worker.bgw_type) >= sizeof(worker.bgw_name) - 1) E("snprintf");
+#endif
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
     worker.bgw_start_time = BgWorkerStart_ConsistentState;
