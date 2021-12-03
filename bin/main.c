@@ -36,7 +36,7 @@ static void main_backup(void) {
             --wal-method=stream
     ), primary, hostname, mktemp(tmp));
     if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
-    I(str);
+    I("%s", str);
     if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
     if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
@@ -51,7 +51,7 @@ static void main_rewind(void) {
             --source-server="host=%s application_name=%s target_session_attrs=read-write"
             --target-pgdata="%s"
     ), primary, hostname, pgdata);
-    I(str);
+    I("%s", str);
     if (system(str)) main_backup();
     main_recovery();
 }
@@ -80,13 +80,13 @@ static char *main_state(void) {
 static void main_update(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(sed -i "/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'" "%s"), primary, hostname, postgresql_auto_conf);
-    I(str);
+    I("%s", str);
     if (system(str)) E("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.primary/cpg_save.primary = '%s'" "%s"), primary, postgresql_auto_conf);
-    I(str);
+    I("%s", str);
     if (system(str)) E("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.wait_primary/cpg_save.wait_primary = '%s'" "%s"), primary, postgresql_auto_conf);
-    I(str);
+    I("%s", str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
@@ -158,7 +158,7 @@ static void main_hba(void) {
 static void main_initdb(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(initdb --data-checksums --pgdata="%s"), pgdata);
-    I(str);
+    I("%s", str);
     if (system(str)) E("system(\"%s\") and %m", str);
 }
 
