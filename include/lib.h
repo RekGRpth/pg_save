@@ -3,17 +3,17 @@
 
 #include "common.h"
 
-#define D1(fmt, ...) ereport(DEBUG1, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define D2(fmt, ...) ereport(DEBUG2, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define D3(fmt, ...) ereport(DEBUG3, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define D4(fmt, ...) ereport(DEBUG4, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define D5(fmt, ...) ereport(DEBUG5, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define E(fmt, ...) ereport(ERROR, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define F(fmt, ...) ereport(FATAL, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define I(fmt, ...) ereport(INFO, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define L(fmt, ...) ereport(LOG, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define N(fmt, ...) ereport(NOTICE, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
-#define W(fmt, ...) ereport(WARNING, (errmsg(GET_FORMAT(fmt, ##__VA_ARGS__), ##__VA_ARGS__)))
+#define D1(...) ereport(DEBUG1, (errmsg(__VA_ARGS__)))
+#define D2(...) ereport(DEBUG2, (errmsg(__VA_ARGS__)))
+#define D3(...) ereport(DEBUG3, (errmsg(__VA_ARGS__)))
+#define D4(...) ereport(DEBUG4, (errmsg(__VA_ARGS__)))
+#define D5(...) ereport(DEBUG5, (errmsg(__VA_ARGS__)))
+#define E(...) ereport(ERROR, (errmsg(__VA_ARGS__)))
+#define F(...) ereport(FATAL, (errmsg(__VA_ARGS__)))
+#define I(...) ereport(INFO, (errmsg(__VA_ARGS__)))
+#define L(...) ereport(LOG, (errmsg(__VA_ARGS__)))
+#define N(...) ereport(NOTICE, (errmsg(__VA_ARGS__)))
+#define W(...) ereport(WARNING, (errmsg(__VA_ARGS__)))
 
 #include <postgres.h>
 
