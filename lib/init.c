@@ -202,7 +202,7 @@ static void init_save(void) {
 #undef XX
         {NULL, 0, false}
     };
-    if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
+    if (!(hostname = getenv("HOSTNAME"))) elog(ERROR, "can not getenv(\"HOSTNAME\")");
     synchronous_standby_names = getenv("SYNCHRONOUS_STANDBY_NAMES");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
