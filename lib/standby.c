@@ -18,7 +18,7 @@ static void standby_create(const char *conninfo) {
     if (!(opts = PQconninfoParse(conninfo, &err))) ereport(ERROR, (errcode(ERRCODE_SYNTAX_ERROR), errmsg("invalid connection string syntax: %s", err)));
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
-        D1("%s = %s", opt->keyword, opt->val);
+        elog(DEBUG1, "%s = %s", opt->keyword, opt->val);
         if (strcmp(opt->keyword, "host")) continue;
         backend_create(opt->val, state_wait_primary);
     }
@@ -27,7 +27,7 @@ static void standby_create(const char *conninfo) {
 }
 
 static void standby_promote(Backend *backend) {
-    D1("state = %s", init_state2char(init_state));
+    elog(DEBUG1, "state = %s", init_state2char(init_state));
     init_set_host(backend->host, state_wait_standby);
     init_set_state(state_wait_primary);
     backend_finish(backend);
@@ -156,7 +156,7 @@ void standby_updated(Backend *backend) {
 
 void standby_update(state_t state) {
     if (init_state == state) return;
-    D1("%s:%s->%s", hostname, init_state2char(init_state), init_state2char(state));
+    elog(DEBUG1, "%s:%s->%s", hostname, init_state2char(init_state), init_state2char(state));
     init_set_state(state);
     switch (init_state) {
         case state_async: init_set_host(standby_primary->host, state_primary); break;

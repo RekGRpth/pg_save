@@ -44,7 +44,7 @@ bool backend_consume_flush_busy(Backend *backend) {
 bool backend_flush(Backend *backend) {
     switch (PQflush(backend->conn)) {
         case 0: break;
-        case 1: D1("PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
+        case 1: elog(DEBUG1, "PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
         case -1: elog(WARNING, "%s:%s PQflush == -1 and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); return false;
     }
     return true;
@@ -94,7 +94,7 @@ static void backend_listen(Backend *backend) {
 }
 
 static void backend_connected(Backend *backend) {
-    D1("%s:%s", backend->host, init_state2char(backend->state));
+    elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     backend->attempt = 0;
     init_set_host(backend->host, backend->state);
     backend_listen(backend);
@@ -104,7 +104,7 @@ static void backend_connected(Backend *backend) {
 
 static void backend_fail(Backend *backend) {
     if (backend->attempt++ < init_attempt) return;
-    D1("%s:%s", backend->host, init_state2char(backend->state));
+    elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     init_set_host(backend->host, state_unknown);
     RecoveryInProgress() ? standby_failed(backend) : primary_failed(backend);
     init_reload();
@@ -113,15 +113,15 @@ static void backend_fail(Backend *backend) {
 static void backend_connect_or_reset_socket(Backend *backend, PostgresPollingStatusType (*poll) (PGconn *conn)) {
     switch (PQstatus(backend->conn)) {
         case CONNECTION_BAD: elog(WARNING, "%s:%s CONNECTION_BAD and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return;
-        case CONNECTION_OK: D1("%s:%s CONNECTION_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
+        case CONNECTION_OK: elog(DEBUG1, "%s:%s CONNECTION_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
         default: break;
     }
     switch (poll(backend->conn)) {
-        case PGRES_POLLING_ACTIVE: D1("%s:%s PGRES_POLLING_ACTIVE", backend->host, init_state2char(backend->state)); break;
+        case PGRES_POLLING_ACTIVE: elog(DEBUG1, "%s:%s PGRES_POLLING_ACTIVE", backend->host, init_state2char(backend->state)); break;
         case PGRES_POLLING_FAILED: elog(WARNING, "%s:%s PGRES_POLLING_FAILED and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return;
-        case PGRES_POLLING_OK: D1("%s:%s PGRES_POLLING_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
-        case PGRES_POLLING_READING: D1("%s:%s PGRES_POLLING_READING", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; break;
-        case PGRES_POLLING_WRITING: D1("%s:%s PGRES_POLLING_WRITING", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; break;
+        case PGRES_POLLING_OK: elog(DEBUG1, "%s:%s PGRES_POLLING_OK", backend->host, init_state2char(backend->state)); backend_connected(backend); return;
+        case PGRES_POLLING_READING: elog(DEBUG1, "%s:%s PGRES_POLLING_READING", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_READABLE; break;
+        case PGRES_POLLING_WRITING: elog(DEBUG1, "%s:%s PGRES_POLLING_WRITING", backend->host, init_state2char(backend->state)); backend->event = WL_SOCKET_WRITEABLE; break;
     }
 }
 
@@ -140,7 +140,7 @@ static void backend_connect_or_reset(Backend *backend) {
     /*switch (PQpingParams(keywords, values, false)) {
         case PQPING_NO_ATTEMPT: elog(WARNING, "%s:%s PQPING_NO_ATTEMPT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
         case PQPING_NO_RESPONSE: elog(WARNING, "%s:%s PQPING_NO_RESPONSE and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
-        case PQPING_OK: D1("%s:%s PQPING_OK", backend->host, init_state2char(backend->state)); break;
+        case PQPING_OK: elog(DEBUG1, "%s:%s PQPING_OK", backend->host, init_state2char(backend->state)); break;
         case PQPING_REJECT: elog(WARNING, "%s:%s PQPING_REJECT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
     }*/
     if (!backend->conn) {
@@ -186,7 +186,7 @@ void backend_event(WaitEventSet *set) {
 }
 
 static void backend_finished(Backend *backend) {
-    D1("%s:%s", backend->host, init_state2char(backend->state));
+    elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_finished(backend) : primary_finished(backend);
     init_reload();
 }
@@ -211,7 +211,7 @@ void backend_fini(void) {
 static void backend_idle_result(Backend *backend) {
     for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
         switch (PQresultStatus(result)) {
-            default: D1("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
+            default: elog(DEBUG1, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
         if (!backend_consume_flush_busy(backend)) return;
@@ -231,12 +231,12 @@ void backend_init(void) {
 }
 
 static void backend_notify(Backend *backend, state_t state) {
-    D1("%s:%s state = %s", backend->host, init_state2char(backend->state), init_state2char(state));
+    elog(DEBUG1, "%s:%s state = %s", backend->host, init_state2char(backend->state), init_state2char(state));
     RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
 }
 
 static void backend_updated(Backend *backend) {
-    D1("%s:%s", backend->host, init_state2char(backend->state));
+    elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
     init_reload();
 }
@@ -269,7 +269,7 @@ void backend_timeout(void) {
 
 void backend_update(Backend *backend, state_t state) {
     if (backend->state == state) return;
-    D1("%s:%s->%s", backend->host, init_state2char(backend->state), init_state2char(state));
+    elog(DEBUG1, "%s:%s->%s", backend->host, init_state2char(backend->state), init_state2char(state));
     backend->state = state;
     init_set_host(backend->host, state);
     backend_updated(backend);

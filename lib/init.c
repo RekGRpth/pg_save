@@ -63,19 +63,19 @@ void init_backend(void) {
 }
 
 void init_debug(void) {
-    D1("attempt = %i", init_attempt);
-    D1("HOSTNAME = '%s'", hostname);
-    D1("restart = %i", init_restart);
-    D1("state = '%s'", init_state2char(init_state));
-    D1("timeout = %i", init_timeout);
-#define XX(name) if (init_##name) D1(#name" = '%s'", init_##name);
+    elog(DEBUG1, "attempt = %i", init_attempt);
+    elog(DEBUG1, "HOSTNAME = '%s'", hostname);
+    elog(DEBUG1, "restart = %i", init_restart);
+    elog(DEBUG1, "state = '%s'", init_state2char(init_state));
+    elog(DEBUG1, "timeout = %i", init_timeout);
+#define XX(name) if (init_##name) elog(DEBUG1, #name" = '%s'", init_##name);
     STATE_MAP(XX)
 #undef XX
-    if (IsBackgroundWorker) D1("RecoveryInProgress = '%s'", RecoveryInProgress() ? "true" : "false");
+    if (IsBackgroundWorker) elog(DEBUG1, "RecoveryInProgress = '%s'", RecoveryInProgress() ? "true" : "false");
 #if PG_VERSION_NUM >= 120000
-    if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') D1("PrimaryConnInfo = '%s'", PrimaryConnInfo);
+    if (PrimaryConnInfo && PrimaryConnInfo[0] != '\0') elog(DEBUG1, "PrimaryConnInfo = '%s'", PrimaryConnInfo);
 #endif
-    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') D1("SyncRepStandbyNames = '%s'", SyncRepStandbyNames);
+    if (SyncRepStandbyNames && SyncRepStandbyNames[0] != '\0') elog(DEBUG1, "SyncRepStandbyNames = '%s'", SyncRepStandbyNames);
 }
 
 void init_reload(void) {
@@ -86,7 +86,7 @@ void init_reload(void) {
 
 void init_set_host(const char *host, state_t state) {
     StringInfoData buf;
-    D1("host = %s, state = %s", host, init_state2char(state));
+    elog(DEBUG1, "host = %s, state = %s", host, init_state2char(state));
 #define XX(name) if (state != state_##name && init_##name && !strcmp(init_##name, host)) init_set_system("pg_save."#name, NULL);
     STATE_MAP(XX)
 #undef XX
@@ -129,7 +129,7 @@ static void init_notify(state_t state) {
 }
 
 void init_set_state(state_t state) {
-    D1("state = %s", init_state2char(state));
+    elog(DEBUG1, "state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(hostname, state);
@@ -157,7 +157,7 @@ void init_set_system(const char *name, const char *new) {
     if (ShutdownRequestPending) return;
     if (old_isnull && new_isnull) return;
     if (!old_isnull && !new_isnull && !strcmp(old, new)) return;
-    D1("name = %s, old = %s, new = %s", name, !old_isnull ? old : "(null)", !new_isnull ? new : "(null)");
+    elog(DEBUG1, "name = %s, old = %s, new = %s", name, !old_isnull ? old : "(null)", !new_isnull ? new : "(null)");
     stmt = makeNode(AlterSystemStmt);
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
