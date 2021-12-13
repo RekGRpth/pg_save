@@ -5,10 +5,6 @@ extern int init_timeout;
 
 static void save_init(void) {
     if (!EnableHotStandby) E("!EnableHotStandby");
-    if (!MyProcPort && !(MyProcPort = (Port *)calloc(1, sizeof(Port)))) E("!calloc");
-    if (!MyProcPort->user_name) MyProcPort->user_name = "postgres";
-    if (!MyProcPort->database_name) MyProcPort->database_name = "postgres";
-    if (!MyProcPort->remote_host) MyProcPort->remote_host = "[local]";
     set_config_option("application_name", hostname, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);
