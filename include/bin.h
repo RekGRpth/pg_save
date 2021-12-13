@@ -1,16 +1,9 @@
 #ifndef _BIN_H_
 #define _BIN_H_
 
-#include "common.h"
-
-#define D(...) pg_log_debug(__VA_ARGS__)
-#define E(...) pg_log_error(__VA_ARGS__)
-#define F(...) pg_log_fatal(__VA_ARGS__)
-#define I(...) pg_log_info(__VA_ARGS__)
-#define W(...) pg_log_warning(__VA_ARGS__)
-
 #include <postgres.h>
 
+#include "common.h"
 #if PG_VERSION_NUM >= 110000
 #include <common/file_perm.h>
 #else

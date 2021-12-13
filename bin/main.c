@@ -194,15 +194,15 @@ static char *main_primary(void) {
     PGresult *result;
     if (!primary_conninfo) return NULL;
     switch (PQping(primary_conninfo)) {
-        case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
-        case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
+        case PQPING_NO_ATTEMPT: pg_log_warning("PQPING_NO_ATTEMPT"); return NULL;
+        case PQPING_NO_RESPONSE: pg_log_warning("PQPING_NO_RESPONSE"); return NULL;
         case PQPING_OK: pg_log_info("PQPING_OK"); break;
-        case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
+        case PQPING_REJECT: pg_log_warning("PQPING_REJECT"); return NULL;
     }
-    if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %s", PQerrorMessageMy(conn)); return NULL; }
-    if (!(result = PQexec(conn, "SELECT current_setting('pg_save.hostname', false) AS hostname"))) { W("!PQexec and %s", PQerrorMessageMy(conn)); PQfinish(conn); return NULL; }
-    if (PQresultStatus(result) != PGRES_TUPLES_OK) { W("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); PQclear(result); PQfinish(conn); return NULL; }
-    if (PQntuples(result) != 1) { W("PQntuples != 1"); PQclear(result); PQfinish(conn); return NULL; }
+    if (!(conn = PQconnectdb(primary_conninfo))) { pg_log_warning("!PQconnectdb and %s", PQerrorMessageMy(conn)); return NULL; }
+    if (!(result = PQexec(conn, "SELECT current_setting('pg_save.hostname', false) AS hostname"))) { pg_log_warning("!PQexec and %s", PQerrorMessageMy(conn)); PQfinish(conn); return NULL; }
+    if (PQresultStatus(result) != PGRES_TUPLES_OK) { pg_log_warning("PQresultStatus = %s and %s", PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); PQclear(result); PQfinish(conn); return NULL; }
+    if (PQntuples(result) != 1) { pg_log_warning("PQntuples != 1"); PQclear(result); PQfinish(conn); return NULL; }
     strcpy(primary, PQgetvalue(result, 0, PQfnumber(result, "hostname")));
     PQclear(result);
     PQfinish(conn);
