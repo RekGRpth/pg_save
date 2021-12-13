@@ -36,7 +36,7 @@ static void main_backup(void) {
             --wal-method=stream
     ), primary, hostname, mktemp(tmp));
     if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) pg_log_error("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) { rmtree(pgdata, true); pg_log_error("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
     if (rename(tmp, pgdata)) pg_log_error("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
@@ -51,7 +51,7 @@ static void main_rewind(void) {
             --source-server="host=%s application_name=%s target_session_attrs=read-write"
             --target-pgdata="%s"
     ), primary, hostname, pgdata);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) main_backup();
     main_recovery();
 }
@@ -68,7 +68,7 @@ static char *main_state(void) {
             memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1 - 1);
             if (line) free(line);
             fclose(file);
-            I("state = %s", state);
+            pg_log_info("state = %s", state);
             return state;
         }
     }
@@ -80,13 +80,13 @@ static char *main_state(void) {
 static void main_update(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(sed -i "/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'" "%s"), primary, hostname, postgresql_auto_conf);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) pg_log_error("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.primary/cpg_save.primary = '%s'" "%s"), primary, postgresql_auto_conf);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) pg_log_error("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.wait_primary/cpg_save.wait_primary = '%s'" "%s"), primary, postgresql_auto_conf);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) pg_log_error("system(\"%s\") and %m", str);
 }
 
@@ -158,12 +158,12 @@ static void main_hba(void) {
 static void main_initdb(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(initdb --data-checksums --pgdata="%s"), pgdata);
-    I("%s", str);
+    pg_log_info("%s", str);
     if (system(str)) pg_log_error("system(\"%s\") and %m", str);
 }
 
 static void main_init(void) {
-    I("host = %s", primary ? primary : "(null)");
+    pg_log_info("host = %s", primary ? primary : "(null)");
     if (primary) {
         main_backup();
         main_recovery();
@@ -175,7 +175,7 @@ static void main_init(void) {
             if (!(opts = PQconninfoParse(primary_conninfo, &err))) pg_log_error("!PQconninfoParse and %s", err);
             for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
                 if (!opt->val) continue;
-                I("%s = %s", opt->keyword, opt->val);
+                pg_log_info("%s = %s", opt->keyword, opt->val);
                 if (strcmp(opt->keyword, "host")) continue;
                 if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) pg_log_error("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
             }
@@ -196,7 +196,7 @@ static char *main_primary(void) {
     switch (PQping(primary_conninfo)) {
         case PQPING_NO_ATTEMPT: W("PQPING_NO_ATTEMPT"); return NULL;
         case PQPING_NO_RESPONSE: W("PQPING_NO_RESPONSE"); return NULL;
-        case PQPING_OK: I("PQPING_OK"); break;
+        case PQPING_OK: pg_log_info("PQPING_OK"); break;
         case PQPING_REJECT: W("PQPING_REJECT"); return NULL;
     }
     if (!(conn = PQconnectdb(primary_conninfo))) { W("!PQconnectdb and %s", PQerrorMessageMy(conn)); return NULL; }
@@ -219,12 +219,12 @@ int main(int argc, char *argv[]) {
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     cluster_name = getenv("CLUSTER_NAME");
     primary = main_primary();
-    if (arclog) I("arclog = '%s'", arclog);
-    if (cluster_name) I("cluster_name = '%s'", cluster_name);
-    I("hostname = '%s'", hostname);
-    I("pgdata = '%s'", pgdata);
-    if (primary_conninfo) I("primary_conninfo = '%s'", primary_conninfo);
-    if (primary) I("primary = '%s'", primary);
+    if (arclog) pg_log_info("arclog = '%s'", arclog);
+    if (cluster_name) pg_log_info("cluster_name = '%s'", cluster_name);
+    pg_log_info("hostname = '%s'", hostname);
+    pg_log_info("pgdata = '%s'", pgdata);
+    if (primary_conninfo) pg_log_info("primary_conninfo = '%s'", primary_conninfo);
+    if (primary) pg_log_info("primary = '%s'", primary);
     if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) pg_log_error("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
     if (arclog) {
         char filename[MAXPGPATH];
@@ -236,10 +236,10 @@ int main(int argc, char *argv[]) {
     snprintf(standby_signal, sizeof(standby_signal), "%s/%s", pgdata, "standby.signal");
     switch (pg_check_dir(pgdata)) {
         case 0: pg_log_error("directory \"%s\" does not exist", pgdata); break;
-        case 1: I("directory \"%s\" exists and empty", pgdata); main_init(); break;
+        case 1: pg_log_info("directory \"%s\" exists and empty", pgdata); main_init(); break;
         case 2: pg_log_error("directory \"%s\" exists and contains _only_ dot files", pgdata); break;
         case 3: pg_log_error("directory \"%s\" exists and contains a mount point", pgdata); break;
-        case 4: I("directory \"%s\" exists and not empty", pgdata); main_check(); break;
+        case 4: pg_log_info("directory \"%s\" exists and not empty", pgdata); main_check(); break;
         case -1: pg_log_error("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
     }
     execlp("postmaster", "postmaster", NULL);
