@@ -31,14 +31,14 @@ const char *init_state2char(state_t state) {
         STATE_MAP(XX)
 #undef XX
     }
-    E("state = %i", state);
+    elog(ERROR, "unknown state = %i", state);
 }
 
 state_t init_char2state(const char *state) {
 #define XX(name) if (!strcmp(state, #name)) return state_##name;
     STATE_MAP(XX)
 #undef XX
-    E("state = %s", state);
+    elog(ERROR, "unknown state = %s", state);
 }
 
 state_t init_host(const char *host) {
@@ -144,7 +144,7 @@ void init_set_state(state_t state) {
         case state_sync: break;
         case state_wait_primary: break;
         case state_wait_standby: break;
-        default: E("init_state = %s", init_state2char(init_state)); break;
+        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
     }
     RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE));
 }
@@ -181,13 +181,13 @@ static const char *init_show(void) {
 }
 
 static void init_work(void) {
-    BackgroundWorker worker;
-    MemSet(&worker, 0, sizeof(worker));
-    if (strlcpy(worker.bgw_function_name, "save_worker", sizeof(worker.bgw_function_name)) >= sizeof(worker.bgw_function_name)) E("strlcpy");
-    if (strlcpy(worker.bgw_library_name, "pg_save", sizeof(worker.bgw_library_name)) >= sizeof(worker.bgw_library_name)) E("strlcpy");
-    if (snprintf(worker.bgw_name, sizeof(worker.bgw_name) - 1, "postgres postgres pg_save %s", hostname) >= sizeof(worker.bgw_name) - 1) E("snprintf");
+    BackgroundWorker worker = {0};
+    size_t len;
+    if ((len = strlcpy(worker.bgw_function_name, "save_worker", sizeof(worker.bgw_function_name))) >= sizeof(worker.bgw_function_name)) ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("strlcpy %li >= %li", len, sizeof(worker.bgw_function_name))));
+    if ((len = strlcpy(worker.bgw_library_name, "pg_save", sizeof(worker.bgw_library_name))) >= sizeof(worker.bgw_library_name)) ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("strlcpy %li >= %li", len, sizeof(worker.bgw_library_name))));
+    if ((len = snprintf(worker.bgw_name, sizeof(worker.bgw_name) - 1, "postgres postgres pg_save %s", hostname)) >= sizeof(worker.bgw_name) - 1) ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("snprintf %li >= %li", len, sizeof(worker.bgw_name) - 1)));
 #if PG_VERSION_NUM >= 110000
-    if (snprintf(worker.bgw_type, sizeof(worker.bgw_type) - 1, "pg_save %s", hostname) >= sizeof(worker.bgw_type) - 1) E("snprintf");
+    if ((len = strlcpy(worker.bgw_type, worker.bgw_name, sizeof(worker.bgw_type))) >= sizeof(worker.bgw_type)) ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("strlcpy %li >= %li", len, sizeof(worker.bgw_type))));
 #endif
     worker.bgw_flags = BGWORKER_SHMEM_ACCESS | BGWORKER_BACKEND_DATABASE_CONNECTION;
     worker.bgw_restart_time = init_restart;
