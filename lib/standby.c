@@ -15,7 +15,7 @@ void standby_created(Backend *backend) {
 static void standby_create(const char *conninfo) {
     char *err;
     PQconninfoOption *opts;
-    if (!(opts = PQconninfoParse(conninfo, &err))) E("!PQconninfoParse and %s", err);
+    if (!(opts = PQconninfoParse(conninfo, &err))) ereport(ERROR, (errcode(ERRCODE_SYNTAX_ERROR), errmsg("invalid connection string syntax: %s", err)));
     for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
         if (!opt->val) continue;
         D1("%s = %s", opt->keyword, opt->val);
