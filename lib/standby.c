@@ -32,7 +32,7 @@ static void standby_promote(Backend *backend) {
     init_set_state(state_wait_primary);
     backend_finish(backend);
 #if PG_VERSION_NUM >= 120000
-    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) W("!pg_promote");
+    if (!DatumGetBool(DirectFunctionCall2(pg_promote, BoolGetDatum(true), Int32GetDatum(30)))) elog(WARNING, "!pg_promote");
     else primary_init();
 #endif
 }
@@ -51,13 +51,13 @@ static void standby_reprimary(Backend *backend) {
 
 void standby_failed(Backend *backend) {
     if (backend->state > state_primary) { backend_finish(backend); return; }
-    if (!backend_nevents()) { init_set_host(backend->host, state_wait_primary); if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL); return; }
+    if (!backend_nevents()) { init_set_host(backend->host, state_wait_primary); if (kill(PostmasterPid, SIGKILL)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGKILL); return; }
     switch (init_state) {
         case state_sync: standby_promote(backend); break;
         case state_potential: if (backend->attempt >= 2 * init_attempt) {
             Backend *sync = backend_state(state_sync);
             if (sync) standby_reprimary(sync);
-            else if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
+            else if (kill(PostmasterPid, SIGKILL)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGKILL);
         } break;
         default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
     }
@@ -126,7 +126,7 @@ static void standby_select_result(Backend *backend) {
     for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
         switch (PQresultStatus(result)) {
             case PGRES_TUPLES_OK: ok = true; standby_result(backend, result); break;
-            default: W("%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
+            default: elog(WARNING, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
         if (!backend_consume_flush_busy(backend)) return;
@@ -138,7 +138,7 @@ static void standby_select_result(Backend *backend) {
 static void standby_select(Backend *backend) {
     backend->socket = standby_select;
     if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
-    if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { W("%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
+    if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { elog(WARNING, "%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
     backend->socket = standby_select_result;
     if (!backend_flush(backend)) return;
     backend->event = WL_SOCKET_READABLE;

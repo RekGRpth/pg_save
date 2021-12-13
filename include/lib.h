@@ -1,24 +1,11 @@
 #ifndef _LIB_H_
 #define _LIB_H_
 
-#include "common.h"
-
-#define D1(...) ereport(DEBUG1, (errmsg(__VA_ARGS__)))
-#define D2(...) ereport(DEBUG2, (errmsg(__VA_ARGS__)))
-#define D3(...) ereport(DEBUG3, (errmsg(__VA_ARGS__)))
-#define D4(...) ereport(DEBUG4, (errmsg(__VA_ARGS__)))
-#define D5(...) ereport(DEBUG5, (errmsg(__VA_ARGS__)))
-#define E(...) ereport(ERROR, (errmsg(__VA_ARGS__)))
-#define F(...) ereport(FATAL, (errmsg(__VA_ARGS__)))
-#define I(...) ereport(INFO, (errmsg(__VA_ARGS__)))
-#define L(...) ereport(LOG, (errmsg(__VA_ARGS__)))
-#define N(...) ereport(NOTICE, (errmsg(__VA_ARGS__)))
-#define W(...) ereport(WARNING, (errmsg(__VA_ARGS__)))
-
 #include <postgres.h>
 
 #include <access/xact.h>
 #include <commands/async.h>
+#include "common.h"
 #include <executor/spi.h>
 #include <funcapi.h>
 #include <libpq/libpq-be.h>

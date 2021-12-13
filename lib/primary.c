@@ -17,7 +17,7 @@ void primary_failed(Backend *backend) {
     backend_finish(backend);
     if (backend_nevents()) return;
     init_set_state(state_wait_standby);
-    if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
+    if (kill(PostmasterPid, SIGKILL)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGKILL);
 }
 
 void primary_finished(Backend *backend) {
@@ -51,10 +51,10 @@ static void primary_demote(void) {
     if (backend_nevents() < 2) return;
     if (!(backend = backend_state(state_sync))) return;
     if (strcmp(backend->host, hostname) > 0) return;
-    W("%i < %i", primary_attempt, init_attempt);
+    elog(WARNING, "%i < %i", primary_attempt, init_attempt);
     if (primary_attempt++ < init_attempt) return;
     init_set_state(state_wait_standby);
-    if (kill(PostmasterPid, SIGKILL)) W("kill(%i, %i)", PostmasterPid, SIGKILL);
+    if (kill(PostmasterPid, SIGKILL)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGKILL);
 }
 
 static void primary_result(void) {

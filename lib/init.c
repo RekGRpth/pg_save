@@ -80,7 +80,7 @@ void init_debug(void) {
 
 void init_reload(void) {
     if (!init_sighup) return;
-    if (kill(PostmasterPid, SIGHUP)) W("kill(%i, %i)", PostmasterPid, SIGHUP);
+    if (kill(PostmasterPid, SIGHUP)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGHUP);
     init_sighup = false;
 }
 
