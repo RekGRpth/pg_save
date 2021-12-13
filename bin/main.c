@@ -14,13 +14,13 @@ static const char *progname;
 static void main_recovery(void) {
     FILE *file;
     PQExpBufferData buf;
-    if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
+    if (!(file = fopen(postgresql_auto_conf, "a"))) pg_log_error("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
     appendPQExpBuffer(&buf, "primary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'\n", primary, hostname);
-    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    if (fwrite(buf.data, buf.len, 1, file) != 1) pg_log_error("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
-    if (!(file = fopen(standby_signal, "w"))) E("fopen(\"%s\") and %m", standby_signal);
+    if (!(file = fopen(standby_signal, "w"))) pg_log_error("fopen(\"%s\") and %m", standby_signal);
     fclose(file);
 }
 
@@ -35,11 +35,11 @@ static void main_backup(void) {
             --verbose
             --wal-method=stream
     ), primary, hostname, mktemp(tmp));
-    if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
+    if (pg_mkdir_p(tmp, pg_dir_create_mode) == -1) pg_log_error("pg_mkdir_p(\"%s\") == -1 and %m", tmp);
     I("%s", str);
-    if (system(str)) { rmtree(pgdata, true); E("system(\"%s\") and %m", str); }
+    if (system(str)) { rmtree(pgdata, true); pg_log_error("system(\"%s\") and %m", str); }
     rmtree(pgdata, true);
-    if (rename(tmp, pgdata)) E("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
+    if (rename(tmp, pgdata)) pg_log_error("rename(\"%s\", \"%s\") and %m", tmp, pgdata);
 }
 
 static void main_rewind(void) {
@@ -62,7 +62,7 @@ static char *main_state(void) {
     size_t len = 0;
     ssize_t read;
     static char state[MAXPGPATH];
-    if (!(file = fopen(postgresql_auto_conf, "r"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
+    if (!(file = fopen(postgresql_auto_conf, "r"))) pg_log_error("fopen(\"%s\") and %m", postgresql_auto_conf);
     while ((read = getline(&line, &len, file)) != -1) {
         if (read > sizeof("pg_save.state = '") - 1 && !strncmp(line, "pg_save.state = '", sizeof("pg_save.state = '") - 1)) {
             memcpy(state, line + sizeof("pg_save.state = '") - 1, read - (sizeof("pg_save.state = '") - 1) - 1 - 1);
@@ -81,13 +81,13 @@ static void main_update(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(sed -i "/^primary_conninfo/cprimary_conninfo = 'host=%s application_name=%s target_session_attrs=read-write'" "%s"), primary, hostname, postgresql_auto_conf);
     I("%s", str);
-    if (system(str)) E("system(\"%s\") and %m", str);
+    if (system(str)) pg_log_error("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.primary/cpg_save.primary = '%s'" "%s"), primary, postgresql_auto_conf);
     I("%s", str);
-    if (system(str)) E("system(\"%s\") and %m", str);
+    if (system(str)) pg_log_error("system(\"%s\") and %m", str);
     snprintf(str, sizeof(str), CMD(sed -i "/^pg_save.wait_primary/cpg_save.wait_primary = '%s'" "%s"), primary, postgresql_auto_conf);
     I("%s", str);
-    if (system(str)) E("system(\"%s\") and %m", str);
+    if (system(str)) pg_log_error("system(\"%s\") and %m", str);
 }
 
 static void main_check(void) {
@@ -96,8 +96,8 @@ static void main_check(void) {
     if (!stat(standby_signal, &sb) && S_ISREG(sb.st_mode)) {
         if (primary) main_update();
     } else {
-        if (!(state = main_state())) E("!main_state");
-        if (!strcmp(state, "wait_standby") && !primary) E("pg_save.state == wait_standby && !primary");
+        if (!(state = main_state())) pg_log_error("!main_state");
+        if (!strcmp(state, "wait_standby") && !primary) pg_log_error("pg_save.state == wait_standby && !primary");
         if (primary) main_rewind();
     }
 }
@@ -105,7 +105,7 @@ static void main_check(void) {
 static void main_conf(void) {
     FILE *file;
     PQExpBufferData buf;
-    if (!(file = fopen(postgresql_auto_conf, "a"))) E("fopen(\"%s\") and %m", postgresql_auto_conf);
+    if (!(file = fopen(postgresql_auto_conf, "a"))) pg_log_error("fopen(\"%s\") and %m", postgresql_auto_conf);
     initPQExpBuffer(&buf);
     if (arclog) appendPQExpBuffer(&buf, CONF(
         archive_command = 'gzip -cfk "%%p" >"%s/%%f.gz"'\n
@@ -136,7 +136,7 @@ static void main_conf(void) {
         wal_log_hints = 'on'\n
         wal_receiver_create_temp_slot = 'on'\n
     ));
-    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    if (fwrite(buf.data, buf.len, 1, file) != 1) pg_log_error("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
 }
@@ -144,13 +144,13 @@ static void main_conf(void) {
 static void main_hba(void) {
     FILE *file;
     PQExpBufferData buf;
-    if (!(file = fopen(pg_hba_conf, "a"))) E("fopen(\"%s\") and %m", pg_hba_conf);
+    if (!(file = fopen(pg_hba_conf, "a"))) pg_log_error("fopen(\"%s\") and %m", pg_hba_conf);
     initPQExpBuffer(&buf);
     appendPQExpBufferStr(&buf, CONF(
         host all all samenet trust\n
         host replication all samenet trust\n
     ));
-    if (fwrite(buf.data, buf.len, 1, file) != 1) E("fwrite != 1 and %m");
+    if (fwrite(buf.data, buf.len, 1, file) != 1) pg_log_error("fwrite != 1 and %m");
     termPQExpBuffer(&buf);
     fclose(file);
 }
@@ -159,7 +159,7 @@ static void main_initdb(void) {
     char str[MAXPGPATH];
     snprintf(str, sizeof(str), CMD(initdb --data-checksums --pgdata="%s"), pgdata);
     I("%s", str);
-    if (system(str)) E("system(\"%s\") and %m", str);
+    if (system(str)) pg_log_error("system(\"%s\") and %m", str);
 }
 
 static void main_init(void) {
@@ -172,12 +172,12 @@ static void main_init(void) {
             size_t count = strlen(hostname);
             char *err;
             PQconninfoOption *opts;
-            if (!(opts = PQconninfoParse(primary_conninfo, &err))) E("!PQconninfoParse and %s", err);
+            if (!(opts = PQconninfoParse(primary_conninfo, &err))) pg_log_error("!PQconninfoParse and %s", err);
             for (PQconninfoOption *opt = opts; opt->keyword; opt++) {
                 if (!opt->val) continue;
                 I("%s = %s", opt->keyword, opt->val);
                 if (strcmp(opt->keyword, "host")) continue;
-                if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) E("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
+                if (*(opt->val + count) == ',' && strncmp(opt->val, hostname, count)) pg_log_error("HOSTNAME = %s is not first in PRIMARY_CONNINFO = %s", hostname, primary_conninfo);
             }
             if (err) PQfreemem(err);
             PQconninfoFree(opts);
@@ -213,8 +213,8 @@ int main(int argc, char *argv[]) {
     pg_logging_init(argv[0]);
     progname = get_progname(argv[0]);
     set_pglocale_pgservice(argv[0], PG_TEXTDOMAIN("pg_save"));
-    if (!(hostname = getenv("HOSTNAME"))) E("!getenv(\"HOSTNAME\")");
-    if (!(pgdata = getenv("PGDATA"))) E("!getenv(\"PGDATA\")");
+    if (!(hostname = getenv("HOSTNAME"))) pg_log_error("!getenv(\"HOSTNAME\")");
+    if (!(pgdata = getenv("PGDATA"))) pg_log_error("!getenv(\"PGDATA\")");
     arclog = getenv("ARCLOG");
     primary_conninfo = getenv("PRIMARY_CONNINFO");
     cluster_name = getenv("CLUSTER_NAME");
@@ -225,25 +225,25 @@ int main(int argc, char *argv[]) {
     I("pgdata = '%s'", pgdata);
     if (primary_conninfo) I("primary_conninfo = '%s'", primary_conninfo);
     if (primary) I("primary = '%s'", primary);
-    if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
+    if (pg_mkdir_p((char *)pgdata, pg_dir_create_mode) == -1) pg_log_error("pg_mkdir_p(\"%s\") == -1 and %m", pgdata);
     if (arclog) {
         char filename[MAXPGPATH];
         snprintf(filename, sizeof(filename), "%s/%s", pgdata, arclog);
-        if (pg_mkdir_p(filename, pg_dir_create_mode) == -1) E("pg_mkdir_p(\"%s\") == -1 and %m", filename);
+        if (pg_mkdir_p(filename, pg_dir_create_mode) == -1) pg_log_error("pg_mkdir_p(\"%s\") == -1 and %m", filename);
     }
     snprintf(pg_hba_conf, sizeof(pg_hba_conf), "%s/%s", pgdata, "pg_hba.conf");
     snprintf(postgresql_auto_conf, sizeof(postgresql_auto_conf), "%s/%s", pgdata, "postgresql.auto.conf");
     snprintf(standby_signal, sizeof(standby_signal), "%s/%s", pgdata, "standby.signal");
     switch (pg_check_dir(pgdata)) {
-        case 0: E("directory \"%s\" does not exist", pgdata); break;
+        case 0: pg_log_error("directory \"%s\" does not exist", pgdata); break;
         case 1: I("directory \"%s\" exists and empty", pgdata); main_init(); break;
-        case 2: E("directory \"%s\" exists and contains _only_ dot files", pgdata); break;
-        case 3: E("directory \"%s\" exists and contains a mount point", pgdata); break;
+        case 2: pg_log_error("directory \"%s\" exists and contains _only_ dot files", pgdata); break;
+        case 3: pg_log_error("directory \"%s\" exists and contains a mount point", pgdata); break;
         case 4: I("directory \"%s\" exists and not empty", pgdata); main_check(); break;
-        case -1: E("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
+        case -1: pg_log_error("pg_check_dir(\"%s\") == -1 and %m", pgdata); break;
     }
     execlp("postmaster", "postmaster", NULL);
-    E("execlp(\"postmaster\")");
+    pg_log_error("execlp(\"postmaster\")");
 }
 
 #if PG_VERSION_NUM >= 120000
