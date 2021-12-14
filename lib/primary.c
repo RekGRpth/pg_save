@@ -34,7 +34,7 @@ void primary_init(void) {
         case state_single: break;
         case state_unknown: init_set_state(state_initial); break;
         case state_wait_primary: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
 }
 
@@ -42,7 +42,7 @@ void primary_notify(Backend *backend, state_t state) {
     switch (init_state) {
         case state_primary: break;
         case state_wait_primary: init_set_state(state_primary); break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
 }
 
@@ -70,12 +70,12 @@ static void primary_result(void) {
         case state_primary: init_set_state(state_wait_primary); break;
         case state_single: break;
         case state_wait_primary: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     } else switch (init_state) {
         case state_primary: break;
         case state_single: init_set_state(state_wait_primary); break;
         case state_wait_primary: init_set_state(state_primary); break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
     init_reload();
 }
@@ -97,6 +97,6 @@ void primary_updated(Backend *backend) {
         case state_primary: break;
         case state_single: init_set_state(state_wait_primary); break;
         case state_wait_primary: init_set_state(state_primary); break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
 }

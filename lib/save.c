@@ -4,7 +4,7 @@ extern char *hostname;
 extern int init_timeout;
 
 static void save_init(void) {
-    if (!EnableHotStandby) elog(ERROR, "hot standby is not set");
+    if (!EnableHotStandby) ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("hot standby is not set")));
     set_config_option("application_name", hostname, PGC_USERSET, PGC_S_SESSION, GUC_ACTION_SET, true, ERROR, false);
     pqsignal(SIGHUP, SignalHandlerForConfigReload);
     pqsignal(SIGTERM, SignalHandlerForShutdownRequest);

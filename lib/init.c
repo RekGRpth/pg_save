@@ -31,14 +31,14 @@ const char *init_state2char(state_t state) {
         STATE_MAP(XX)
 #undef XX
     }
-    elog(ERROR, "unknown state = %i", state);
+    ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown state = %i", state)));
 }
 
 state_t init_char2state(const char *state) {
 #define XX(name) if (!strcmp(state, #name)) return state_##name;
     STATE_MAP(XX)
 #undef XX
-    elog(ERROR, "unknown state = %s", state);
+    ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown state = %s", state)));
 }
 
 state_t init_host(const char *host) {
@@ -144,7 +144,7 @@ void init_set_state(state_t state) {
         case state_sync: break;
         case state_wait_primary: break;
         case state_wait_standby: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
     RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_WAIT | (RecoveryInProgress() ? 0 : CHECKPOINT_FORCE));
 }
@@ -202,7 +202,7 @@ static void init_save(void) {
 #undef XX
         {NULL, 0, false}
     };
-    if (!(hostname = getenv("HOSTNAME"))) elog(ERROR, "can not getenv(\"HOSTNAME\")");
+    if (!(hostname = getenv("HOSTNAME"))) ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("can not getenv(\"HOSTNAME\")")));
     synchronous_standby_names = getenv("SYNCHRONOUS_STANDBY_NAMES");
     DefineCustomEnumVariable("pg_save.state", "pg_save state", NULL, (int *)&init_state, state_unknown, init_state_options, PGC_SIGHUP, 0, NULL, NULL, NULL);
     DefineCustomIntVariable("pg_save.attempt", "pg_save attempt", NULL, &init_attempt, 10, 1, INT_MAX, PGC_SIGHUP, 0, NULL, NULL, NULL);
@@ -217,7 +217,7 @@ static void init_save(void) {
 }
 
 void _PG_init(void) {
-    if (!process_shared_preload_libraries_in_progress) elog(ERROR, "This module can only be loaded via shared_preload_libraries");
+    if (!process_shared_preload_libraries_in_progress) ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("This module can only be loaded via shared_preload_libraries")));
     init_save();
 }
 

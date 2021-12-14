@@ -59,7 +59,7 @@ void standby_failed(Backend *backend) {
             if (sync) standby_reprimary(sync);
             else if (kill(PostmasterPid, SIGKILL)) elog(WARNING, "kill(%i, %i)", PostmasterPid, SIGKILL);
         } break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
 }
 
@@ -83,7 +83,7 @@ void standby_init(void) {
         case state_unknown: init_set_state(state_initial); break;
         case state_wait_primary: init_set_state(state_initial); break;
         case state_wait_standby: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
 #if PG_VERSION_NUM >= 120000
     if (!standby_primary) standby_create(PrimaryConnInfo);
@@ -107,7 +107,7 @@ static void standby_result(Backend *backend, PGresult *result) {
         case state_quorum: init_set_state(state_wait_standby); break;
         case state_sync: init_set_state(state_wait_standby); break;
         case state_wait_standby: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     } else switch (init_state) {
         case state_async: break;
 //        case state_initial: break;
@@ -115,7 +115,7 @@ static void standby_result(Backend *backend, PGresult *result) {
         case state_quorum: break;
         case state_sync: break;
         case state_wait_standby: break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
     backend->attempt = 0;
     init_reload();
@@ -163,7 +163,7 @@ void standby_update(state_t state) {
         case state_potential: init_set_host(standby_primary->host, state_primary); break;
         case state_quorum: init_set_host(standby_primary->host, state_primary); break;
         case state_sync: init_set_host(standby_primary->host, state_primary); break;
-        default: elog(ERROR, "unknown init_state = %s", init_state2char(init_state)); break;
+        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     }
     init_reload();
 }
