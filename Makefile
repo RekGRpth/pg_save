@@ -1,6 +1,3 @@
-PG_CONFIG = pg_config
-EXTENSION = pg_save
-
 SUBDIRS = bin lib
 
 all install installdirs uninstall distprep clean distclean maintainer-clean debug:
