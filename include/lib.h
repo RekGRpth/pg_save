@@ -55,10 +55,6 @@ typedef struct Backend {
 
 Backend *backend_host(const char *host);
 Backend *backend_state(state_t state);
-bool backend_busy(Backend *backend, int event);
-bool backend_consume(Backend *backend);
-bool backend_consume_flush_busy(Backend *backend);
-bool backend_flush(Backend *backend);
 char *TextDatumGetCStringMy(MemoryContext memoryContext, Datum datum);
 const char *init_state2char(state_t state);
 Datum SPI_getbinval_my(HeapTupleData *tuple, TupleDesc tupdesc, const char *fname, bool allow_null);

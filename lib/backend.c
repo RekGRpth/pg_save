@@ -24,32 +24,6 @@ Backend *backend_state(state_t state) {
     return NULL;
 }
 
-bool backend_busy(Backend *backend, int event) {
-    if (PQisBusy(backend->conn)) { elog(WARNING, "%s:%s PQisBusy", backend->host, init_state2char(backend->state)); backend->event = event; return false; }
-    return true;
-}
-
-bool backend_consume(Backend *backend) {
-    if (!PQconsumeInput(backend->conn)) { elog(WARNING, "%s:%s !PQconsumeInput and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); return false; }
-    return true;
-}
-
-bool backend_consume_flush_busy(Backend *backend) {
-    if (!backend_consume(backend)) return false;
-    if (!backend_flush(backend)) return false;
-    if (!backend_busy(backend, WL_SOCKET_READABLE)) return false;
-    return true;
-}
-
-bool backend_flush(Backend *backend) {
-    switch (PQflush(backend->conn)) {
-        case 0: break;
-        case 1: elog(DEBUG1, "PQflush == 1"); backend->event = WL_SOCKET_MASK; return false;
-        case -1: elog(WARNING, "%s:%s PQflush == -1 and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); return false;
-    }
-    return true;
-}
-
 int backend_nevents(void) {
     int nevents = 0;
     dlist_mutable_iter iter;
@@ -70,7 +44,6 @@ static void backend_listen_result(Backend *backend) {
             default: elog(WARNING, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
-        if (!backend_consume_flush_busy(backend)) return;
     }
     if (ok) backend_idle(backend);
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
@@ -81,7 +54,6 @@ static void backend_listen(Backend *backend) {
     const char *channel_quote;
     StringInfoData buf;
     backend->socket = backend_listen;
-    if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
     channel_quote = quote_identifier(channel);
     initStringInfoMy(TopMemoryContext, &buf);
     appendStringInfo(&buf, SQL(LISTEN %s), channel_quote);
@@ -89,7 +61,6 @@ static void backend_listen(Backend *backend) {
     if (!PQsendQuery(backend->conn, buf.data)) { elog(WARNING, "%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
     pfree(buf.data);
     backend->socket = backend_listen_result;
-    if (!backend_flush(backend)) return;
     backend->event = WL_SOCKET_READABLE;
 }
 
@@ -214,7 +185,6 @@ static void backend_idle_result(Backend *backend) {
             default: elog(DEBUG1, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
-        if (!backend_consume_flush_busy(backend)) return;
     }
 }
 
@@ -242,11 +212,9 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_readable(Backend *backend) {
-    if (PQstatus(backend->conn) == CONNECTION_OK) if (!backend_consume_flush_busy(backend)) return;
     for (PGnotify *notify; PQstatus(backend->conn) == CONNECTION_OK && (notify = PQnotifies(backend->conn)); ) {
         if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
         PQfreemem(notify);
-        if (!backend_consume_flush_busy(backend)) return;
     }
     backend->socket(backend);
 }
@@ -276,6 +244,5 @@ void backend_update(Backend *backend, state_t state) {
 }
 
 void backend_writeable(Backend *backend) {
-    if (PQstatus(backend->conn) == CONNECTION_OK) if (!backend_flush(backend)) return;
     backend->socket(backend);
 }

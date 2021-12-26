@@ -129,7 +129,6 @@ static void standby_select_result(Backend *backend) {
             default: elog(WARNING, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
         }
         PQclear(result);
-        if (!backend_consume_flush_busy(backend)) return;
     }
     if (ok) backend_idle(backend);
     else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
@@ -137,10 +136,8 @@ static void standby_select_result(Backend *backend) {
 
 static void standby_select(Backend *backend) {
     backend->socket = standby_select;
-    if (!backend_busy(backend, WL_SOCKET_WRITEABLE)) return;
     if (!PQsendQuery(backend->conn, SQL(SELECT * FROM pg_stat_replication WHERE state = 'streaming' AND NOT EXISTS (SELECT * FROM pg_stat_progress_basebackup)))) { elog(WARNING, "%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); return; }
     backend->socket = standby_select_result;
-    if (!backend_flush(backend)) return;
     backend->event = WL_SOCKET_READABLE;
 }
 
