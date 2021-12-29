@@ -97,43 +97,11 @@ void init_set_host(const char *host, state_t state) {
     pfree(buf.data);
 }
 
-static void init_notify(state_t state) {
-    const char *channel = hostname;
-    const char *payload = init_state2char(state);
-    const char *channel_quote = quote_identifier(channel);
-    const char *payload_quote = quote_literal_cstr(payload);
-    bool idle = !IsTransactionOrTransactionBlock();
-    StringInfoData buf;
-    PlannedStmt *pstmt = makeNode(PlannedStmt);
-    NotifyStmt *n = makeNode(NotifyStmt);
-    pstmt->commandType = CMD_UTILITY;
-    pstmt->canSetTag = false;
-    pstmt->utilityStmt = (Node *)n;
-    n->conditionname = (char *)channel;
-    n->payload = (char *)payload;
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, SQL(NOTIFY %s, %s), channel_quote, payload_quote);
-    if (channel_quote != channel) pfree((void *)channel_quote);
-    pfree((void *)payload_quote);
-    if (idle) StartTransactionCommand();
-#if PG_VERSION_NUM >= 140000
-    ProcessUtility(pstmt, buf.data, false, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
-#elif PG_VERSION_NUM >= 100000
-    ProcessUtility(pstmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, NULL, None_Receiver, NULL);
-#else
-    ProcessUtility(pstmt->utilityStmt, buf.data, PROCESS_UTILITY_TOPLEVEL, NULL, None_Receiver, NULL);
-#endif
-    if (idle) CommitTransactionCommand();
-    MemoryContextSwitchTo(TopMemoryContext);
-    pfree(buf.data);
-}
-
 void init_set_state(state_t state) {
     elog(DEBUG1, "state = %s", init_state2char(state));
     init_set_system("pg_save.state", init_state2char(state));
     init_state = state;
     init_set_host(hostname, state);
-    init_notify(state);
     switch (state) {
         case state_async: break;
         case state_initial: break;

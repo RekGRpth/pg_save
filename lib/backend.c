@@ -36,39 +36,10 @@ int backend_nevents(void) {
     return nevents;
 }
 
-static void backend_listen_result(Backend *backend) {
-    bool ok = false;
-    for (PGresult *result; PQstatus(backend->conn) == CONNECTION_OK && (result = PQgetResult(backend->conn)); ) {
-        switch (PQresultStatus(result)) {
-            case PGRES_COMMAND_OK: ok = true; break;
-            default: elog(WARNING, "%s:%s PQresultStatus = %s and %s", backend->host, init_state2char(backend->state), PQresStatus(PQresultStatus(result)), PQresultErrorMessageMy(result)); break;
-        }
-        PQclear(result);
-    }
-    if (ok) backend_idle(backend);
-    else if (PQstatus(backend->conn) == CONNECTION_OK) backend_finish(backend);
-}
-
-static void backend_listen(Backend *backend) {
-    const char *channel = backend->host;
-    const char *channel_quote;
-    StringInfoData buf;
-    backend->socket = backend_listen;
-    channel_quote = quote_identifier(channel);
-    initStringInfoMy(TopMemoryContext, &buf);
-    appendStringInfo(&buf, SQL(LISTEN %s), channel_quote);
-    if (channel_quote != channel) pfree((void *)channel_quote);
-    if (!PQsendQuery(backend->conn, buf.data)) { elog(WARNING, "%s:%s !PQsendQuery and %s", backend->host, init_state2char(backend->state), PQerrorMessageMy(backend->conn)); backend_finish(backend); pfree(buf.data); return; }
-    pfree(buf.data);
-    backend->socket = backend_listen_result;
-    backend->event = WL_SOCKET_READABLE;
-}
-
 static void backend_connected(Backend *backend) {
     elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     backend->attempt = 0;
     init_set_host(backend->host, backend->state);
-    backend_listen(backend);
     RecoveryInProgress() ? standby_connected(backend) : primary_connected(backend);
     init_reload();
 }
@@ -108,12 +79,6 @@ static void backend_connect_or_reset(Backend *backend) {
     const char *keywords[] = {"host", "port", "user", "dbname", "application_name", "target_session_attrs", NULL};
     const char *values[] = {backend->host, pgport ? pgport : DEF_PGPORT_STR, "postgres", "postgres", hostname, backend->state <= state_primary ? "read-write" : "any", NULL};
     StaticAssertStmt(countof(keywords) == countof(values), "countof(keywords) == countof(values)");
-    /*switch (PQpingParams(keywords, values, false)) {
-        case PQPING_NO_ATTEMPT: elog(WARNING, "%s:%s PQPING_NO_ATTEMPT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
-        case PQPING_NO_RESPONSE: elog(WARNING, "%s:%s PQPING_NO_RESPONSE and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
-        case PQPING_OK: elog(DEBUG1, "%s:%s PQPING_OK", backend->host, init_state2char(backend->state)); break;
-        case PQPING_REJECT: elog(WARNING, "%s:%s PQPING_REJECT and %i < %i", backend->host, init_state2char(backend->state), backend->attempt, init_attempt); backend_fail(backend); return;
-    }*/
     if (!backend->conn) {
         if (!(backend->conn = PQconnectStartParams(keywords, values, false))) { elog(WARNING, "%s:%s !PQconnectStartParams and %i < %i and %s", backend->host, init_state2char(backend->state), backend->attempt, init_attempt, PQerrorMessageMy(backend->conn)); backend_fail(backend); return; }
         backend->socket = backend_create_socket;
@@ -200,11 +165,6 @@ void backend_init(void) {
     init_reload();
 }
 
-static void backend_notify(Backend *backend, state_t state) {
-    elog(DEBUG1, "%s:%s state = %s", backend->host, init_state2char(backend->state), init_state2char(state));
-    RecoveryInProgress() ? standby_notify(backend, state) : primary_notify(backend, state);
-}
-
 static void backend_updated(Backend *backend) {
     elog(DEBUG1, "%s:%s", backend->host, init_state2char(backend->state));
     RecoveryInProgress() ? standby_updated(backend) : primary_updated(backend);
@@ -213,10 +173,6 @@ static void backend_updated(Backend *backend) {
 
 void backend_readable(Backend *backend) {
     if (PQstatus(backend->conn) == CONNECTION_OK && !PQconsumeInput(backend->conn)) return;
-    for (PGnotify *notify; PQstatus(backend->conn) == CONNECTION_OK && (notify = PQnotifies(backend->conn)); ) {
-        if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
-        PQfreemem(notify);
-    }
     backend->socket(backend);
 }
 

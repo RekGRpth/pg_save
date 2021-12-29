@@ -90,10 +90,6 @@ void standby_init(void) {
 #endif
 }
 
-void standby_notify(Backend *backend, state_t state) {
-    if (backend->state == state_sync && init_state == state_potential && (state == state_wait_primary || state == state_primary)) standby_reprimary(backend);
-}
-
 static void standby_result(Backend *backend, PGresult *result) {
     for (int row = 0; row < PQntuples(result); row++) {
         const char *host = PQgetvalue(result, row, PQfnumber(result, "application_name"));
@@ -110,7 +106,6 @@ static void standby_result(Backend *backend, PGresult *result) {
         default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
     } else switch (init_state) {
         case state_async: break;
-//        case state_initial: break;
         case state_potential: break;
         case state_quorum: break;
         case state_sync: break;

@@ -121,11 +121,7 @@ static void main_conf(void) {
         max_wal_senders = '3'\n
     ));
     if (arclog) appendPQExpBuffer(&buf, CONF(restore_command = 'gunzip -cfk "%s/%%f.gz" >"%%p"'\n), arclog);
-#if PG_VERSION_NUM >= 130000
-    appendPQExpBufferStr(&buf, CONF(
-        shared_preload_libraries = 'pg_async,pg_save'\n
-    ));
-#elif PG_VERSION_NUM >= 120000
+#if PG_VERSION_NUM >= 120000
     appendPQExpBufferStr(&buf, CONF(
         shared_preload_libraries = 'pg_save'\n
     ));

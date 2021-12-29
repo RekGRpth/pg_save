@@ -38,14 +38,6 @@ void primary_init(void) {
     }
 }
 
-void primary_notify(Backend *backend, state_t state) {
-    switch (init_state) {
-        case state_primary: break;
-        case state_wait_primary: init_set_state(state_primary); break;
-        default: ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR), errmsg("unknown init_state = %s", init_state2char(init_state)))); break;
-    }
-}
-
 static void primary_demote(void) {
     Backend *backend;
     if (backend_nevents() < 2) return;
