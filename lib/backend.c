@@ -212,6 +212,7 @@ static void backend_updated(Backend *backend) {
 }
 
 void backend_readable(Backend *backend) {
+    if (PQstatus(backend->conn) == CONNECTION_OK && !PQconsumeInput(backend->conn)) return;
     for (PGnotify *notify; PQstatus(backend->conn) == CONNECTION_OK && (notify = PQnotifies(backend->conn)); ) {
         if (MyProcPid != notify->be_pid) backend_notify(backend, init_char2state(notify->extra));
         PQfreemem(notify);
