@@ -48,14 +48,6 @@ state_t init_host(const char *host) {
     return state_unknown;
 }
 
-static Node *makeStringConst(char *str, int location) {
-    A_Const *n = makeNode(A_Const);
-    n->val.type = T_String;
-    n->val.val.str = str;
-    n->location = location;
-    return (Node *)n;
-}
-
 void init_backend(void) {
 #define XX(name) if (init_state != state_##name && init_##name) backend_create(init_##name, state_##name);
     STATE_MAP(XX)
@@ -130,7 +122,7 @@ void init_set_system(const char *name, const char *new) {
     stmt->setstmt = makeNode(VariableSetStmt);
     stmt->setstmt->name = (char *)name;
     stmt->setstmt->kind = !new_isnull ? VAR_SET_VALUE : VAR_RESET;
-    if (!new_isnull) stmt->setstmt->args = list_make1(makeStringConst((char *)new, -1));
+    if (!new_isnull) stmt->setstmt->args = list_make1(makeString((char *)new));
     AlterSystemSetConfigFile(stmt);
     if (!new_isnull) list_free_deep(stmt->setstmt->args);
     pfree(stmt->setstmt);
